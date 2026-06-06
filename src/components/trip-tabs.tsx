@@ -280,6 +280,10 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
         )}
       </section>
 
+      {summary.rows.length > 0 && (
+        <CostCharts rows={summary.rows} currency={summary.currency} />
+      )}
+
       <section className="rounded-2xl border border-border/60 bg-card p-5">
         <h3 className="font-display text-lg">Log a cost</h3>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
