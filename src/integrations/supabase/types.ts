@@ -54,6 +54,7 @@ export type Database = {
           description: string | null
           id: string
           image_url: string | null
+          is_past: boolean
           region: string
           title: string
           user_id: string
@@ -65,6 +66,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          is_past?: boolean
           region: string
           title: string
           user_id: string
@@ -76,6 +78,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          is_past?: boolean
           region?: string
           title?: string
           user_id?: string
@@ -89,6 +92,8 @@ export type Database = {
           description: string | null
           end_date: string | null
           id: string
+          latitude: number | null
+          longitude: number | null
           name: string
           region: string
           start_date: string
@@ -101,6 +106,8 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name: string
           region: string
           start_date: string
@@ -113,6 +120,8 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           region?: string
           start_date?: string
@@ -141,6 +150,41 @@ export type Database = {
           id?: string
         }
         Relationships: []
+      }
+      trip_ratings: {
+        Row: {
+          created_at: string
+          destination_id: string
+          feedback: string | null
+          id: string
+          rating: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          destination_id: string
+          feedback?: string | null
+          id?: string
+          rating: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          destination_id?: string
+          feedback?: string | null
+          id?: string
+          rating?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_ratings_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       votes: {
         Row: {
@@ -173,7 +217,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_trip_rating_aggregate: {
+        Args: { _destination_id: string }
+        Returns: {
+          avg_rating: number
+          feedbacks: string[]
+          rating_count: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
