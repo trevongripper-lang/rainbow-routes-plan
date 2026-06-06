@@ -144,35 +144,55 @@ function TripDetail() {
         </div>
       </header>
 
-      <StaysSection title={dest.title} country={dest.country} />
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="flex w-full flex-wrap justify-start gap-1 bg-card/60 p-1">
+          <TabsTrigger value="overview">Chatter</TabsTrigger>
+          <TabsTrigger value="stays">Where to stay</TabsTrigger>
+          <TabsTrigger value="tickets">Tickets</TabsTrigger>
+          <TabsTrigger value="costs">Costs</TabsTrigger>
+          {dest.is_past && <TabsTrigger value="ratings">Ratings</TabsTrigger>}
+        </TabsList>
 
-      {dest.is_past && me && <RatingsSection destinationId={id} me={me} />}
+        <TabsContent value="overview" className="mt-6">
+          <section>
+            <h2 className="font-display text-2xl">Chatter</h2>
+            <p className="text-sm text-muted-foreground">Trip tips, flight finds, club intel.</p>
 
-      <section>
-        <h2 className="font-display text-2xl">Chatter</h2>
-        <p className="text-sm text-muted-foreground">Trip tips, flight finds, club intel.</p>
+            <form onSubmit={(e) => { e.preventDefault(); addComment.mutate(); }} className="mt-4 space-y-2">
+              <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add to the chatter..." rows={3} />
+              <div className="flex justify-end"><Button type="submit" disabled={addComment.isPending || !body.trim()}>Post</Button></div>
+            </form>
 
-        <form onSubmit={(e) => { e.preventDefault(); addComment.mutate(); }} className="mt-4 space-y-2">
-          <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add to the chatter..." rows={3} />
-          <div className="flex justify-end"><Button type="submit" disabled={addComment.isPending || !body.trim()}>Post</Button></div>
-        </form>
+            <ul className="mt-6 space-y-3">
+              {comments.length === 0 && <li className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No chatter yet. Kick it off.</li>}
+              {comments.map((c) => (
+                <li key={c.id} className="rounded-xl border border-border/60 bg-card p-4">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="grid size-6 place-items-center rounded-full bg-primary/20 text-[10px] font-medium text-primary">
+                      {(c.author?.display_name ?? "?").slice(0, 1).toUpperCase()}
+                    </div>
+                    <span className="text-foreground">{c.author?.display_name ?? "Someone"}</span>
+                    <span>· {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}</span>
+                  </div>
+                  <p className="mt-2 whitespace-pre-wrap text-sm">{c.body}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </TabsContent>
 
-        <ul className="mt-6 space-y-3">
-          {comments.length === 0 && <li className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No chatter yet. Kick it off.</li>}
-          {comments.map((c) => (
-            <li key={c.id} className="rounded-xl border border-border/60 bg-card p-4">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <div className="grid size-6 place-items-center rounded-full bg-primary/20 text-[10px] font-medium text-primary">
-                  {(c.author?.display_name ?? "?").slice(0, 1).toUpperCase()}
-                </div>
-                <span className="text-foreground">{c.author?.display_name ?? "Someone"}</span>
-                <span>· {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}</span>
-              </div>
-              <p className="mt-2 whitespace-pre-wrap text-sm">{c.body}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+        {me && (
+          <>
+            <TabsContent value="stays" className="mt-6"><StaysTab destinationId={id} me={me} title={dest.title} country={dest.country} /></TabsContent>
+            <TabsContent value="tickets" className="mt-6"><TicketsTab destinationId={id} me={me} /></TabsContent>
+            <TabsContent value="costs" className="mt-6"><CostsTab destinationId={id} me={me} headcount={dest.headcount ?? 2} isOwner={isOwner} /></TabsContent>
+          </>
+        )}
+
+        {dest.is_past && me && (
+          <TabsContent value="ratings" className="mt-6"><RatingsSection destinationId={id} me={me} /></TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 }
