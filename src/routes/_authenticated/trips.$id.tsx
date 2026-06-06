@@ -9,6 +9,7 @@ import { ArrowLeft, ArrowUp, MapPin, Trash2, Star, Archive, RotateCcw } from "lu
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { StaysTab, TicketsTab, CostsTab } from "@/components/trip-tabs";
+import { FlightsTab } from "@/components/flights-tab";
 
 export const Route = createFileRoute("/_authenticated/trips/$id")({
   component: TripDetail,
