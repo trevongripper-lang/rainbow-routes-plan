@@ -40,12 +40,17 @@ export default function EventsMap({ events }: { events: EventRow[] }) {
                   {format(parseISO(e.start_date), "MMM d, yyyy")}
                   {e.end_date && e.end_date !== e.start_date ? ` – ${format(parseISO(e.end_date), "MMM d, yyyy")}` : ""}
                 </div>
-                {e.url && <a href={e.url} target="_blank" rel="noreferrer" className="text-xs underline">More info</a>}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-      </MarkerClusterGroup>
+              {(() => {
+                const href = e.url && /^https?:\/\//i.test(e.url)
+                  ? e.url
+                  : `https://www.google.com/search?q=${encodeURIComponent(`${e.name} ${e.city}`)}`;
+                return <a href={href} target="_blank" rel="noreferrer noopener" className="text-xs underline">More info</a>;
+              })()}
+            </div>
+          </Popup>
+        </Marker>
+      ))}
+    </MarkerClusterGroup>
     </MapContainer>
   );
 }
