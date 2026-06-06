@@ -335,3 +335,80 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     </div>
   );
 }
+
+/* -------------------------- COST CHARTS -------------------------- */
+
+type CostRow = { category: string; sharedCents: number; perPersonCents: number; perPersonShareCents: number; currency: string };
+
+const CAT_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--secondary))", "hsl(var(--muted-foreground))", "hsl(var(--destructive))", "hsl(var(--ring))"];
+
+function CostCharts({ rows, currency }: { rows: CostRow[]; currency: string }) {
+  const totalShared = rows.reduce((a, r) => a + r.sharedCents, 0);
+  const totalPerPerson = rows.reduce((a, r) => a + r.perPersonCents, 0);
+  const totalTrip = totalShared + totalPerPerson;
+
+  const pieData = rows
+    .map((r, i) => ({ name: r.category, value: (r.sharedCents + r.perPersonCents) / 100, fill: CAT_COLORS[i % CAT_COLORS.length] }))
+    .filter((d) => d.value > 0);
+
+  const barData = rows.map((r) => ({ category: r.category, perPerson: Math.round(r.perPersonShareCents) / 100 }));
+
+  const chartConfig = Object.fromEntries(rows.map((r, i) => [r.category, { label: r.category, color: CAT_COLORS[i % CAT_COLORS.length] }]));
+
+  const fmt = (cents: number) => `${(cents / 100).toFixed(2)} ${currency}`;
+
+  return (
+    <section className="rounded-2xl border border-border/60 bg-card p-5">
+      <div className="flex items-center gap-2">
+        <Wallet className="size-5 text-primary" />
+        <h3 className="font-display text-lg">Breakdown</h3>
+      </div>
+
+      <div className="mt-4 grid gap-4 text-center sm:grid-cols-3">
+        <div className="rounded-xl border border-border/60 bg-background/40 p-3">
+          <div className="text-xs text-muted-foreground">Total trip</div>
+          <div className="font-display text-xl">{fmt(totalTrip)}</div>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-background/40 p-3">
+          <div className="text-xs text-muted-foreground">Shared pool</div>
+          <div className="font-display text-xl">{fmt(totalShared)}</div>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-background/40 p-3">
+          <div className="text-xs text-muted-foreground">Per-person items</div>
+          <div className="font-display text-xl">{fmt(totalPerPerson)}</div>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-6 md:grid-cols-2">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">Share of total by category</p>
+          <ChartContainer config={chartConfig} className="mt-2 h-56 w-full">
+            <PieChart>
+              <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+              <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={45} outerRadius={80} paddingAngle={2}>
+                {pieData.map((d, i) => (
+                  <Cell key={i} fill={d.fill} />
+                ))}
+              </Pie>
+            </PieChart>
+          </ChartContainer>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">Per-person spend by category</p>
+          <ChartContainer config={chartConfig} className="mt-2 h-56 w-full">
+            <BarChart data={barData} layout="vertical" margin={{ left: 8, right: 8 }}>
+              <XAxis type="number" hide />
+              <YAxis type="category" dataKey="category" width={110} tick={{ fontSize: 11 }} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="perPerson" radius={4}>
+                {barData.map((_, i) => (
+                  <Cell key={i} fill={CAT_COLORS[i % CAT_COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        </div>
+      </div>
+    </section>
+  );
+}
