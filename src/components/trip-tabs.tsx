@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { BedDouble, ExternalLink, Ticket, Wallet, Trash2, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Pie, PieChart, Cell, BarChart, Bar, XAxis, YAxis } from "recharts";
 
 /* -------------------------- WHERE TO STAY -------------------------- */
 
