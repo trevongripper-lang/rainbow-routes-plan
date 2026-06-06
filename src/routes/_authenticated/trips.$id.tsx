@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, ArrowUp, MapPin, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowUp, MapPin, Trash2, Star, Archive, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -32,6 +32,15 @@ async function fetchTrip(id: string) {
     voted: !!votes?.some((v) => v.user_id === me),
     comments: (comments ?? []).map((c) => ({ ...c, author: pmap.get(c.user_id) })),
   };
+}
+
+async function fetchRatingData(id: string, me: string | undefined) {
+  const [{ data: agg }, mine] = await Promise.all([
+    supabase.rpc("get_trip_rating_aggregate", { _destination_id: id }),
+    me ? supabase.from("trip_ratings").select("*").eq("destination_id", id).eq("user_id", me).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  const a = (agg as any)?.[0] ?? { avg_rating: null, rating_count: 0, feedbacks: [] };
+  return { agg: a, mine: (mine as any)?.data ?? null };
 }
 
 function TripDetail() {
@@ -68,6 +77,19 @@ function TripDetail() {
     onSuccess: () => { toast.success("Deleted"); navigate({ to: "/trips" }); },
   });
 
+  const togglePast = useMutation({
+    mutationFn: async () => {
+      if (!data) return;
+      const { error } = await supabase.from("destinations").update({ is_past: !data.dest.is_past }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["trip", id] });
+      qc.invalidateQueries({ queryKey: ["trips"] });
+      toast.success(data?.dest.is_past ? "Moved back to upcoming" : "Archived as past trip");
+    },
+  });
+
   if (isLoading) return <div className="h-96 animate-pulse rounded-2xl bg-card/60" />;
   if (!data) return <div className="py-20 text-center text-muted-foreground">Trip not found.</div>;
 
@@ -91,26 +113,36 @@ function TripDetail() {
             <div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <MapPin className="size-3.5 text-primary" /> {dest.region}{dest.country ? ` · ${dest.country}` : ""}{dest.best_months ? ` · ${dest.best_months}` : ""}
+                {dest.is_past && <span className="ml-1 rounded-full bg-accent/30 px-2 py-0.5 text-accent-foreground">Past trip</span>}
               </div>
               <h1 className="mt-2 font-display text-4xl md:text-5xl">{dest.title}</h1>
               <p className="mt-2 text-sm text-muted-foreground">Pitched by {author?.display_name ?? "someone"}</p>
             </div>
-            <button
-              onClick={() => vote.mutate()}
-              className={`flex flex-col items-center rounded-2xl border px-5 py-3 text-base transition ${voted ? "border-primary bg-primary/15 text-primary" : "border-border hover:border-primary/50"}`}
-            >
-              <ArrowUp className="size-5" />
-              <span className="font-medium tabular-nums">{votes}</span>
-            </button>
+            {!dest.is_past && (
+              <button
+                onClick={() => vote.mutate()}
+                className={`flex flex-col items-center rounded-2xl border px-5 py-3 text-base transition ${voted ? "border-primary bg-primary/15 text-primary" : "border-border hover:border-primary/50"}`}
+              >
+                <ArrowUp className="size-5" />
+                <span className="font-medium tabular-nums">{votes}</span>
+              </button>
+            )}
           </div>
           {dest.description && <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">{dest.description}</p>}
           {isOwner && (
-            <button onClick={() => deleteTrip.mutate()} className="mt-5 inline-flex items-center gap-1.5 text-xs text-destructive hover:underline">
-              <Trash2 className="size-3.5" /> Delete this pitch
-            </button>
+            <div className="mt-5 flex flex-wrap gap-4 text-xs">
+              <button onClick={() => togglePast.mutate()} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+                {dest.is_past ? <><RotateCcw className="size-3.5" /> Move back to upcoming</> : <><Archive className="size-3.5" /> Archive as past trip</>}
+              </button>
+              <button onClick={() => deleteTrip.mutate()} className="inline-flex items-center gap-1.5 text-destructive hover:underline">
+                <Trash2 className="size-3.5" /> Delete this pitch
+              </button>
+            </div>
           )}
         </div>
       </header>
+
+      {dest.is_past && me && <RatingsSection destinationId={id} me={me} />}
 
       <section>
         <h2 className="font-display text-2xl">Chatter</h2>
@@ -138,5 +170,106 @@ function TripDetail() {
         </ul>
       </section>
     </div>
+  );
+}
+
+function RatingsSection({ destinationId, me }: { destinationId: string; me: string }) {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ["ratings", destinationId],
+    queryFn: () => fetchRatingData(destinationId, me),
+  });
+  const [stars, setStars] = useState<number>(0);
+  const [feedback, setFeedback] = useState("");
+  const [hover, setHover] = useState(0);
+
+  // Hydrate form once user's existing rating loads
+  if (data?.mine && stars === 0 && feedback === "") {
+    setStars(data.mine.rating);
+    setFeedback(data.mine.feedback ?? "");
+  }
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!stars) throw new Error("Pick a star rating first");
+      const { error } = await supabase.from("trip_ratings").upsert(
+        { destination_id: destinationId, user_id: me, rating: stars, feedback: feedback.trim() || null },
+        { onConflict: "destination_id,user_id" },
+      );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Thanks for rating!");
+      qc.invalidateQueries({ queryKey: ["ratings", destinationId] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const avg = data?.agg?.avg_rating ? Number(data.agg.avg_rating) : 0;
+  const count = Number(data?.agg?.rating_count ?? 0);
+  const feedbacks: string[] = data?.agg?.feedbacks ?? [];
+
+  return (
+    <section className="rounded-3xl border border-border/60 bg-card p-6 md:p-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 className="font-display text-2xl">How was the trip?</h2>
+          <p className="text-sm text-muted-foreground">Ratings & feedback are aggregated and anonymous.</p>
+        </div>
+        {count > 0 && (
+          <div className="text-right">
+            <div className="font-display text-3xl text-primary">{avg.toFixed(1)}<span className="text-base text-muted-foreground">/5</span></div>
+            <div className="text-xs text-muted-foreground">{count} {count === 1 ? "rating" : "ratings"}</div>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-border/60 bg-background/40 p-5">
+        <p className="text-sm font-medium">Your rating</p>
+        <div className="mt-2 flex items-center gap-1" onMouseLeave={() => setHover(0)}>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onMouseEnter={() => setHover(n)}
+              onClick={() => setStars(n)}
+              className="p-1"
+            >
+              <Star className={`size-7 transition ${(hover || stars) >= n ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+            </button>
+          ))}
+        </div>
+        <Textarea
+          value={feedback}
+          onChange={(e) => setFeedback(e.target.value)}
+          placeholder="Anonymous feedback for the group — what worked, what to skip next time..."
+          rows={3}
+          className="mt-3"
+        />
+        <div className="mt-3 flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">Only the aggregate is shown to others.</p>
+          <Button onClick={() => save.mutate()} disabled={save.isPending || !stars}>
+            {data?.mine ? "Update rating" : "Submit rating"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <p className="text-sm font-medium">What the tribe said</p>
+        {isLoading ? (
+          <div className="mt-2 h-16 animate-pulse rounded-xl bg-card/60" />
+        ) : feedbacks.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">No feedback yet — be the first.</p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {feedbacks.map((f, i) => (
+              <li key={i} className="rounded-xl border border-border/60 bg-background/40 p-4 text-sm italic text-muted-foreground">
+                &ldquo;{f}&rdquo;
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
   );
 }

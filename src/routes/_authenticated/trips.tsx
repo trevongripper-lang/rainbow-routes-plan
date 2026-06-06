@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowUp, MapPin, MessageCircle, Plus } from "lucide-react";
+import { ArrowUp, MapPin, MessageCircle, Plus, Star } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/trips")({
@@ -17,6 +17,7 @@ export const Route = createFileRoute("/_authenticated/trips")({
 type DestRow = {
   id: string; user_id: string; title: string; region: string; country: string | null;
   description: string | null; image_url: string | null; best_months: string | null; created_at: string;
+  is_past: boolean;
 };
 
 async function fetchTrips() {
@@ -48,6 +49,9 @@ async function fetchTrips() {
 
 function TripsPage() {
   const { data, isLoading } = useQuery({ queryKey: ["trips"], queryFn: fetchTrips });
+  const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
+
+  const filtered = (data ?? []).filter((d) => (tab === "past" ? d.is_past : !d.is_past));
 
   return (
     <div>
@@ -59,17 +63,31 @@ function TripsPage() {
         <NewTripDialog />
       </div>
 
-      <div className="mt-8 grid gap-4 md:grid-cols-2">
+      <div className="mt-6 inline-flex rounded-full border border-border/60 bg-card p-1 text-sm">
+        {(["upcoming", "past"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`rounded-full px-4 py-1.5 capitalize transition ${tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            {t} trips
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
         {isLoading && Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="h-64 animate-pulse rounded-2xl bg-card/60" />
         ))}
-        {data?.length === 0 && (
+        {!isLoading && filtered.length === 0 && (
           <div className="col-span-full rounded-2xl border border-dashed border-border bg-card/30 p-10 text-center">
-            <p className="font-display text-xl">No destinations yet.</p>
-            <p className="mt-1 text-sm text-muted-foreground">Be the first to pitch one.</p>
+            <p className="font-display text-xl">{tab === "past" ? "No past trips yet." : "No destinations yet."}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {tab === "past" ? "Mark a trip as past from its detail page after the trip wraps." : "Be the first to pitch one."}
+            </p>
           </div>
         )}
-        {data?.map((d) => <TripCard key={d.id} d={d} />)}
+        {filtered.map((d) => <TripCard key={d.id} d={d} />)}
       </div>
     </div>
   );
@@ -105,19 +123,34 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
           <div className="absolute left-3 top-3 rounded-full bg-background/80 px-2.5 py-1 text-xs backdrop-blur">
             <MapPin className="mr-1 inline size-3 text-primary" />{d.region}
           </div>
+          {d.is_past && (
+            <div className="absolute right-3 top-3 rounded-full bg-accent/90 px-2.5 py-1 text-xs font-medium text-accent-foreground backdrop-blur">
+              Past trip
+            </div>
+          )}
         </div>
       </Link>
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <Link to="/trips/$id" params={{ id: d.id }} className="font-display text-xl hover:text-primary">{d.title}</Link>
-          <button
-            onClick={() => vote.mutate()}
-            disabled={vote.isPending}
-            className={`flex shrink-0 flex-col items-center rounded-xl border px-3 py-1.5 text-sm transition ${d.voted ? "border-primary bg-primary/15 text-primary" : "border-border hover:border-primary/50"}`}
-          >
-            <ArrowUp className="size-4" />
-            <span className="font-medium tabular-nums">{d.votes}</span>
-          </button>
+          {d.is_past ? (
+            <Link
+              to="/trips/$id"
+              params={{ id: d.id }}
+              className="flex shrink-0 items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-sm hover:border-primary/50"
+            >
+              <Star className="size-4 text-primary" /> Rate
+            </Link>
+          ) : (
+            <button
+              onClick={() => vote.mutate()}
+              disabled={vote.isPending}
+              className={`flex shrink-0 flex-col items-center rounded-xl border px-3 py-1.5 text-sm transition ${d.voted ? "border-primary bg-primary/15 text-primary" : "border-border hover:border-primary/50"}`}
+            >
+              <ArrowUp className="size-4" />
+              <span className="font-medium tabular-nums">{d.votes}</span>
+            </button>
+          )}
         </div>
         {d.country && <p className="mt-0.5 text-xs text-muted-foreground">{d.country}{d.best_months ? ` · ${d.best_months}` : ""}</p>}
         {d.description && <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{d.description}</p>}
