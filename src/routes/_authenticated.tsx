@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ComponentProps } from "react";
+import type { ComponentProps, SVGProps } from "react";
 import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight } from "lucide-react";
 import {
   Sidebar,
@@ -38,7 +38,7 @@ function AppShell() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const search = useRouterState({ select: (s) => s.location.search }) as Record<string, unknown>;
+  const search = useRouterState({ select: (s) => s.location.search as Record<string, unknown> });
 
   async function signOut() {
     await qc.cancelQueries();
@@ -108,13 +108,13 @@ function AppShell() {
 type NavItem = {
   to: "/trips" | "/events" | "/map" | "/me";
   label: string;
-  icon: (props: ComponentProps<"svg">) => JSX.Element;
+  icon: (props: SVGProps<SVGSVGElement>) => React.JSX.Element;
 };
 
 type TabItem = {
   key: string;
   label: string;
-  icon: (props: ComponentProps<"svg">) => JSX.Element;
+  icon: (props: SVGProps<SVGSVGElement>) => React.JSX.Element;
 };
 
 function AppSidebar({
