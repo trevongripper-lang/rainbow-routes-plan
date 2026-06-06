@@ -1,7 +1,9 @@
 import { createFileRoute, redirect, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight, type LucideIcon } from "lucide-react";
+import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight, List, type LucideIcon } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sidebar,
   SidebarContent,
