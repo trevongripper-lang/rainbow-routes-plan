@@ -147,7 +147,7 @@ function TripDetail() {
         </div>
       </header>
 
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => navigate({ to: "/trips/$id", params: { id }, search: { tab: v } })} className="w-full">
         <TabsList className="flex w-full flex-wrap justify-start gap-1 bg-card/60 p-1">
           <TabsTrigger value="overview">Chatter</TabsTrigger>
           <TabsTrigger value="stays">Where to stay</TabsTrigger>
