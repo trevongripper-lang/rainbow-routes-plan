@@ -64,7 +64,7 @@ function AppShell() {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-3 border-t border-border/60 bg-background/95 backdrop-blur md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-4 border-t border-border/60 bg-background/95 backdrop-blur md:hidden">
         {navItems.map((n) => {
           const active = pathname.startsWith(n.to);
           return (
