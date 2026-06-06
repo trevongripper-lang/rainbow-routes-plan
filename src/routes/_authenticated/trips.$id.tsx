@@ -151,6 +151,7 @@ function TripDetail() {
       <Tabs value={activeTab} onValueChange={(v) => navigate({ to: "/trips/$id", params: { id }, search: { tab: v } })} className="w-full">
         <TabsList className="flex w-full flex-wrap justify-start gap-1 bg-card/60 p-1">
           <TabsTrigger value="overview">Chatter</TabsTrigger>
+          <TabsTrigger value="flights">Travel plans</TabsTrigger>
           <TabsTrigger value="stays">Where to stay</TabsTrigger>
           <TabsTrigger value="tickets">Tickets</TabsTrigger>
           <TabsTrigger value="costs">Costs</TabsTrigger>
@@ -187,6 +188,7 @@ function TripDetail() {
 
         {me && (
           <>
+            <TabsContent value="flights" className="mt-6"><FlightsTab destinationId={id} me={me} /></TabsContent>
             <TabsContent value="stays" className="mt-6"><StaysTab destinationId={id} me={me} title={dest.title} country={dest.country} /></TabsContent>
             <TabsContent value="tickets" className="mt-6"><TicketsTab destinationId={id} me={me} /></TabsContent>
             <TabsContent value="costs" className="mt-6"><CostsTab destinationId={id} me={me} headcount={dest.headcount ?? 2} isOwner={isOwner} /></TabsContent>
