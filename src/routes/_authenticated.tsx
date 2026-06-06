@@ -139,6 +139,7 @@ function AppSidebar({
   tripsActive: boolean;
 }) {
   const { isMobile, setOpenMobile } = useSidebar();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [tripsOpen, setTripsOpen] = useState(tripsActive);
 
   useEffect(() => {
