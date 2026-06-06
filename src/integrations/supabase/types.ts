@@ -201,6 +201,57 @@ export type Database = {
           },
         ]
       }
+      trip_flights: {
+        Row: {
+          airline: string | null
+          arrive_airport: string | null
+          arrive_time: string | null
+          confirmation: string | null
+          created_at: string
+          depart_airport: string | null
+          depart_time: string | null
+          destination_id: string
+          flight_date: string | null
+          flight_number: string | null
+          id: string
+          notes: string | null
+          passenger_name: string | null
+          user_id: string
+        }
+        Insert: {
+          airline?: string | null
+          arrive_airport?: string | null
+          arrive_time?: string | null
+          confirmation?: string | null
+          created_at?: string
+          depart_airport?: string | null
+          depart_time?: string | null
+          destination_id: string
+          flight_date?: string | null
+          flight_number?: string | null
+          id?: string
+          notes?: string | null
+          passenger_name?: string | null
+          user_id: string
+        }
+        Update: {
+          airline?: string | null
+          arrive_airport?: string | null
+          arrive_time?: string | null
+          confirmation?: string | null
+          created_at?: string
+          depart_airport?: string | null
+          depart_time?: string | null
+          destination_id?: string
+          flight_date?: string | null
+          flight_number?: string | null
+          id?: string
+          notes?: string | null
+          passenger_name?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       trip_ratings: {
         Row: {
           created_at: string
