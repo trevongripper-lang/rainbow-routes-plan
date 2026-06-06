@@ -4,9 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, ArrowUp, MapPin, Trash2, Star, Archive, RotateCcw, BedDouble, ExternalLink } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ArrowLeft, ArrowUp, MapPin, Trash2, Star, Archive, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { StaysTab, TicketsTab, CostsTab } from "@/components/trip-tabs";
 
 export const Route = createFileRoute("/_authenticated/trips/$id")({
   component: TripDetail,
@@ -142,35 +144,55 @@ function TripDetail() {
         </div>
       </header>
 
-      <StaysSection title={dest.title} country={dest.country} />
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="flex w-full flex-wrap justify-start gap-1 bg-card/60 p-1">
+          <TabsTrigger value="overview">Chatter</TabsTrigger>
+          <TabsTrigger value="stays">Where to stay</TabsTrigger>
+          <TabsTrigger value="tickets">Tickets</TabsTrigger>
+          <TabsTrigger value="costs">Costs</TabsTrigger>
+          {dest.is_past && <TabsTrigger value="ratings">Ratings</TabsTrigger>}
+        </TabsList>
 
-      {dest.is_past && me && <RatingsSection destinationId={id} me={me} />}
+        <TabsContent value="overview" className="mt-6">
+          <section>
+            <h2 className="font-display text-2xl">Chatter</h2>
+            <p className="text-sm text-muted-foreground">Trip tips, flight finds, club intel.</p>
 
-      <section>
-        <h2 className="font-display text-2xl">Chatter</h2>
-        <p className="text-sm text-muted-foreground">Trip tips, flight finds, club intel.</p>
+            <form onSubmit={(e) => { e.preventDefault(); addComment.mutate(); }} className="mt-4 space-y-2">
+              <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add to the chatter..." rows={3} />
+              <div className="flex justify-end"><Button type="submit" disabled={addComment.isPending || !body.trim()}>Post</Button></div>
+            </form>
 
-        <form onSubmit={(e) => { e.preventDefault(); addComment.mutate(); }} className="mt-4 space-y-2">
-          <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add to the chatter..." rows={3} />
-          <div className="flex justify-end"><Button type="submit" disabled={addComment.isPending || !body.trim()}>Post</Button></div>
-        </form>
+            <ul className="mt-6 space-y-3">
+              {comments.length === 0 && <li className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No chatter yet. Kick it off.</li>}
+              {comments.map((c) => (
+                <li key={c.id} className="rounded-xl border border-border/60 bg-card p-4">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="grid size-6 place-items-center rounded-full bg-primary/20 text-[10px] font-medium text-primary">
+                      {(c.author?.display_name ?? "?").slice(0, 1).toUpperCase()}
+                    </div>
+                    <span className="text-foreground">{c.author?.display_name ?? "Someone"}</span>
+                    <span>· {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}</span>
+                  </div>
+                  <p className="mt-2 whitespace-pre-wrap text-sm">{c.body}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </TabsContent>
 
-        <ul className="mt-6 space-y-3">
-          {comments.length === 0 && <li className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No chatter yet. Kick it off.</li>}
-          {comments.map((c) => (
-            <li key={c.id} className="rounded-xl border border-border/60 bg-card p-4">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <div className="grid size-6 place-items-center rounded-full bg-primary/20 text-[10px] font-medium text-primary">
-                  {(c.author?.display_name ?? "?").slice(0, 1).toUpperCase()}
-                </div>
-                <span className="text-foreground">{c.author?.display_name ?? "Someone"}</span>
-                <span>· {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}</span>
-              </div>
-              <p className="mt-2 whitespace-pre-wrap text-sm">{c.body}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+        {me && (
+          <>
+            <TabsContent value="stays" className="mt-6"><StaysTab destinationId={id} me={me} title={dest.title} country={dest.country} /></TabsContent>
+            <TabsContent value="tickets" className="mt-6"><TicketsTab destinationId={id} me={me} /></TabsContent>
+            <TabsContent value="costs" className="mt-6"><CostsTab destinationId={id} me={me} headcount={dest.headcount ?? 2} isOwner={isOwner} /></TabsContent>
+          </>
+        )}
+
+        {dest.is_past && me && (
+          <TabsContent value="ratings" className="mt-6"><RatingsSection destinationId={id} me={me} /></TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 }
@@ -273,55 +295,6 @@ function RatingsSection({ destinationId, me }: { destinationId: string; me: stri
             ))}
           </ul>
         )}
-      </div>
-    </section>
-  );
-}
-
-function StaysSection({ title, country }: { title: string; country: string | null }) {
-  const q = encodeURIComponent([title, country].filter(Boolean).join(", "));
-  const links = [
-    {
-      name: "misterb&b",
-      tag: "Gay-friendly stays",
-      url: `https://www.misterbandb.com/s?query=${q}`,
-    },
-    {
-      name: "Airbnb",
-      tag: "Whole homes & rooms",
-      url: `https://www.airbnb.com/s/${q}/homes`,
-    },
-    {
-      name: "Vrbo",
-      tag: "Vacation rentals",
-      url: `https://www.vrbo.com/search?q=${q}`,
-    },
-  ];
-  return (
-    <section className="rounded-3xl border border-border/60 bg-card p-6 md:p-8">
-      <div className="flex items-center gap-2">
-        <BedDouble className="size-5 text-primary" />
-        <h2 className="font-display text-2xl">Where to stay</h2>
-      </div>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Pre-filled searches on third-party sites. misterb&amp;b is built for queer travelers.
-      </p>
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        {links.map((l) => (
-          <a
-            key={l.name}
-            href={l.url}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="group flex items-center justify-between rounded-2xl border border-border/60 bg-background/40 p-4 transition hover:border-primary/50 hover:bg-background/70"
-          >
-            <div>
-              <div className="font-medium">{l.name}</div>
-              <div className="text-xs text-muted-foreground">{l.tag}</div>
-            </div>
-            <ExternalLink className="size-4 text-muted-foreground transition group-hover:text-primary" />
-          </a>
-        ))}
       </div>
     </section>
   );

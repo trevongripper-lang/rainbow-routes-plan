@@ -52,6 +52,7 @@ export type Database = {
           country: string | null
           created_at: string
           description: string | null
+          headcount: number
           id: string
           image_url: string | null
           is_past: boolean
@@ -64,6 +65,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           description?: string | null
+          headcount?: number
           id?: string
           image_url?: string | null
           is_past?: boolean
@@ -76,6 +78,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           description?: string | null
+          headcount?: number
           id?: string
           image_url?: string | null
           is_past?: boolean
@@ -151,6 +154,53 @@ export type Database = {
         }
         Relationships: []
       }
+      trip_costs: {
+        Row: {
+          amount_cents: number
+          category: string
+          created_at: string
+          currency: string
+          destination_id: string
+          id: string
+          is_shared: boolean
+          label: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_cents: number
+          category: string
+          created_at?: string
+          currency?: string
+          destination_id: string
+          id?: string
+          is_shared?: boolean
+          label: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          category?: string
+          created_at?: string
+          currency?: string
+          destination_id?: string
+          id?: string
+          is_shared?: boolean
+          label?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_costs_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_ratings: {
         Row: {
           created_at: string
@@ -179,6 +229,88 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "trip_ratings_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_stays: {
+        Row: {
+          created_at: string
+          description: string | null
+          destination_id: string
+          id: string
+          title: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          destination_id: string
+          id?: string
+          title: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          destination_id?: string
+          id?: string
+          title?: string
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_stays_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_tickets: {
+        Row: {
+          created_at: string
+          currency: string
+          destination_id: string
+          id: string
+          name: string
+          notes: string | null
+          price_cents: number | null
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          destination_id: string
+          id?: string
+          name: string
+          notes?: string | null
+          price_cents?: number | null
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          destination_id?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          price_cents?: number | null
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_tickets_destination_id_fkey"
             columns: ["destination_id"]
             isOneToOne: false
             referencedRelation: "destinations"
