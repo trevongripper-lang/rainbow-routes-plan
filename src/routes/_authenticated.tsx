@@ -18,7 +18,7 @@ function AppShell() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const search = useRouterState({ select: (s) => s.location.search });
+  const search = useRouterState({ select: (s) => s.location.search }) as string;
   const [open, setOpen] = useState(false);
 
   async function signOut() {
