@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, ArrowUp, MapPin, Trash2, Star, Archive, RotateCcw } from "lucide-react";
@@ -184,10 +184,12 @@ function RatingsSection({ destinationId, me }: { destinationId: string; me: stri
   const [hover, setHover] = useState(0);
 
   // Hydrate form once user's existing rating loads
-  if (data?.mine && stars === 0 && feedback === "") {
-    setStars(data.mine.rating);
-    setFeedback(data.mine.feedback ?? "");
-  }
+  useEffect(() => {
+    if (data?.mine) {
+      setStars(data.mine.rating);
+      setFeedback(data.mine.feedback ?? "");
+    }
+  }, [data?.mine]);
 
   const save = useMutation({
     mutationFn: async () => {
