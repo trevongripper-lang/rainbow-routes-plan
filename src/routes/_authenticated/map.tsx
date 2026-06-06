@@ -10,6 +10,7 @@ import { CalendarDays } from "lucide-react";
 const EventsMap = lazy(() => import("@/components/EventsMap"));
 
 export const Route = createFileRoute("/_authenticated/map")({
+  ssr: false,
   component: MapPage,
 });
 
