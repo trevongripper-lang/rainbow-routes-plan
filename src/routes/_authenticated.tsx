@@ -1,8 +1,28 @@
 import { createFileRoute, redirect, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, Menu, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight } from "lucide-react";
+import type { ComponentProps } from "react";
+import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight } from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarProvider,
+  SidebarSeparator,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -18,8 +38,7 @@ function AppShell() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const search = (useRouterState({ select: (s) => s.location.search }) as unknown) as string;
-  const [open, setOpen] = useState(false);
+  const search = useRouterState({ select: (s) => s.location.search }) as Record<string, unknown>;
 
   async function signOut() {
     await qc.cancelQueries();
@@ -40,7 +59,6 @@ function AppShell() {
   /* Trip-detail contextual nav */
   const tripMatch = pathname.match(/^\/trips\/([^/]+)$/);
   const tripId = tripMatch?.[1];
-  const isPast = pathname.includes("/trips/") && pathname.split("/").length === 3; // rough, refined below
 
   const tabItems = tripId
     ? [
@@ -52,113 +70,149 @@ function AppShell() {
       ]
     : [];
 
-  const currentTab = new URLSearchParams(search).get("tab") || "overview";
+  const currentTab = typeof search.tab === "string" ? search.tab : "overview";
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Top bar with hamburger */}
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur">
-        <div className="flex items-center justify-between px-4 py-3 md:pl-72">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setOpen(true)}
-              className="rounded-md p-2 text-muted-foreground hover:bg-card hover:text-foreground md:hidden"
-              aria-label="Open menu"
-            >
-              <Menu className="size-5" />
-            </button>
-            <Link to="/trips" className="flex items-center gap-2 font-display text-lg md:hidden">
-              <span className="inline-block size-2.5 rounded-full bg-primary" />
-              Tribe Trips
-            </Link>
-          </div>
-          <button onClick={signOut} className="rounded-full p-2 text-muted-foreground hover:text-foreground" title="Sign out">
-            <LogOut className="size-4" />
-          </button>
-        </div>
-      </header>
+    <SidebarProvider defaultOpen>
+      <div className="min-h-screen w-full bg-background">
+        <AppSidebar navItems={navItems} isActive={isActive} tripId={tripId} currentTab={currentTab} tabItems={tabItems} />
 
-      {/* Sidebar — fixed on md+, drawer on mobile */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 w-72 border-r border-border/60 bg-card/95 backdrop-blur transition-transform md:translate-x-0 ${
-          open ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
-          <Link to="/trips" onClick={() => setOpen(false)} className="flex items-center gap-2 font-display text-lg">
+        <SidebarInset>
+          <header className="sticky top-0 z-20 border-b border-border/60 bg-background/80 backdrop-blur">
+            <div className="flex h-14 items-center justify-between px-4">
+              <div className="flex items-center gap-3">
+                <SidebarTrigger className="text-muted-foreground hover:bg-card hover:text-foreground" />
+                <Link to="/trips" className="flex items-center gap-2 font-display text-lg">
+                  <span className="inline-block size-2.5 rounded-full bg-primary" />
+                  Tribe Trips
+                </Link>
+              </div>
+
+              <button onClick={signOut} className="rounded-full p-2 text-muted-foreground hover:text-foreground" title="Sign out">
+                <LogOut className="size-4" />
+              </button>
+            </div>
+          </header>
+
+          <main className="px-4 py-6">
+            <div className="mx-auto max-w-5xl md:px-6">
+              <Outlet />
+            </div>
+          </main>
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+type NavItem = {
+  to: "/trips" | "/events" | "/map" | "/me";
+  label: string;
+  icon: (props: ComponentProps<"svg">) => JSX.Element;
+};
+
+type TabItem = {
+  key: string;
+  label: string;
+  icon: (props: ComponentProps<"svg">) => JSX.Element;
+};
+
+function AppSidebar({
+  navItems,
+  isActive,
+  tripId,
+  currentTab,
+  tabItems,
+}: {
+  navItems: readonly NavItem[];
+  isActive: (to: string) => boolean;
+  tripId?: string;
+  currentTab: string;
+  tabItems: TabItem[];
+}) {
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const closeMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
+
+  return (
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border/60">
+      <SidebarHeader className="border-b border-sidebar-border/60 px-4 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <Link to="/trips" onClick={closeMobile} className="flex items-center gap-2 font-display text-lg text-sidebar-foreground">
             <span className="inline-block size-2.5 rounded-full bg-primary" />
-            Tribe Trips
+            <span>Tribe Trips</span>
           </Link>
-          <button onClick={() => setOpen(false)} className="rounded-md p-1.5 text-muted-foreground hover:bg-background hover:text-foreground md:hidden" aria-label="Close menu">
-            <X className="size-5" />
-          </button>
+
+          {isMobile ? (
+            <button
+              onClick={() => setOpenMobile(false)}
+              className="rounded-md p-1.5 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              aria-label="Close menu"
+            >
+              <X className="size-5" />
+            </button>
+          ) : null}
         </div>
+      </SidebarHeader>
 
-        <nav className="flex flex-col gap-1 p-3">
-          {navItems.map((n) => {
-            const active = isActive(n.to);
-            return (
-              <Link
-                key={n.to}
-                to={n.to}
-                onClick={() => setOpen(false)}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
-                  active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-background hover:text-foreground"
-                }`}
-              >
-                <n.icon className="size-4" />
-                {n.label}
-                {active && tripId && n.to === "/trips" && <ChevronRight className="ml-auto size-4" />}
-              </Link>
-            );
-          })}
+      <SidebarContent className="px-2 py-3">
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map((item) => {
+                const active = isActive(item.to);
 
-          {/* Trip sub-nav */}
-          {tripId && (
-            <div className="mt-2 ml-4 border-l border-border/60 pl-3">
-              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">This trip</p>
-              {tabItems.map((t) => {
-                const active = currentTab === t.key;
                 return (
-                  <Link
-                    key={t.key}
-                    to={`/trips/${tripId}`}
-                    search={{ tab: t.key }}
-                    onClick={() => setOpen(false)}
-                    className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition ${
-                      active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-background hover:text-foreground"
-                    }`}
-                  >
-                    <t.icon className="size-4" />
-                    {t.label}
-                  </Link>
+                  <SidebarMenuItem key={item.to}>
+                    <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                      <Link to={item.to} onClick={closeMobile} className="flex items-center gap-2">
+                        <item.icon className="size-4" />
+                        <span>{item.label}</span>
+                        {active && tripId && item.to === "/trips" ? <ChevronRight className="ml-auto size-4" /> : null}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 );
               })}
-            </div>
-          )}
-        </nav>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-        <div className="absolute inset-x-0 bottom-0 border-t border-border/60 p-3">
-          <p className="px-3 pb-2 text-xs text-muted-foreground">
-            Open a trip to plan stays, tickets &amp; costs together.
-          </p>
-        </div>
-      </aside>
+        {tripId ? (
+          <SidebarGroup>
+            <SidebarGroupLabel>This trip</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenuSub>
+                {tabItems.map((tab) => (
+                  <SidebarMenuSubItem key={tab.key}>
+                    <SidebarMenuSubButton asChild isActive={currentTab === tab.key}>
+                      <Link
+                        to="/trips/$id"
+                        params={{ id: tripId }}
+                        search={{ tab: tab.key }}
+                        onClick={closeMobile}
+                        className="flex items-center gap-2"
+                      >
+                        <tab.icon className="size-4" />
+                        <span>{tab.label}</span>
+                      </Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                ))}
+              </SidebarMenuSub>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : null}
+      </SidebarContent>
 
-      {/* Backdrop for mobile drawer */}
-      {open && (
-        <button
-          onClick={() => setOpen(false)}
-          className="fixed inset-0 z-30 bg-background/70 backdrop-blur-sm md:hidden"
-          aria-label="Close menu backdrop"
-        />
-      )}
-
-      <main className="px-4 py-6 md:pl-72">
-        <div className="mx-auto max-w-5xl md:px-6">
-          <Outlet />
-        </div>
-      </main>
-    </div>
+      <SidebarFooter>
+        <SidebarSeparator />
+        <p className="px-2 py-1 text-xs text-sidebar-foreground/70">
+          Open a trip to plan stays, tickets &amp; costs together.
+        </p>
+      </SidebarFooter>
+    </Sidebar>
   );
 }
