@@ -1,5 +1,6 @@
 import { createFileRoute, redirect, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { getTripTabLinkProps } from "@/lib/trip-tab-link";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight, List, Plane, type LucideIcon } from "lucide-react";
@@ -203,37 +204,41 @@ function AppSidebar({
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
-                      {tabItems.map((tab) => (
-                        <SidebarMenuSubItem key={tab.key}>
-                          <SidebarMenuSubButton
-                            asChild
-                            isActive={!!tripId && currentTab === tab.key}
-                          >
-                            {tripId ? (
-                              <Link
-                                to="/trips/$id"
-                                params={{ id: tripId }}
-                                search={{ tab: tab.key }}
-                                onClick={closeMobile}
-                                className="flex items-center gap-2"
-                              >
-                                <tab.icon className="size-4" />
-                                <span>{tab.label}</span>
-                              </Link>
-                            ) : (
-                              <Link
-                                to="/trips"
-                                onClick={closeMobile}
-                                className="flex items-center gap-2 opacity-70"
-                                title="Open a trip to use this"
-                              >
-                                <tab.icon className="size-4" />
-                                <span>{tab.label}</span>
-                              </Link>
-                            )}
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
+                      {tabItems.map((tab) => {
+                        const linkProps = getTripTabLinkProps(tripId, tab.key);
+                        return (
+                          <SidebarMenuSubItem key={tab.key}>
+                            <SidebarMenuSubButton
+                              asChild
+                              isActive={linkProps.hasTrip && currentTab === tab.key}
+                            >
+                              {linkProps.hasTrip ? (
+                                <Link
+                                  to={linkProps.to}
+                                  params={linkProps.params}
+                                  search={linkProps.search}
+                                  onClick={closeMobile}
+                                  className="flex items-center gap-2"
+                                >
+                                  <tab.icon className="size-4" />
+                                  <span>{tab.label}</span>
+                                </Link>
+                              ) : (
+                                <Link
+                                  to={linkProps.to}
+                                  onClick={closeMobile}
+                                  className="flex items-center gap-2 opacity-70"
+                                  title={linkProps.title}
+                                >
+                                  <tab.icon className="size-4" />
+                                  <span>{tab.label}</span>
+                                </Link>
+                              )}
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        );
+                      })}
+
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </SidebarMenuItem>
