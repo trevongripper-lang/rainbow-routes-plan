@@ -61,7 +61,8 @@ function AppShell() {
   const tripId = tripMatch?.[1];
 
   const tabItems: TabItem[] = [
-    { key: "overview", label: "Travel plans", icon: MessageSquare },
+    { key: "overview", label: "Chatter", icon: MessageSquare },
+    { key: "flights", label: "Travel plans", icon: Plane },
     { key: "stays", label: "Where to stay", icon: BedDouble },
     { key: "tickets", label: "Tickets", icon: Ticket },
     { key: "costs", label: "Costs", icon: Wallet },
