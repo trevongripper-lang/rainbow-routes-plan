@@ -1,8 +1,7 @@
 import { createFileRoute, redirect, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ComponentProps, SVGProps } from "react";
-import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight } from "lucide-react";
+import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight, type LucideIcon } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -108,13 +107,13 @@ function AppShell() {
 type NavItem = {
   to: "/trips" | "/events" | "/map" | "/me";
   label: string;
-  icon: (props: SVGProps<SVGSVGElement>) => React.JSX.Element;
+  icon: LucideIcon;
 };
 
 type TabItem = {
   key: string;
   label: string;
-  icon: (props: SVGProps<SVGSVGElement>) => React.JSX.Element;
+  icon: LucideIcon;
 };
 
 function AppSidebar({
