@@ -2,7 +2,7 @@ import { createFileRoute, redirect, Outlet, Link, useNavigate, useRouterState } 
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, Menu, X } from "lucide-react";
+import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, Menu, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -18,6 +18,7 @@ function AppShell() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const search = useRouterState({ select: (s) => s.location.search });
   const [open, setOpen] = useState(false);
 
   async function signOut() {
@@ -35,6 +36,23 @@ function AppShell() {
   ] as const;
 
   const isActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
+
+  /* Trip-detail contextual nav */
+  const tripMatch = pathname.match(/^\/trips\/([^/]+)$/);
+  const tripId = tripMatch?.[1];
+  const isPast = pathname.includes("/trips/") && pathname.split("/").length === 3; // rough, refined below
+
+  const tabItems = tripId
+    ? [
+        { key: "overview", label: "Chatter", icon: MessageSquare },
+        { key: "stays", label: "Where to stay", icon: BedDouble },
+        { key: "tickets", label: "Tickets", icon: Ticket },
+        { key: "costs", label: "Costs", icon: Wallet },
+        { key: "ratings", label: "Ratings", icon: Star },
+      ]
+    : [];
+
+  const currentTab = new URLSearchParams(search).get("tab") || "overview";
 
   return (
     <div className="min-h-screen bg-background">
@@ -75,6 +93,7 @@ function AppShell() {
             <X className="size-5" />
           </button>
         </div>
+
         <nav className="flex flex-col gap-1 p-3">
           {navItems.map((n) => {
             const active = isActive(n.to);
@@ -89,10 +108,36 @@ function AppShell() {
               >
                 <n.icon className="size-4" />
                 {n.label}
+                {active && tripId && n.to === "/trips" && <ChevronRight className="ml-auto size-4" />}
               </Link>
             );
           })}
+
+          {/* Trip sub-nav */}
+          {tripId && (
+            <div className="mt-2 ml-4 border-l border-border/60 pl-3">
+              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">This trip</p>
+              {tabItems.map((t) => {
+                const active = currentTab === t.key;
+                return (
+                  <Link
+                    key={t.key}
+                    to={`/trips/${tripId}`}
+                    search={{ tab: t.key }}
+                    onClick={() => setOpen(false)}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition ${
+                      active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-background hover:text-foreground"
+                    }`}
+                  >
+                    <t.icon className="size-4" />
+                    {t.label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </nav>
+
         <div className="absolute inset-x-0 bottom-0 border-t border-border/60 p-3">
           <p className="px-3 pb-2 text-xs text-muted-foreground">
             Open a trip to plan stays, tickets &amp; costs together.
