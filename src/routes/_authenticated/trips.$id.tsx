@@ -142,6 +142,8 @@ function TripDetail() {
         </div>
       </header>
 
+      <StaysSection title={dest.title} country={dest.country} />
+
       {dest.is_past && me && <RatingsSection destinationId={id} me={me} />}
 
       <section>
