@@ -14,7 +14,160 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      comments: {
+        Row: {
+          body: string
+          created_at: string
+          destination_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          destination_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          destination_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      destinations: {
+        Row: {
+          best_months: string | null
+          country: string | null
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          region: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          best_months?: string | null
+          country?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          region: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          best_months?: string | null
+          country?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          region?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          city: string
+          country: string
+          description: string | null
+          end_date: string | null
+          id: string
+          name: string
+          region: string
+          start_date: string
+          tags: string | null
+          url: string | null
+        }
+        Insert: {
+          city: string
+          country: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          region: string
+          start_date: string
+          tags?: string | null
+          url?: string | null
+        }
+        Update: {
+          city?: string
+          country?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          region?: string
+          start_date?: string
+          tags?: string | null
+          url?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      votes: {
+        Row: {
+          created_at: string
+          destination_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          destination_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          destination_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "votes_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
