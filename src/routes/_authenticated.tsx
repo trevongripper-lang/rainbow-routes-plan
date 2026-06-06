@@ -49,7 +49,6 @@ function AppShell() {
   }
 
   const navItems = [
-    { to: "/trips", label: "Trips", icon: Compass },
     { to: "/events", label: "Events", icon: CalendarDays },
     { to: "/map", label: "Map", icon: MapIcon },
     { to: "/me", label: "Mine", icon: User2 },
@@ -61,22 +60,28 @@ function AppShell() {
   const tripMatch = pathname.match(/^\/trips\/([^/]+)$/);
   const tripId = tripMatch?.[1];
 
-  const tabItems = tripId
-    ? [
-        { key: "overview", label: "Chatter", icon: MessageSquare },
-        { key: "stays", label: "Where to stay", icon: BedDouble },
-        { key: "tickets", label: "Tickets", icon: Ticket },
-        { key: "costs", label: "Costs", icon: Wallet },
-        { key: "ratings", label: "Ratings", icon: Star },
-      ]
-    : [];
+  const tabItems: TabItem[] = [
+    { key: "overview", label: "Travel plans", icon: MessageSquare },
+    { key: "stays", label: "Where to stay", icon: BedDouble },
+    { key: "tickets", label: "Tickets", icon: Ticket },
+    { key: "costs", label: "Costs", icon: Wallet },
+    { key: "ratings", label: "Ratings", icon: Star },
+  ];
 
   const currentTab = typeof search.tab === "string" ? search.tab : "overview";
+  const tripsActive = isActive("/trips");
 
   return (
     <SidebarProvider defaultOpen>
       <div className="min-h-screen w-full bg-background">
-        <AppSidebar navItems={navItems} isActive={isActive} tripId={tripId} currentTab={currentTab} tabItems={tabItems} />
+        <AppSidebar
+          navItems={navItems}
+          isActive={isActive}
+          tripId={tripId}
+          currentTab={currentTab}
+          tabItems={tabItems}
+          tripsActive={tripsActive}
+        />
 
         <SidebarInset>
           <header className="sticky top-0 z-20 border-b border-border/60 bg-background/80 backdrop-blur">
@@ -107,7 +112,7 @@ function AppShell() {
 }
 
 type NavItem = {
-  to: "/trips" | "/events" | "/map" | "/me";
+  to: "/events" | "/map" | "/me";
   label: string;
   icon: LucideIcon;
 };
@@ -124,14 +129,21 @@ function AppSidebar({
   tripId,
   currentTab,
   tabItems,
+  tripsActive,
 }: {
   navItems: readonly NavItem[];
   isActive: (to: string) => boolean;
   tripId?: string;
   currentTab: string;
   tabItems: TabItem[];
+  tripsActive: boolean;
 }) {
   const { isMobile, setOpenMobile } = useSidebar();
+  const [tripsOpen, setTripsOpen] = useState(tripsActive);
+
+  useEffect(() => {
+    if (tripsActive) setTripsOpen(true);
+  }, [tripsActive]);
 
   const closeMobile = () => {
     if (isMobile) setOpenMobile(false);
@@ -162,16 +174,77 @@ function AppSidebar({
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
+              {/* Trips group with expandable sub-menu */}
+              <Collapsible open={tripsOpen} onOpenChange={setTripsOpen} className="group/collapsible">
+                <SidebarMenuItem>
+                  <div className="flex items-center">
+                    <SidebarMenuButton asChild isActive={tripsActive} tooltip="Trips" className="flex-1">
+                      <Link to="/trips" onClick={closeMobile} className="flex items-center gap-2">
+                        <Compass className="size-4" />
+                        <span>Trips</span>
+                      </Link>
+                    </SidebarMenuButton>
+                    <CollapsibleTrigger
+                      aria-label="Toggle trip menu"
+                      className="ml-1 rounded-md p-1.5 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    >
+                      <ChevronRight className={`size-4 transition-transform ${tripsOpen ? "rotate-90" : ""}`} />
+                    </CollapsibleTrigger>
+                  </div>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={pathname === "/trips"}>
+                          <Link to="/trips" onClick={closeMobile} className="flex items-center gap-2">
+                            <List className="size-4" />
+                            <span>My Trips</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      {tabItems.map((tab) => (
+                        <SidebarMenuSubItem key={tab.key}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={!!tripId && currentTab === tab.key}
+                          >
+                            {tripId ? (
+                              <Link
+                                to="/trips/$id"
+                                params={{ id: tripId }}
+                                search={{ tab: tab.key }}
+                                onClick={closeMobile}
+                                className="flex items-center gap-2"
+                              >
+                                <tab.icon className="size-4" />
+                                <span>{tab.label}</span>
+                              </Link>
+                            ) : (
+                              <Link
+                                to="/trips"
+                                onClick={closeMobile}
+                                className="flex items-center gap-2 opacity-70"
+                                title="Open a trip to use this"
+                              >
+                                <tab.icon className="size-4" />
+                                <span>{tab.label}</span>
+                              </Link>
+                            )}
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
+
               {navItems.map((item) => {
                 const active = isActive(item.to);
-
                 return (
                   <SidebarMenuItem key={item.to}>
                     <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
                       <Link to={item.to} onClick={closeMobile} className="flex items-center gap-2">
                         <item.icon className="size-4" />
                         <span>{item.label}</span>
-                        {active && tripId && item.to === "/trips" ? <ChevronRight className="ml-auto size-4" /> : null}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -180,32 +253,6 @@ function AppSidebar({
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {tripId ? (
-          <SidebarGroup>
-            <SidebarGroupLabel>This trip</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenuSub>
-                {tabItems.map((tab) => (
-                  <SidebarMenuSubItem key={tab.key}>
-                    <SidebarMenuSubButton asChild isActive={currentTab === tab.key}>
-                      <Link
-                        to="/trips/$id"
-                        params={{ id: tripId }}
-                        search={{ tab: tab.key }}
-                        onClick={closeMobile}
-                        className="flex items-center gap-2"
-                      >
-                        <tab.icon className="size-4" />
-                        <span>{tab.label}</span>
-                      </Link>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                ))}
-              </SidebarMenuSub>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ) : null}
       </SidebarContent>
 
       <SidebarFooter>
