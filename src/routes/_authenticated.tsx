@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Compass, CalendarDays, User2, LogOut } from "lucide-react";
+import { Compass, CalendarDays, User2, LogOut, Map as MapIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -28,6 +28,7 @@ function AppShell() {
   const navItems = [
     { to: "/trips", label: "Trips", icon: Compass },
     { to: "/events", label: "Events", icon: CalendarDays },
+    { to: "/map", label: "Map", icon: MapIcon },
     { to: "/me", label: "Mine", icon: User2 },
   ] as const;
 
@@ -63,7 +64,7 @@ function AppShell() {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-3 border-t border-border/60 bg-background/95 backdrop-blur md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-4 border-t border-border/60 bg-background/95 backdrop-blur md:hidden">
         {navItems.map((n) => {
           const active = pathname.startsWith(n.to);
           return (

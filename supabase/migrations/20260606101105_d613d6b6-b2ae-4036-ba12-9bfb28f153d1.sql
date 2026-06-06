@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.get_trip_rating_aggregate(uuid) FROM PUBLIC, anon;
