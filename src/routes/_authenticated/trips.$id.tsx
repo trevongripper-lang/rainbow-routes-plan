@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
@@ -47,6 +47,9 @@ async function fetchRatingData(id: string, me: string | undefined) {
 
 function TripDetail() {
   const { id } = Route.useParams();
+  const search = useSearch({ from: "/_authenticated/trips/$id" });
+  const tab = (search as Record<string, unknown>)?.tab as string | undefined;
+  const activeTab = tab || "overview";
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["trip", id], queryFn: () => fetchTrip(id) });
@@ -144,7 +147,7 @@ function TripDetail() {
         </div>
       </header>
 
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => navigate({ to: "/trips/$id", params: { id }, search: { tab: v } })} className="w-full">
         <TabsList className="flex w-full flex-wrap justify-start gap-1 bg-card/60 p-1">
           <TabsTrigger value="overview">Chatter</TabsTrigger>
           <TabsTrigger value="stays">Where to stay</TabsTrigger>
