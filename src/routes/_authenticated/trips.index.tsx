@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ArrowUp, MapPin, MessageCircle, Plus, Star } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/trips")({
+export const Route = createFileRoute("/_authenticated/trips/")({
   component: TripsPage,
 });
 
