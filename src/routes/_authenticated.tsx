@@ -2,7 +2,7 @@ import { createFileRoute, redirect, Outlet, Link, useNavigate, useRouterState } 
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight, List, type LucideIcon } from "lucide-react";
+import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight, List, Plane, type LucideIcon } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sidebar,
@@ -61,7 +61,8 @@ function AppShell() {
   const tripId = tripMatch?.[1];
 
   const tabItems: TabItem[] = [
-    { key: "overview", label: "Travel plans", icon: MessageSquare },
+    { key: "overview", label: "Chatter", icon: MessageSquare },
+    { key: "flights", label: "Travel plans", icon: Plane },
     { key: "stays", label: "Where to stay", icon: BedDouble },
     { key: "tickets", label: "Tickets", icon: Ticket },
     { key: "costs", label: "Costs", icon: Wallet },
