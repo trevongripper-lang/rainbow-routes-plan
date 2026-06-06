@@ -1,13 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { format, addMonths, parseISO } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CalendarDays } from "lucide-react";
 
-const EventsMap = lazy(() => import("@/components/EventsMap"));
+type EventRow = {
+  id: string;
+  name: string;
+  city: string;
+  country: string;
+  start_date: string;
+  end_date: string | null;
+  url: string | null;
+  latitude: number | null;
+  longitude: number | null;
+};
 
 export const Route = createFileRoute("/_authenticated/map")({
   ssr: false,
@@ -26,7 +36,22 @@ function MapPage() {
   const [from, setFrom] = useState(format(today, "yyyy-MM-dd"));
   const [to, setTo] = useState(format(addMonths(today, 6), "yyyy-MM-dd"));
   const [mounted, setMounted] = useState(false);
+  const [EventsMap, setEventsMap] = useState<ComponentType<{ events: EventRow[] }> | null>(null);
+
   useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    if (!mounted) return;
+
+    let cancelled = false;
+
+    import("@/components/EventsMap").then((mod) => {
+      if (!cancelled) setEventsMap(() => mod.default);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted]);
 
   const filtered = useMemo(() => {
     const f = parseISO(from);
@@ -60,10 +85,8 @@ function MapPage() {
       </div>
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-border/60 bg-card" style={{ height: "60vh", minHeight: 420 }}>
-        {mounted ? (
-          <Suspense fallback={<div className="size-full animate-pulse bg-card/60" />}>
-            <EventsMap events={filtered as any} />
-          </Suspense>
+        {mounted && EventsMap ? (
+          <EventsMap events={filtered as EventRow[]} />
         ) : (
           <div className="size-full animate-pulse bg-card/60" />
         )}
