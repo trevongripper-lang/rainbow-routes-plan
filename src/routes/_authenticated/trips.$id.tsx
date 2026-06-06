@@ -47,6 +47,9 @@ async function fetchRatingData(id: string, me: string | undefined) {
 
 function TripDetail() {
   const { id } = Route.useParams();
+  const search = useSearch({ from: "/_authenticated/trips/$id" });
+  const tab = (search as Record<string, unknown>)?.tab as string | undefined;
+  const activeTab = tab || "overview";
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["trip", id], queryFn: () => fetchTrip(id) });
