@@ -277,3 +277,52 @@ function RatingsSection({ destinationId, me }: { destinationId: string; me: stri
     </section>
   );
 }
+
+function StaysSection({ title, country }: { title: string; country: string | null }) {
+  const q = encodeURIComponent([title, country].filter(Boolean).join(", "));
+  const links = [
+    {
+      name: "misterb&b",
+      tag: "Gay-friendly stays",
+      url: `https://www.misterbandb.com/s?query=${q}`,
+    },
+    {
+      name: "Airbnb",
+      tag: "Whole homes & rooms",
+      url: `https://www.airbnb.com/s/${q}/homes`,
+    },
+    {
+      name: "Vrbo",
+      tag: "Vacation rentals",
+      url: `https://www.vrbo.com/search?q=${q}`,
+    },
+  ];
+  return (
+    <section className="rounded-3xl border border-border/60 bg-card p-6 md:p-8">
+      <div className="flex items-center gap-2">
+        <BedDouble className="size-5 text-primary" />
+        <h2 className="font-display text-2xl">Where to stay</h2>
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Pre-filled searches on third-party sites. misterb&amp;b is built for queer travelers.
+      </p>
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        {links.map((l) => (
+          <a
+            key={l.name}
+            href={l.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="group flex items-center justify-between rounded-2xl border border-border/60 bg-background/40 p-4 transition hover:border-primary/50 hover:bg-background/70"
+          >
+            <div>
+              <div className="font-medium">{l.name}</div>
+              <div className="text-xs text-muted-foreground">{l.tag}</div>
+            </div>
+            <ExternalLink className="size-4 text-muted-foreground transition group-hover:text-primary" />
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
