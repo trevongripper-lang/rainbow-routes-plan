@@ -367,18 +367,39 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Users className="size-4 text-muted-foreground" />
           <Label className="text-xs">Group size</Label>
-          <Input
-            type="number"
-            min={1}
-            max={headcountMax}
-            value={headcount}
-            onChange={(e) => {
-              const v = Math.max(1, parseInt(e.target.value || "1", 10));
-              setHeadcount(Math.min(v, headcountMax));
-            }}
-            className="w-20"
-            disabled={!isOwner}
-          />
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">
+            {memberCount} {memberCount === 1 ? "member" : "members"} in crew
+          </span>
+          {autoFromMembers ? (
+            <button
+              type="button"
+              onClick={() => setAutoFromMembers(false)}
+              className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Override
+            </button>
+          ) : (
+            <>
+              <Input
+                type="number"
+                min={1}
+                max={headcountMax}
+                value={headcount}
+                onChange={(e) => {
+                  const v = Math.max(1, parseInt(e.target.value || "1", 10));
+                  setHeadcount(Math.min(v, headcountMax));
+                }}
+                className="w-20"
+              />
+              <button
+                type="button"
+                onClick={() => { setAutoFromMembers(true); setHeadcount(memberCount); }}
+                className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                Use crew count
+              </button>
+            </>
+          )}
           {isOwner && headcount !== initialHeadcount && (
             <Button size="sm" variant="secondary" onClick={() => saveHeadcount.mutate(headcount)} disabled={saveHeadcount.isPending}>Save</Button>
           )}
