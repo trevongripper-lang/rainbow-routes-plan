@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowUp, MapPin, Trash2, Star, Archive, RotateCcw } from "lucide-react";
+import { ArrowUp, MapPin, Trash2, Star, Archive, RotateCcw, Wand2 } from "lucide-react";
 import { Breadcrumbs } from "@/components/page-hero";
 import { toast } from "sonner";
 
@@ -143,6 +143,15 @@ function TripDetail() {
                 <span className="font-medium tabular-nums">{votes}</span>
               </button>
             )}
+            <Link
+              to="/trips/$id"
+              params={{ id }}
+              search={{ tab: "flights" }}
+              className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-base font-medium text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary/90"
+            >
+              <Wand2 className="size-5" />
+              AI Flight Lookup
+            </Link>
           </div>
           {dest.description && <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">{dest.description}</p>}
           {isOwner && (

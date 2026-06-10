@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plane, Sparkles, Trash2, Plus } from "lucide-react";
+import { Plane, Sparkles, Trash2, Plus, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { lookupFlight } from "@/lib/flight-lookup.functions";
 import { format, parseISO } from "date-fns";
@@ -43,6 +43,7 @@ export function FlightsTab({ destinationId, me }: { destinationId: string; me: s
   const [aiQuery, setAiQuery] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [form, setForm] = useState<FlightForm>(empty);
+  const aiInputRef = useRef<HTMLInputElement>(null);
 
   const { data: flights = [] } = useQuery({
     queryKey: ["flights", destinationId],
@@ -122,31 +123,74 @@ export function FlightsTab({ destinationId, me }: { destinationId: string; me: s
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-border/60 bg-card p-5">
-        <div className="flex items-center gap-2">
-          <Sparkles className="size-5 text-primary" />
-          <h3 className="font-display text-lg">AI-assisted lookup</h3>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Paste a flight number, airline, or anything like "Delta 123 on Aug 14" — we'll guess the details. Always verify before saving.
-        </p>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <Input
-            value={aiQuery}
-            onChange={(e) => setAiQuery(e.target.value)}
-            placeholder="e.g. UA 88 from EWR to LHR on Sep 12"
-            maxLength={200}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                runAiLookup();
-              }
-            }}
-          />
-          <Button onClick={runAiLookup} disabled={aiLoading || !aiQuery.trim()} variant="secondary">
-            <Sparkles className="mr-1 size-4" />
-            {aiLoading ? "Looking..." : "Look up"}
-          </Button>
+      {/* Prominent AI Lookup Hero Card */}
+      <section
+        className="relative overflow-hidden rounded-3xl border-0 p-6 md:p-8"
+        style={{
+          background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(250 60% 45%) 100%)",
+        }}
+      >
+        <div className="absolute -right-8 -top-8 size-40 rounded-full bg-white/10 blur-2xl" />
+        <div className="absolute -bottom-10 -left-10 size-48 rounded-full bg-white/10 blur-2xl" />
+
+        <div className="relative">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+              <Wand2 className="size-5 text-white" />
+            </div>
+            <div>
+              <h3 className="font-display text-xl text-white">AI Flight Lookup</h3>
+              <p className="text-[13px] text-white/70">
+                Just type anything — we'll figure out the rest.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <Input
+                ref={aiInputRef}
+                value={aiQuery}
+                onChange={(e) => setAiQuery(e.target.value)}
+                placeholder="e.g. UA 88 from EWR to LHR on Sep 12"
+                maxLength={200}
+                className="h-12 border-0 bg-white/15 pl-11 text-white placeholder:text-white/50 backdrop-blur-sm focus-visible:ring-white/40"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    runAiLookup();
+                  }
+                }}
+              />
+              <Sparkles className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-white/60" />
+            </div>
+            <Button
+              onClick={runAiLookup}
+              disabled={aiLoading || !aiQuery.trim()}
+              className="h-12 bg-white px-6 text-primary hover:bg-white/90"
+            >
+              {aiLoading ? "Looking..." : "Look up"}
+            </Button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[
+              "DL123 Aug 14 JFK-LAX",
+              "BA 112 tomorrow LHR to JFK",
+              "United 45 next Friday",
+            ].map((example) => (
+              <button
+                key={example}
+                onClick={() => {
+                  setAiQuery(example);
+                  aiInputRef.current?.focus();
+                }}
+                className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-white/80 transition hover:bg-white/20 hover:text-white"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 
