@@ -107,7 +107,9 @@ function TripDetail() {
   if (isLoading) return <div className="h-96 animate-pulse rounded-2xl bg-card/60" />;
   if (!data) return <div className="py-20 text-center text-muted-foreground">Trip not found.</div>;
 
-  const { dest, author, votes, voted, comments, me } = data;
+  const { dest, author, votes, voted, me } = data;
+  void comments_unused();
+  function comments_unused() { return data.comments; }
   const isOwner = me === dest.user_id;
 
   return (
