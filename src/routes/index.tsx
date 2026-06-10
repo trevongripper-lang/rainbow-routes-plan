@@ -145,20 +145,19 @@ function Landing() {
                 body: "A finalized itinerary everyone can trust. Pack your bags — the group is ready.",
                 color: "text-violet-400",
               },
-            ].map((step) => (
-              <div
-                key={step.num}
-                className="group relative rounded-2xl border border-border/60 bg-card/40 p-6 backdrop-blur transition-colors hover:bg-card/60"
-              >
-                <span className="absolute right-5 top-5 font-display text-4xl text-muted-foreground/15">
-                  {step.num}
-                </span>
-                <step.icon className={`size-6 ${step.color}`} />
-                <h3 className="mt-4 font-display text-xl">{step.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {step.body}
-                </p>
-              </div>
+            ].map((step, i) => (
+              <Reveal key={step.num} delay={i * 80}>
+                <div className="group relative h-full rounded-2xl border border-border/60 bg-card/40 p-6 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:bg-card/60 hover:shadow-[var(--shadow-soft)]">
+                  <span className="absolute right-5 top-5 font-display text-4xl text-muted-foreground/15 transition-colors group-hover:text-primary/30">
+                    {step.num}
+                  </span>
+                  <step.icon className={`size-6 ${step.color} transition-transform duration-300 group-hover:scale-110`} />
+                  <h3 className="mt-4 font-display text-xl">{step.title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {step.body}
+                  </p>
+                </div>
+              </Reveal>
             ))}
           </div>
 
