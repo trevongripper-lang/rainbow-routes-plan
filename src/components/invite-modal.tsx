@@ -22,10 +22,12 @@ export function InviteModal({ destinationId }: { destinationId: string }) {
         .select("user_id, role, joined_at")
         .eq("destination_id", destinationId);
       const ids = (rows ?? []).map((r) => r.user_id);
-      const { data: profs } = ids.length
-        ? await supabase.from("profiles").select("id, display_name, avatar_url").in("id", ids)
-        : { data: [] };
-      const pmap = new Map((profs ?? []).map((p) => [p.id, p]));
+      let profs: { id: string; display_name: string | null; avatar_url: string | null }[] = [];
+      if (ids.length) {
+        const { data } = await supabase.from("profiles").select("id, display_name, avatar_url").in("id", ids);
+        profs = data ?? [];
+      }
+      const pmap = new Map(profs.map((p) => [p.id, p]));
       return (rows ?? []).map((r) => ({ ...r, profile: pmap.get(r.user_id) }));
     },
     enabled: open,
