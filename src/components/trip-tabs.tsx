@@ -238,12 +238,14 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
 
   const saveHeadcount = useMutation({
     mutationFn: async (n: number) => {
-      if (n < 1 || n > FREE_HEADCOUNT_MAX) {
-        throw new Error(`Free plan supports 1–${FREE_HEADCOUNT_MAX} people per trip. Upgrade for larger crews.`);
+      if (n < 1 || n > headcountMax) {
+        if (!isPro && n > FREE_HEADCOUNT_MAX) {
+          throw new Error(`Free plan supports up to ${FREE_HEADCOUNT_MAX} people. Upgrade to Pro for larger crews.`);
+        }
+        throw new Error(`Group size must be between 1 and ${headcountMax}.`);
       }
       const { error } = await supabase.from("destinations").update({ headcount: n }).eq("id", destinationId);
       if (error) {
-        // Map Postgres CHECK violation (23514) to a friendly message.
         const msg = error.message?.toLowerCase() ?? "";
         if (error.code === "23514" || msg.includes("destinations_headcount_free_plan_max") || msg.includes("check constraint")) {
           throw new Error(`Free plan supports up to ${FREE_HEADCOUNT_MAX} people per trip. Upgrade for larger crews.`);
