@@ -163,31 +163,7 @@ function TripDetail() {
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">
-          <section>
-            <h2 className="font-display text-2xl">Chatter</h2>
-            <p className="text-sm text-muted-foreground">Trip tips, flight finds, club intel.</p>
-
-            <form onSubmit={(e) => { e.preventDefault(); addComment.mutate(); }} className="mt-4 space-y-2">
-              <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add to the chatter..." rows={3} />
-              <div className="flex justify-end"><Button type="submit" disabled={addComment.isPending || !body.trim()}>Post</Button></div>
-            </form>
-
-            <ul className="mt-6 space-y-3">
-              {comments.length === 0 && <li className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No chatter yet. Kick it off.</li>}
-              {comments.map((c) => (
-                <li key={c.id} className="rounded-xl border border-border/60 bg-card p-4">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <div className="grid size-6 place-items-center rounded-full bg-primary/20 text-[10px] font-medium text-primary">
-                      {(c.author?.display_name ?? "?").slice(0, 1).toUpperCase()}
-                    </div>
-                    <span className="text-foreground">{c.author?.display_name ?? "Someone"}</span>
-                    <span>· {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}</span>
-                  </div>
-                  <p className="mt-2 whitespace-pre-wrap text-sm">{c.body}</p>
-                </li>
-              ))}
-            </ul>
-          </section>
+          {me ? <Chatter destinationId={id} me={me} /> : null}
         </TabsContent>
 
         {me && (
