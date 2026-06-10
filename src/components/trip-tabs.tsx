@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { BedDouble, ExternalLink, Ticket, Wallet, Trash2, Plus, Users } from "lucide-react";
+import { BedDouble, ExternalLink, Ticket, Wallet, Trash2, Plus, Users, ArrowRightLeft, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Pie, PieChart, Cell, BarChart, Bar, XAxis, YAxis } from "recharts";
@@ -184,6 +184,8 @@ export function TicketsTab({ destinationId, me }: { destinationId: string; me: s
 
 const CATEGORIES = ["Flights", "Lodging", "Food & drink", "Tickets & events", "Transport", "Other"] as const;
 
+const FREE_HEADCOUNT_MAX = 5;
+
 export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwner }: { destinationId: string; me: string; headcount: number; isOwner: boolean }) {
   const qc = useQueryClient();
   const [headcount, setHeadcount] = useState(initialHeadcount);
@@ -198,13 +200,35 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     },
   });
 
+  // Members = anyone who has paid or logged a cost in this trip, plus me.
+  const memberIds = useMemo(() => {
+    const s = new Set<string>([me]);
+    for (const c of costs) {
+      if (c.paid_by) s.add(c.paid_by);
+      if (c.user_id) s.add(c.user_id);
+    }
+    return Array.from(s);
+  }, [costs, me]);
+
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["cost-profiles", destinationId, memberIds.join(",")],
+    queryFn: async () => {
+      if (memberIds.length === 0) return [];
+      const { data, error } = await supabase.from("profiles").select("id, display_name, avatar_url").in("id", memberIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const pmap = useMemo(() => new Map(profiles.map((p) => [p.id, p])), [profiles]);
+  const nameOf = (id: string | null | undefined) => (id ? (pmap.get(id)?.display_name ?? "Someone") : "Someone");
+
   const saveHeadcount = useMutation({
     mutationFn: async (n: number) => { const { error } = await supabase.from("destinations").update({ headcount: n }).eq("id", destinationId); if (error) throw error; },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["trip", destinationId] }); toast.success("Group size updated"); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
-  const [form, setForm] = useState({ category: CATEGORIES[0] as string, label: "", amount: "", currency: "USD", is_shared: true, note: "" });
+  const [form, setForm] = useState({ category: CATEGORIES[0] as string, label: "", amount: "", currency: "USD", is_shared: true, note: "", paid_by: me });
   const add = useMutation({
     mutationFn: async () => {
       if (!form.label.trim() || !form.amount) throw new Error("Label & amount required");
@@ -214,6 +238,7 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
         destination_id: destinationId, user_id: me, category: form.category,
         label: form.label.trim(), amount_cents: cents, currency: form.currency,
         is_shared: form.is_shared, note: form.note.trim() || null,
+        paid_by: form.paid_by || me,
       });
       if (error) throw error;
     },
@@ -245,7 +270,42 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     return { rows, totalPerPerson, currency };
   }, [costs, headcount]);
 
+  // ---- Settle-up: who paid vs who owes ----
+  const settle = useMemo(() => {
+    const n = Math.max(1, headcount);
+    const currency = costs.find((c) => c.is_shared)?.currency ?? costs[0]?.currency ?? "USD";
+    // Each member's paid total for shared costs
+    const paid = new Map<string, number>();
+    let totalShared = 0;
+    for (const c of costs) {
+      if (!c.is_shared) continue;
+      const payer = c.paid_by ?? c.user_id;
+      paid.set(payer, (paid.get(payer) ?? 0) + c.amount_cents);
+      totalShared += c.amount_cents;
+    }
+    const fairShare = totalShared / n;
+    // Net = paid - owed (positive = is owed; negative = owes)
+    const known = Array.from(new Set([...memberIds, ...paid.keys()]));
+    const net = known.map((id) => ({ id, net: (paid.get(id) ?? 0) - fairShare }));
+    // Greedy minimal transfers between known members
+    const creditors = net.filter((x) => x.net > 1).sort((a, b) => b.net - a.net).map((x) => ({ ...x }));
+    const debtors = net.filter((x) => x.net < -1).sort((a, b) => a.net - b.net).map((x) => ({ ...x }));
+    const transfers: { from: string; to: string; cents: number }[] = [];
+    let i = 0, j = 0;
+    while (i < debtors.length && j < creditors.length) {
+      const amt = Math.min(-debtors[i].net, creditors[j].net);
+      if (amt > 1) transfers.push({ from: debtors[i].id, to: creditors[j].id, cents: Math.round(amt) });
+      debtors[i].net += amt;
+      creditors[j].net -= amt;
+      if (Math.abs(debtors[i].net) < 1) i++;
+      if (Math.abs(creditors[j].net) < 1) j++;
+    }
+    return { fairShare, totalShared, transfers, currency, knownPayers: paid.size };
+  }, [costs, headcount, memberIds]);
+
   const fmt = (cents: number, cur: string) => `${(cents / 100).toFixed(2)} ${cur}`;
+
+  const atFreeCap = headcount >= FREE_HEADCOUNT_MAX;
 
   return (
     <div className="space-y-6">
@@ -260,13 +320,27 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
             <div className="text-xs text-muted-foreground">per person · {headcount} {headcount === 1 ? "person" : "people"}</div>
           </div>
         </div>
-        <div className="mt-4 flex items-center gap-3">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <Users className="size-4 text-muted-foreground" />
           <Label className="text-xs">Group size</Label>
-          <Input type="number" min={1} max={50} value={headcount} onChange={(e) => setHeadcount(Math.max(1, parseInt(e.target.value || "1", 10)))} className="w-20" disabled={!isOwner} />
+          <Input
+            type="number"
+            min={1}
+            max={FREE_HEADCOUNT_MAX}
+            value={headcount}
+            onChange={(e) => {
+              const v = Math.max(1, parseInt(e.target.value || "1", 10));
+              setHeadcount(Math.min(v, FREE_HEADCOUNT_MAX));
+            }}
+            className="w-20"
+            disabled={!isOwner}
+          />
           {isOwner && headcount !== initialHeadcount && (
             <Button size="sm" variant="secondary" onClick={() => saveHeadcount.mutate(headcount)} disabled={saveHeadcount.isPending}>Save</Button>
           )}
+          <span className={`inline-flex items-center gap-1 text-[11px] ${atFreeCap ? "text-amber-400" : "text-muted-foreground"}`}>
+            <Lock className="size-3" /> Free plan · up to {FREE_HEADCOUNT_MAX} people
+          </span>
         </div>
         {summary.rows.length > 0 && (
           <ul className="mt-4 divide-y divide-border/60 rounded-xl border border-border/60">
@@ -284,6 +358,40 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
         <CostCharts rows={summary.rows} currency={summary.currency} />
       )}
 
+      {/* Settle up */}
+      <section className="rounded-2xl border border-border/60 bg-card p-5">
+        <div className="flex items-center gap-2"><ArrowRightLeft className="size-5 text-primary" /><h3 className="font-display text-lg">Settle up</h3></div>
+        <p className="text-xs text-muted-foreground">Who owes whom, based on shared costs and who paid.</p>
+        {settle.totalShared === 0 ? (
+          <p className="mt-4 text-sm text-muted-foreground">Log a shared cost and tag who paid to see settlements.</p>
+        ) : (
+          <>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-border/60 bg-background/40 p-3">
+                <div className="text-xs text-muted-foreground">Fair share / person</div>
+                <div className="font-display text-xl tabular-nums">{fmt(settle.fairShare, settle.currency)}</div>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-background/40 p-3">
+                <div className="text-xs text-muted-foreground">Total shared</div>
+                <div className="font-display text-xl tabular-nums">{fmt(settle.totalShared, settle.currency)}</div>
+              </div>
+            </div>
+            {settle.transfers.length === 0 ? (
+              <p className="mt-4 text-sm text-emerald-400">All squared up among known payers ✨</p>
+            ) : (
+              <ul className="mt-4 space-y-2">
+                {settle.transfers.map((t, idx) => (
+                  <li key={idx} className="flex items-center justify-between rounded-xl border border-border/60 bg-background/40 px-4 py-2 text-sm">
+                    <span><span className="font-medium">{nameOf(t.from)}</span> <span className="text-muted-foreground">pays</span> <span className="font-medium">{nameOf(t.to)}</span></span>
+                    <span className="font-medium tabular-nums">{fmt(t.cents, settle.currency)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </section>
+
       <section className="rounded-2xl border border-border/60 bg-card p-5">
         <h3 className="font-display text-lg">Log a cost</h3>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -297,6 +405,14 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
           <div className="grid grid-cols-[1fr_5rem] gap-2">
             <div><Label className="text-xs">Amount</Label><Input type="number" min="0" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" /></div>
             <div><Label className="text-xs">Cur.</Label><Input value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })} maxLength={3} /></div>
+          </div>
+          <div>
+            <Label className="text-xs">Who paid</Label>
+            <select value={form.paid_by} onChange={(e) => setForm({ ...form, paid_by: e.target.value })} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+              {memberIds.map((id) => (
+                <option key={id} value={id}>{id === me ? "Me" : nameOf(id)}</option>
+              ))}
+            </select>
           </div>
           <div className="flex items-end gap-3 rounded-md border border-border/60 bg-background/40 px-3 py-2">
             <Switch id="shared" checked={form.is_shared} onCheckedChange={(v) => setForm({ ...form, is_shared: v })} />
@@ -320,6 +436,7 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
                 <span className={`text-[10px] ${c.is_shared ? "text-primary" : "text-muted-foreground"}`}>
                   {c.is_shared ? "shared" : "per-person"}
                 </span>
+                <span className="text-[10px] text-muted-foreground">· paid by {(c.paid_by ?? c.user_id) === me ? "you" : nameOf(c.paid_by ?? c.user_id)}</span>
               </div>
               {c.note && <p className="mt-0.5 text-xs text-muted-foreground">{c.note}</p>}
             </div>
@@ -335,6 +452,7 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     </div>
   );
 }
+
 
 /* -------------------------- COST CHARTS -------------------------- */
 

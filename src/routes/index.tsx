@@ -16,6 +16,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import howItWorksHero from "@/assets/how-it-works-hero.png";
+import { Reveal } from "@/components/reveal";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -144,20 +145,19 @@ function Landing() {
                 body: "A finalized itinerary everyone can trust. Pack your bags — the group is ready.",
                 color: "text-violet-400",
               },
-            ].map((step) => (
-              <div
-                key={step.num}
-                className="group relative rounded-2xl border border-border/60 bg-card/40 p-6 backdrop-blur transition-colors hover:bg-card/60"
-              >
-                <span className="absolute right-5 top-5 font-display text-4xl text-muted-foreground/15">
-                  {step.num}
-                </span>
-                <step.icon className={`size-6 ${step.color}`} />
-                <h3 className="mt-4 font-display text-xl">{step.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {step.body}
-                </p>
-              </div>
+            ].map((step, i) => (
+              <Reveal key={step.num} delay={i * 80}>
+                <div className="group relative h-full rounded-2xl border border-border/60 bg-card/40 p-6 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:bg-card/60 hover:shadow-[var(--shadow-soft)]">
+                  <span className="absolute right-5 top-5 font-display text-4xl text-muted-foreground/15 transition-colors group-hover:text-primary/30">
+                    {step.num}
+                  </span>
+                  <step.icon className={`size-6 ${step.color} transition-transform duration-300 group-hover:scale-110`} />
+                  <h3 className="mt-4 font-display text-xl">{step.title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {step.body}
+                  </p>
+                </div>
+              </Reveal>
             ))}
           </div>
 
@@ -185,40 +185,44 @@ function Landing() {
                   label: "Map",
                   desc: "Visualize the journey",
                 },
-              ].map((item) => (
-                <div key={item.label} className="flex items-start gap-4">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                    <item.icon className="size-5 text-primary" />
+              ].map((item, i) => (
+                <Reveal key={item.label} delay={i * 100}>
+                  <div className="flex items-start gap-4">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                      <item.icon className="size-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{item.label}</p>
+                      <p className="text-sm text-muted-foreground">{item.desc}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium">{item.label}</p>
-                    <p className="text-sm text-muted-foreground">{item.desc}</p>
-                  </div>
-                </div>
+                </Reveal>
               ))}
             </div>
           </div>
 
           {/* Final CTA */}
-          <div className="mt-16 flex flex-col items-center rounded-2xl border border-border/60 bg-card/40 p-10 text-center backdrop-blur md:p-14">
-            <h3 className="font-display text-3xl md:text-4xl">
-              Ready to plan your next adventure?
-            </h3>
-            <p className="mt-4 max-w-md text-muted-foreground">
-              Create your first trip, invite your crew, and start pitching
-              destinations in under a minute.
-            </p>
-            <Link
-              to="/auth"
-              className="mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3 font-medium text-primary-foreground shadow-[var(--shadow-soft)] hover:opacity-90"
-            >
-              Start planning <ArrowRight className="size-4" />
-            </Link>
-            <div className="mt-6 flex items-center gap-2 text-xs text-muted-foreground">
-              <CheckCircle2 className="size-3.5 text-emerald-400" />
-              <span>Free forever. No credit card required.</span>
+          <Reveal>
+            <div className="mt-16 flex flex-col items-center rounded-2xl border border-border/60 bg-card/40 p-10 text-center backdrop-blur md:p-14">
+              <h3 className="font-display text-3xl md:text-4xl">
+                Ready to plan your next adventure?
+              </h3>
+              <p className="mt-4 max-w-md text-muted-foreground">
+                Create your first trip, invite your crew, and start pitching
+                destinations in under a minute.
+              </p>
+              <Link
+                to="/auth"
+                className="mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3 font-medium text-primary-foreground shadow-[var(--shadow-soft)] hover:opacity-90"
+              >
+                Start planning <ArrowRight className="size-4" />
+              </Link>
+              <div className="mt-6 flex items-center gap-2 text-xs text-muted-foreground">
+                <CheckCircle2 className="size-3.5 text-emerald-400" />
+                <span>Free up to 5 people. No credit card required.</span>
+              </div>
             </div>
-          </div>
+          </Reveal>
         </section>
       </main>
 

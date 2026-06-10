@@ -1,0 +1,1 @@
+ALTER TABLE public.trip_costs ADD COLUMN IF NOT EXISTS paid_by uuid REFERENCES auth.users(id) ON DELETE SET NULL;
