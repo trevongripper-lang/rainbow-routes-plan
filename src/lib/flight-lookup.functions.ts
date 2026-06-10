@@ -80,9 +80,11 @@ export const lookupFlight = createServerFn({ method: "POST" })
       arrive_time?: string;
       confidence: "high" | "medium" | "low";
       notes?: string;
+      source?: "ai" | "aviationstack" | "serpstack";
     };
     try {
       parsed = JSON.parse(args);
+      parsed.source = "ai";
     } catch {
       throw new Error("AI returned malformed result");
     }
@@ -117,6 +119,7 @@ export const lookupFlight = createServerFn({ method: "POST" })
               arrive_time: hhmm(f.arrival?.scheduled) || parsed.arrive_time,
               confidence: "high",
               notes: verifiedNote,
+              source: "aviationstack",
             };
             verifiedByAviationStack = true;
           }
@@ -190,6 +193,7 @@ export const lookupFlight = createServerFn({ method: "POST" })
                     ...parsed,
                     ...refined,
                     notes: `Refined via Serpstack web results.${refined.notes ? " " + refined.notes : ""}`,
+                    source: "serpstack",
                   };
                 } catch {
                   // ignore malformed refine
