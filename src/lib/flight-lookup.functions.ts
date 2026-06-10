@@ -90,6 +90,7 @@ export const lookupFlight = createServerFn({ method: "POST" })
     // Best-effort verification via AviationStack (real-time schedule API).
     const avKey = process.env.AVIATIONSTACK_API_KEY;
     const flightNum = (parsed.flight_number || "").replace(/\s+/g, "").toUpperCase();
+    let verifiedByAviationStack = false;
     if (avKey && flightNum) {
       try {
         const params = new URLSearchParams({
@@ -117,10 +118,88 @@ export const lookupFlight = createServerFn({ method: "POST" })
               confidence: "high",
               notes: verifiedNote,
             };
+            verifiedByAviationStack = true;
           }
         }
       } catch {
         // Verification is best-effort; fall back to AI parse silently.
+      }
+    }
+
+    // Fallback verification via Serpstack web search snippets.
+    // Used when AviationStack didn't return data (free tier limits, historical
+    // flights, codeshares). We pull Google search snippets for the flight
+    // number and ask the AI to re-extract fields from real-world results.
+    const spKey = process.env.SERPSTACK_API_KEY;
+    if (!verifiedByAviationStack && spKey && flightNum) {
+      try {
+        const q = `${flightNum} flight${parsed.flight_date ? ` ${parsed.flight_date}` : ""} schedule departure arrival airport`;
+        const spParams = new URLSearchParams({
+          access_key: spKey,
+          query: q,
+          num: "5",
+          output: "json",
+        });
+        const spRes = await fetch(`https://api.serpstack.com/search?${spParams}`);
+        if (spRes.ok) {
+          const spJson = await spRes.json();
+          const organic: Array<{ title?: string; snippet?: string; url?: string }> =
+            spJson?.organic_results ?? [];
+          const snippets = organic
+            .slice(0, 5)
+            .map((r, i) => `${i + 1}. ${r.title ?? ""} — ${r.snippet ?? ""}`)
+            .join("\n");
+          if (snippets.trim()) {
+            const refineRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
+              body: JSON.stringify({
+                model: "google/gemini-3-flash-preview",
+                messages: [
+                  {
+                    role: "system",
+                    content:
+                      "Refine flight details using real web search results. Prefer information from the snippets over prior guesses. Leave fields empty if the snippets don't support a confident value.",
+                  },
+                  {
+                    role: "user",
+                    content: `Original query: ${data.query}\nPrior guess: ${JSON.stringify(parsed)}\nWeb snippets:\n${snippets}`,
+                  },
+                ],
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "set_flight_details",
+                      description: "Return refined flight details",
+                      parameters: Schema,
+                    },
+                  },
+                ],
+                tool_choice: { type: "function", function: { name: "set_flight_details" } },
+              }),
+            });
+            if (refineRes.ok) {
+              const refineJson = await refineRes.json();
+              const refArgs =
+                refineJson?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+              if (refArgs) {
+                try {
+                  const refined = JSON.parse(refArgs);
+                  parsed = {
+                    ...parsed,
+                    ...refined,
+                    notes: `Refined via Serpstack web results.${refined.notes ? " " + refined.notes : ""}`,
+                  };
+                } catch {
+                  // ignore malformed refine
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // Best-effort; silently fall back.
       }
     }
 
