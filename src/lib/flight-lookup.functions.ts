@@ -70,19 +70,59 @@ export const lookupFlight = createServerFn({ method: "POST" })
     const json = await res.json();
     const args = json?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
     if (!args) throw new Error("AI returned no result");
+    let parsed: {
+      airline: string;
+      flight_number: string;
+      flight_date?: string;
+      depart_airport?: string;
+      arrive_airport?: string;
+      depart_time?: string;
+      arrive_time?: string;
+      confidence: "high" | "medium" | "low";
+      notes?: string;
+    };
     try {
-      return JSON.parse(args) as {
-        airline: string;
-        flight_number: string;
-        flight_date?: string;
-        depart_airport?: string;
-        arrive_airport?: string;
-        depart_time?: string;
-        arrive_time?: string;
-        confidence: "high" | "medium" | "low";
-        notes?: string;
-      };
+      parsed = JSON.parse(args);
     } catch {
       throw new Error("AI returned malformed result");
     }
+
+    // Best-effort verification via AviationStack (real-time schedule API).
+    const avKey = process.env.AVIATIONSTACK_API_KEY;
+    const flightNum = (parsed.flight_number || "").replace(/\s+/g, "").toUpperCase();
+    if (avKey && flightNum) {
+      try {
+        const params = new URLSearchParams({
+          access_key: avKey,
+          flight_iata: flightNum,
+          limit: "1",
+        });
+        if (parsed.flight_date) params.set("flight_date", parsed.flight_date);
+        const avRes = await fetch(`https://api.aviationstack.com/v1/flights?${params}`);
+        if (avRes.ok) {
+          const avJson = await avRes.json();
+          const f = avJson?.data?.[0];
+          if (f) {
+            const hhmm = (iso?: string | null) => (iso ? iso.slice(11, 16) : "");
+            const verifiedNote = `Verified via AviationStack${f.flight_status ? ` · ${f.flight_status}` : ""}${f.departure?.terminal ? ` · dep T${f.departure.terminal}` : ""}${f.departure?.gate ? `/G${f.departure.gate}` : ""}${f.arrival?.terminal ? ` · arr T${f.arrival.terminal}` : ""}`;
+            parsed = {
+              ...parsed,
+              airline: f.airline?.name || parsed.airline,
+              flight_number: f.flight?.iata || parsed.flight_number,
+              flight_date: f.flight_date || parsed.flight_date,
+              depart_airport: f.departure?.iata || parsed.depart_airport,
+              arrive_airport: f.arrival?.iata || parsed.arrive_airport,
+              depart_time: hhmm(f.departure?.scheduled) || parsed.depart_time,
+              arrive_time: hhmm(f.arrival?.scheduled) || parsed.arrive_time,
+              confidence: "high",
+              notes: verifiedNote,
+            };
+          }
+        }
+      } catch {
+        // Verification is best-effort; fall back to AI parse silently.
+      }
+    }
+
+    return parsed;
   });
