@@ -65,6 +65,7 @@ function AppShell() {
 
   const tabItems: TabItem[] = [
     { key: "overview", label: "Chatter", icon: MessageSquare },
+    { key: "itinerary", label: "Itinerary", icon: CalendarDays },
     { key: "flights", label: "Travel plans", icon: Plane },
     { key: "stays", label: "Where to stay", icon: BedDouble },
     { key: "tickets", label: "Tickets", icon: Ticket },
