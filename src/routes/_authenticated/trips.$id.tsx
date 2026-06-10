@@ -15,6 +15,8 @@ import { Chatter } from "@/components/chatter";
 import { InviteModal } from "@/components/invite-modal";
 import { ItineraryTab } from "@/components/itinerary-tab";
 import { TripEventsStrip } from "@/components/trip-events-strip";
+import { SmartAdd } from "@/components/smart-add";
+import { PollsPanel } from "@/components/polls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -201,6 +203,8 @@ function TripDetail() {
         <TabsContent value="overview" className="mt-6">
           {me ? (
             <div className="space-y-6">
+              <SmartAdd destinationId={id} me={me} />
+              <PollsPanel destinationId={id} me={me} />
               <TripEventsStrip destinationId={id} me={me} region={dest.region} country={dest.country} />
               <Chatter destinationId={id} me={me} />
             </div>
