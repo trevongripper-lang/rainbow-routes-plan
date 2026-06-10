@@ -2,12 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMemo, useState } from "react";
-import { CalendarDays, MapPin, ExternalLink } from "lucide-react";
+import { CalendarDays, MapPin, ExternalLink, Sparkles } from "lucide-react";
 import { format } from "date-fns";
+import { PageHero } from "@/components/page-hero";
 
 export const Route = createFileRoute("/_authenticated/events")({
   component: EventsPage,
 });
+
 
 async function fetchEvents() {
   const { data, error } = await supabase.from("events").select("*").order("start_date", { ascending: true });
