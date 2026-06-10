@@ -58,7 +58,11 @@ function TripDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["trip", id], queryFn: () => fetchTrip(id) });
-  const [body, setBody] = useState("");
+  const [endDateDraft, setEndDateDraft] = useState<string>("");
+
+  useEffect(() => {
+    if (data?.dest.end_date) setEndDateDraft(data.dest.end_date);
+  }, [data?.dest.end_date]);
 
   const vote = useMutation({
     mutationFn: async () => {
@@ -72,13 +76,13 @@ function TripDetail() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["trip", id] }); qc.invalidateQueries({ queryKey: ["trips"] }); },
   });
 
-  const addComment = useMutation({
-    mutationFn: async () => {
-      if (!data?.me || !body.trim()) return;
-      const { error } = await supabase.from("comments").insert({ destination_id: id, user_id: data.me, body: body.trim() });
+  const saveEndDate = useMutation({
+    mutationFn: async (val: string) => {
+      const v = val ? val : null;
+      const { error } = await supabase.from("destinations").update({ end_date: v }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { setBody(""); qc.invalidateQueries({ queryKey: ["trip", id] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["trip", id] }); toast.success("End date saved"); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
