@@ -208,40 +208,37 @@ function AppSidebar({
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
-                      {tabItems.map((tab) => {
-                        const linkProps = getTripTabLinkProps(tripId, tab.key);
-                        return (
-                          <SidebarMenuSubItem key={tab.key}>
-                            <SidebarMenuSubButton
-                              asChild
-                              isActive={linkProps.hasTrip && currentTab === tab.key}
-                            >
-                              {linkProps.hasTrip ? (
-                                <Link
-                                  to={linkProps.to}
-                                  params={linkProps.params}
-                                  search={linkProps.search}
-                                  onClick={closeMobile}
-                                  className="flex items-center gap-2"
+                      {tripId
+                        ? tabItems.map((tab) => {
+                            const linkProps = getTripTabLinkProps(tripId, tab.key);
+                            if (!linkProps.hasTrip) return null;
+                            return (
+                              <SidebarMenuSubItem key={tab.key}>
+                                <SidebarMenuSubButton
+                                  asChild
+                                  isActive={currentTab === tab.key}
                                 >
-                                  <tab.icon className="size-4" />
-                                  <span>{tab.label}</span>
-                                </Link>
-                              ) : (
-                                <Link
-                                  to={linkProps.to}
-                                  onClick={closeMobile}
-                                  className="flex items-center gap-2 opacity-70"
-                                  title={linkProps.title}
-                                >
-                                  <tab.icon className="size-4" />
-                                  <span>{tab.label}</span>
-                                </Link>
-                              )}
-                            </SidebarMenuSubButton>
+                                  <Link
+                                    to={linkProps.to}
+                                    params={linkProps.params}
+                                    search={linkProps.search}
+                                    onClick={closeMobile}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <tab.icon className="size-4" />
+                                    <span>{tab.label}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            );
+                          })
+                        : (
+                          <SidebarMenuSubItem>
+                            <div className="px-2 py-1.5 text-xs text-sidebar-foreground/60">
+                              Open a trip to see its sections here.
+                            </div>
                           </SidebarMenuSubItem>
-                        );
-                      })}
+                        )}
 
                     </SidebarMenuSub>
                   </CollapsibleContent>
