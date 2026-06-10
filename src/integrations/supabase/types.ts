@@ -165,6 +165,7 @@ export type Database = {
           is_shared: boolean
           label: string
           note: string | null
+          paid_by: string | null
           user_id: string
         }
         Insert: {
@@ -177,6 +178,7 @@ export type Database = {
           is_shared?: boolean
           label: string
           note?: string | null
+          paid_by?: string | null
           user_id: string
         }
         Update: {
@@ -189,6 +191,7 @@ export type Database = {
           is_shared?: boolean
           label?: string
           note?: string | null
+          paid_by?: string | null
           user_id?: string
         }
         Relationships: [
