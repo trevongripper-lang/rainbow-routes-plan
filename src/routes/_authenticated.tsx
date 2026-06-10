@@ -76,43 +76,44 @@ function AppShell() {
 
   return (
     <SidebarProvider defaultOpen>
-      <div className="min-h-screen w-full bg-background">
-        <AppSidebar
-          navItems={navItems}
-          isActive={isActive}
-          tripId={tripId}
-          currentTab={currentTab}
-          tabItems={tabItems}
-          tripsActive={tripsActive}
-        />
+      <AppSidebar
+        navItems={navItems}
+        isActive={isActive}
+        tripId={tripId}
+        currentTab={currentTab}
+        tabItems={tabItems}
+        tripsActive={tripsActive}
+      />
 
-        <SidebarInset>
-          <header className="sticky top-0 z-20 border-b border-border/60 bg-background/80 backdrop-blur">
-            <div className="flex h-14 items-center justify-between px-4">
-              <div className="flex items-center gap-3">
-                <SidebarTrigger className="text-muted-foreground hover:bg-card hover:text-foreground" />
-                <Link to="/trips" className="flex items-center gap-2 font-display text-lg">
-                  <span className="inline-block size-2.5 rounded-full bg-primary" />
-                  Tribe Trips
-                </Link>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <NotificationsBell />
-                <button onClick={signOut} className="rounded-full p-2 text-muted-foreground hover:text-foreground" title="Sign out">
-                  <LogOut className="size-4" />
-                </button>
-              </div>
+      <SidebarInset
+        className="min-w-0"
+        style={{ background: "var(--gradient-hero)" }}
+      >
+        <header className="sticky top-0 z-20 border-b border-border/60 bg-background/60 backdrop-blur">
+          <div className="flex h-14 items-center justify-between px-4">
+            <div className="flex items-center gap-3">
+              <SidebarTrigger className="text-muted-foreground hover:bg-card hover:text-foreground" />
+              <Link to="/trips" className="flex items-center gap-2 font-display text-lg">
+                <span className="inline-block size-2.5 rounded-full bg-primary" />
+                Tribe Trips
+              </Link>
             </div>
-          </header>
 
-          <main className="px-4 py-6">
-            <div className="mx-auto max-w-5xl md:px-6">
-              <Outlet />
+            <div className="flex items-center gap-1">
+              <NotificationsBell />
+              <button onClick={signOut} className="rounded-full p-2 text-muted-foreground hover:text-foreground" title="Sign out">
+                <LogOut className="size-4" />
+              </button>
             </div>
-          </main>
-        </SidebarInset>
-      </div>
+          </div>
+        </header>
+
+        <main className="flex-1 px-4 py-8 md:px-8 md:py-12">
+          <div className="mx-auto w-full max-w-6xl">
+            <Outlet />
+          </div>
+        </main>
+      </SidebarInset>
     </SidebarProvider>
   );
 }
