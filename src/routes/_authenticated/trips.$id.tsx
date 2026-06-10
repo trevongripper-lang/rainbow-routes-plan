@@ -10,6 +10,10 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { StaysTab, TicketsTab, CostsTab } from "@/components/trip-tabs";
 import { FlightsTab } from "@/components/flights-tab";
+import { Chatter } from "@/components/chatter";
+import { InviteModal } from "@/components/invite-modal";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/_authenticated/trips/$id")({
   component: TripDetail,
