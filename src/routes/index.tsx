@@ -35,12 +35,15 @@ function Landing() {
           <span className="inline-block size-2.5 rounded-full bg-primary" />
           Tribe Trips
         </div>
-        <Link
-          to="/auth"
-          className="rounded-full border border-border/60 bg-card/40 px-4 py-2 text-sm backdrop-blur hover:bg-card/70"
-        >
-          Sign in
-        </Link>
+        <nav className="flex items-center gap-2 text-sm">
+          <Link to="/pricing" className="rounded-full px-4 py-2 text-muted-foreground hover:text-foreground">Pricing</Link>
+          <Link
+            to="/auth"
+            className="rounded-full border border-border/60 bg-card/40 px-4 py-2 backdrop-blur hover:bg-card/70"
+          >
+            Sign in
+          </Link>
+        </nav>
       </header>
 
       <main className="mx-auto max-w-6xl px-6 pt-12 pb-24 md:pt-24">
