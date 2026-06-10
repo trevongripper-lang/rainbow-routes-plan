@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as JoinTokenRouteImport } from './routes/join.$token'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedMapRouteImport } from './routes/_authenticated/map'
 import { Route as AuthenticatedEventsRouteImport } from './routes/_authenticated/events'
@@ -43,6 +44,11 @@ const JoinTokenRoute = JoinTokenRouteImport.update({
   id: '/join/$token',
   path: '/join/$token',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedMeRoute = AuthenticatedMeRouteImport.update({
   id: '/me',
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/events': typeof AuthenticatedEventsRoute
   '/map': typeof AuthenticatedMapRoute
   '/me': typeof AuthenticatedMeRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/join/$token': typeof JoinTokenRoute
   '/trips/$id': typeof AuthenticatedTripsIdRoute
   '/trips/': typeof AuthenticatedTripsIndexRoute
@@ -88,6 +95,7 @@ export interface FileRoutesByTo {
   '/events': typeof AuthenticatedEventsRoute
   '/map': typeof AuthenticatedMapRoute
   '/me': typeof AuthenticatedMeRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/join/$token': typeof JoinTokenRoute
   '/trips/$id': typeof AuthenticatedTripsIdRoute
   '/trips': typeof AuthenticatedTripsIndexRoute
@@ -101,6 +109,7 @@ export interface FileRoutesById {
   '/_authenticated/events': typeof AuthenticatedEventsRoute
   '/_authenticated/map': typeof AuthenticatedMapRoute
   '/_authenticated/me': typeof AuthenticatedMeRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/join/$token': typeof JoinTokenRoute
   '/_authenticated/trips/$id': typeof AuthenticatedTripsIdRoute
   '/_authenticated/trips/': typeof AuthenticatedTripsIndexRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/map'
     | '/me'
+    | '/settings'
     | '/join/$token'
     | '/trips/$id'
     | '/trips/'
@@ -125,6 +135,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/map'
     | '/me'
+    | '/settings'
     | '/join/$token'
     | '/trips/$id'
     | '/trips'
@@ -137,6 +148,7 @@ export interface FileRouteTypes {
     | '/_authenticated/events'
     | '/_authenticated/map'
     | '/_authenticated/me'
+    | '/_authenticated/settings'
     | '/join/$token'
     | '/_authenticated/trips/$id'
     | '/_authenticated/trips/'
@@ -187,6 +199,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JoinTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/me': {
       id: '/_authenticated/me'
       path: '/me'
@@ -229,6 +248,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedEventsRoute: typeof AuthenticatedEventsRoute
   AuthenticatedMapRoute: typeof AuthenticatedMapRoute
   AuthenticatedMeRoute: typeof AuthenticatedMeRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTripsIdRoute: typeof AuthenticatedTripsIdRoute
   AuthenticatedTripsIndexRoute: typeof AuthenticatedTripsIndexRoute
 }
@@ -237,6 +257,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedEventsRoute: AuthenticatedEventsRoute,
   AuthenticatedMapRoute: AuthenticatedMapRoute,
   AuthenticatedMeRoute: AuthenticatedMeRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTripsIdRoute: AuthenticatedTripsIdRoute,
   AuthenticatedTripsIndexRoute: AuthenticatedTripsIndexRoute,
 }
@@ -255,3 +276,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
