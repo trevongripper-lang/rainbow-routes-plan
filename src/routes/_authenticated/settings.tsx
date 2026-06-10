@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Search, CheckCircle2, XCircle, ShieldCheck, Loader2, ExternalLink } from "lucide-react";
+import { Search, CheckCircle2, XCircle, ShieldCheck, Loader2, ExternalLink, Plane, Sparkles } from "lucide-react";
 import { getIntegrationsStatus, testSerpstack } from "@/lib/integrations.functions";
+import { lookupFlight } from "@/lib/flight-lookup.functions";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -20,10 +21,14 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 type TestResult = Awaited<ReturnType<typeof testSerpstack>>;
+type FlightResult = Awaited<ReturnType<typeof lookupFlight>>;
+
+const SAMPLE_QUERY = "DL123 from JFK to LAX";
 
 function SettingsPage() {
   const getStatus = useServerFn(getIntegrationsStatus);
   const runTest = useServerFn(testSerpstack);
+  const runLookup = useServerFn(lookupFlight);
 
   const status = useQuery({
     queryKey: ["integrations-status"],
@@ -32,6 +37,12 @@ function SettingsPage() {
 
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
+
+  const [flightQuery, setFlightQuery] = useState(SAMPLE_QUERY);
+  const [flightTesting, setFlightTesting] = useState(false);
+  const [flightResult, setFlightResult] = useState<FlightResult | null>(null);
+  const [flightError, setFlightError] = useState<string | null>(null);
+  const [flightElapsed, setFlightElapsed] = useState<number | null>(null);
 
   async function onTest() {
     setTesting(true);
@@ -49,7 +60,25 @@ function SettingsPage() {
     }
   }
 
+  async function onFlightTest() {
+    setFlightTesting(true);
+    setFlightResult(null);
+    setFlightError(null);
+    setFlightElapsed(null);
+    const start = Date.now();
+    try {
+      const r = await runLookup({ data: { query: flightQuery.trim() || SAMPLE_QUERY } });
+      setFlightResult(r);
+    } catch (e) {
+      setFlightError(e instanceof Error ? e.message : "Lookup failed");
+    } finally {
+      setFlightElapsed(Date.now() - start);
+      setFlightTesting(false);
+    }
+  }
+
   const configured = status.data?.serpstack.configured ?? false;
+  const aviationConfigured = status.data?.aviationstack.configured ?? false;
 
   return (
     <div className="space-y-8">
