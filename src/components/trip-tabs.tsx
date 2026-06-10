@@ -189,8 +189,23 @@ const PRO_HEADCOUNT_MAX = 100;
 
 export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwner }: { destinationId: string; me: string; headcount: number; isOwner: boolean }) {
   const qc = useQueryClient();
-  const [headcount, setHeadcount] = useState(initialHeadcount);
-  useEffect(() => setHeadcount(initialHeadcount), [initialHeadcount]);
+
+  // Fetch trip members — this is the canonical headcount source
+  const { data: members = [] } = useQuery({
+    queryKey: ["trip-members", destinationId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("trip_members").select("user_id, role").eq("destination_id", destinationId);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const memberCount = members.length || 1;
+
+  const [headcount, setHeadcount] = useState(Math.max(initialHeadcount, memberCount));
+  const [autoFromMembers, setAutoFromMembers] = useState(true);
+  useEffect(() => {
+    if (autoFromMembers) setHeadcount(memberCount);
+  }, [memberCount, autoFromMembers]);
 
   // Fetch owner's pro status (cap depends on the owner)
   const { data: ownerProfile } = useQuery({
@@ -214,15 +229,15 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     },
   });
 
-  // Members = anyone who has paid or logged a cost in this trip, plus me.
+  // Members for display = trip_members ∪ payers ∪ loggers
   const memberIds = useMemo(() => {
-    const s = new Set<string>([me]);
+    const s = new Set<string>([me, ...members.map((m) => m.user_id)]);
     for (const c of costs) {
       if (c.paid_by) s.add(c.paid_by);
       if (c.user_id) s.add(c.user_id);
     }
     return Array.from(s);
-  }, [costs, me]);
+  }, [costs, me, members]);
 
   const { data: profiles = [] } = useQuery({
     queryKey: ["cost-profiles", destinationId, memberIds.join(",")],
