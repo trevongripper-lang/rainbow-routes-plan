@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { format, addMonths, parseISO } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Map as MapIcon } from "lucide-react";
+import { PageHero } from "@/components/page-hero";
+
 
 type EventRow = {
   id: string;
