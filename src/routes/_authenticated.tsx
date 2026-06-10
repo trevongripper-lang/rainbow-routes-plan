@@ -264,12 +264,32 @@ function AppSidebar({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
+      <SidebarFooter className="gap-2">
         <SidebarSeparator />
-        <p className="px-2 py-1 text-xs text-sidebar-foreground/70">
-          Open a trip to plan stays, tickets &amp; costs together.
-        </p>
+        <ProUpsell />
       </SidebarFooter>
     </Sidebar>
+  );
+}
+
+function ProUpsell() {
+  const { data: me } = useMe();
+  if (me?.is_pro) {
+    return (
+      <Link to="/me" className="mx-1 flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-3 py-2 text-xs text-sidebar-foreground">
+        <span className="inline-block size-1.5 rounded-full bg-primary" /> Pro · unlimited
+      </Link>
+    );
+  }
+  return (
+    <Link
+      to="/pricing"
+      className="mx-1 flex flex-col gap-1 rounded-xl border border-border/60 bg-sidebar-accent/40 px-3 py-2.5 text-xs text-sidebar-foreground transition hover:border-primary/40 hover:bg-sidebar-accent/70"
+    >
+      <span className="inline-flex items-center gap-1.5 font-medium">
+        <Sparkles className="size-3.5 text-accent" /> Go Pro
+      </span>
+      <span className="text-sidebar-foreground/70">Unlimited crew · $9/mo</span>
+    </Link>
   );
 }
