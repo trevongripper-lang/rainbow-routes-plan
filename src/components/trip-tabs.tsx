@@ -464,7 +464,28 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
       </section>
 
       <section className="rounded-2xl border border-border/60 bg-card p-5">
-        <h3 className="font-display text-lg">Log a cost</h3>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="font-display text-lg">Log a cost</h3>
+          <div className="flex flex-wrap gap-1.5">
+            {([
+              { label: "Dinner", category: "Food & drink" },
+              { label: "Drinks", category: "Food & drink" },
+              { label: "Activity", category: "Tickets & events" },
+              { label: "Taxi", category: "Transport" },
+              { label: "Groceries", category: "Food & drink" },
+            ] as const).map((q) => (
+              <button
+                key={q.label}
+                type="button"
+                onClick={() => setForm({ ...form, category: q.category, label: q.label, is_shared: true, paid_by: me })}
+                className="rounded-full border border-border/60 bg-background/40 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-primary"
+              >
+                + {q.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">Quick-add picks a category and marks it shared — split is auto-calculated from your crew of {memberCount}.</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
             <Label className="text-xs">Category</Label>
