@@ -181,6 +181,7 @@ function TripDetail() {
       <Tabs value={activeTab} onValueChange={(v) => navigate({ to: "/trips/$id", params: { id }, search: { tab: v } })} className="w-full">
         <TabsList className="flex w-full flex-wrap justify-start gap-1 bg-card/60 p-1 md:hidden">
           <TabsTrigger value="overview">Chatter</TabsTrigger>
+          <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
           <TabsTrigger value="flights">Travel plans</TabsTrigger>
           <TabsTrigger value="stays">Where to stay</TabsTrigger>
           <TabsTrigger value="tickets">Tickets</TabsTrigger>
@@ -189,14 +190,34 @@ function TripDetail() {
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">
-          {me ? <Chatter destinationId={id} me={me} /> : null}
+          {me ? (
+            <div className="space-y-6">
+              <TripEventsStrip destinationId={id} me={me} region={dest.region} country={dest.country} />
+              <Chatter destinationId={id} me={me} />
+            </div>
+          ) : null}
         </TabsContent>
 
         {me && (
           <>
+            <TabsContent value="itinerary" className="mt-6">
+              <ItineraryTab
+                destinationId={id}
+                region={dest.region}
+                country={dest.country}
+                startDate={(dest as { start_date?: string | null }).start_date ?? null}
+                endDate={dest.end_date}
+                me={me}
+              />
+            </TabsContent>
             <TabsContent value="flights" className="mt-6"><FlightsTab destinationId={id} me={me} /></TabsContent>
             <TabsContent value="stays" className="mt-6"><StaysTab destinationId={id} me={me} title={dest.title} country={dest.country} /></TabsContent>
-            <TabsContent value="tickets" className="mt-6"><TicketsTab destinationId={id} me={me} /></TabsContent>
+            <TabsContent value="tickets" className="mt-6">
+              <div className="space-y-6">
+                <TripEventsStrip destinationId={id} me={me} region={dest.region} country={dest.country} />
+                <TicketsTab destinationId={id} me={me} />
+              </div>
+            </TabsContent>
             <TabsContent value="costs" className="mt-6"><CostsTab destinationId={id} me={me} headcount={dest.headcount ?? 2} isOwner={isOwner} /></TabsContent>
           </>
         )}
