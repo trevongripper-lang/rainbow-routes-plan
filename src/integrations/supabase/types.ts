@@ -267,6 +267,42 @@ export type Database = {
           },
         ]
       }
+      trip_events: {
+        Row: {
+          added_by: string
+          created_at: string
+          destination_id: string
+          event_id: string
+        }
+        Insert: {
+          added_by: string
+          created_at?: string
+          destination_id: string
+          event_id: string
+        }
+        Update: {
+          added_by?: string
+          created_at?: string
+          destination_id?: string
+          event_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_events_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_events_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_flights: {
         Row: {
           airline: string | null
