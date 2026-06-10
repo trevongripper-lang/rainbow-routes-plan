@@ -127,3 +127,90 @@ function MePage() {
     </div>
   );
 }
+
+function MyAccount({ userId, email, displayName, isPro }: { userId: string; email: string; displayName: string; isPro: boolean }) {
+  const qc = useQueryClient();
+  const [name, setName] = useState(displayName);
+  useEffect(() => { setName(displayName); }, [displayName]);
+  const dirty = name.trim() !== displayName.trim();
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("profiles").update({ display_name: name.trim() || null }).eq("id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["me"] }); toast.success("Saved"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  async function signOut() {
+    await qc.cancelQueries();
+    qc.clear();
+    await supabase.auth.signOut();
+    window.location.assign("/auth");
+  }
+
+  return (
+    <section className="space-y-4">
+      <h2 className="font-display text-2xl">My account</h2>
+
+      <div className="rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur">
+        <div className="grid gap-5 md:grid-cols-2">
+          <div>
+            <Label className="text-xs text-muted-foreground">Display name</Label>
+            <div className="mt-1 flex gap-2">
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
+              {dirty && (
+                <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>Save</Button>
+              )}
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Email</Label>
+            <div className="mt-1 flex h-10 items-center gap-2 rounded-md border border-border/60 bg-background/40 px-3 text-sm text-muted-foreground">
+              <Mail className="size-3.5" /> {email}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button onClick={signOut} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+            <LogOut className="size-3.5" /> Sign out
+          </button>
+        </div>
+      </div>
+
+      {isPro ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-5 backdrop-blur">
+          <div className="grid size-10 place-items-center rounded-full bg-primary/20 text-primary">
+            <Check className="size-5" />
+          </div>
+          <div className="flex-1">
+            <div className="font-display text-lg">You're on Pro</div>
+            <p className="text-sm text-muted-foreground">Unlimited crew size. Thanks for backing the build.</p>
+          </div>
+          <Link to="/pricing" className="text-sm text-primary hover:underline">Manage</Link>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/40 p-6 backdrop-blur md:p-8" style={{ backgroundImage: "var(--gradient-hero)" }}>
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-md">
+              <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/40 px-2.5 py-1 text-xs text-muted-foreground backdrop-blur">
+                <Sparkles className="size-3.5 text-accent" /> Free up to 5 people
+              </p>
+              <h3 className="font-display text-2xl md:text-3xl">Bring the whole <em className="text-primary not-italic">crew</em>.</h3>
+              <p className="mt-2 text-sm text-muted-foreground">Upgrade to Pro for unlimited members per trip, priority support, and everything we ship next.</p>
+            </div>
+            <Link
+              to="/pricing"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 font-medium text-primary-foreground shadow-[var(--shadow-soft)] hover:opacity-90"
+            >
+              <Sparkles className="size-4" /> Upgrade to Pro
+            </Link>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
