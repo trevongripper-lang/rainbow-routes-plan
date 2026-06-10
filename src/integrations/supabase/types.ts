@@ -430,6 +430,127 @@ export type Database = {
           },
         ]
       }
+      trip_poll_options: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string | null
+          label: string
+          poll_id: string
+          ref_id: string | null
+          ref_table: string | null
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          label: string
+          poll_id: string
+          ref_id?: string | null
+          ref_table?: string | null
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          label?: string
+          poll_id?: string
+          ref_id?: string | null
+          ref_table?: string | null
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_poll_options_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "trip_polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_poll_votes: {
+        Row: {
+          created_at: string
+          id: string
+          option_id: string
+          poll_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          option_id: string
+          poll_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          option_id?: string
+          poll_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_poll_votes_option_id_fkey"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "trip_poll_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "trip_polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_polls: {
+        Row: {
+          allow_multi: boolean
+          closed_at: string | null
+          created_at: string
+          destination_id: string
+          id: string
+          kind: string
+          question: string
+          user_id: string
+        }
+        Insert: {
+          allow_multi?: boolean
+          closed_at?: string | null
+          created_at?: string
+          destination_id: string
+          id?: string
+          kind?: string
+          question: string
+          user_id: string
+        }
+        Update: {
+          allow_multi?: boolean
+          closed_at?: string | null
+          created_at?: string
+          destination_id?: string
+          id?: string
+          kind?: string
+          question?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_polls_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_ratings: {
         Row: {
           created_at: string
