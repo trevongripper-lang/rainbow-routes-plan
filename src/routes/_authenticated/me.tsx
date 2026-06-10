@@ -46,7 +46,6 @@ function MePage() {
   if (isLoading || !data) return <div className="h-96 animate-pulse rounded-2xl bg-card/60" />;
 
   const { profile, user, dests, voted, commentCount } = data;
-  const name = profile?.display_name ?? user.email?.split("@")[0] ?? "you";
   const totalVotes = dests.reduce((s, d) => s + d.votes, 0);
 
   const firstName = (profile?.display_name?.trim() || user.email?.split("@")[0] || "you").split(/\s+/)[0];
