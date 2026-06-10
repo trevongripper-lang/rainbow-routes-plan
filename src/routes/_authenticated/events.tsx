@@ -45,7 +45,7 @@ function EventsPage() {
       </div>
 
 
-      <div className="mt-6 grid gap-3">
+      <div className="grid gap-3">
         {isLoading && Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-card/60" />)}
         {filtered.map((e) => (
           <article key={e.id} className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-5 md:flex-row md:items-center md:justify-between">
