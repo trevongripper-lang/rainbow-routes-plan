@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { getTripTabLinkProps } from "@/lib/trip-tab-link";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight, List, Plane, Sparkles, type LucideIcon } from "lucide-react";
+import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight, List, Plane, Sparkles, Settings as SettingsIcon, type LucideIcon } from "lucide-react";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { useMe } from "@/hooks/use-me";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -55,6 +55,7 @@ function AppShell() {
     { to: "/events", label: "Events", icon: CalendarDays },
     { to: "/map", label: "Map", icon: MapIcon },
     { to: "/me", label: "Mine", icon: User2 },
+    { to: "/settings", label: "Settings", icon: SettingsIcon },
   ] as const;
 
   const isActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
@@ -121,7 +122,7 @@ function AppShell() {
 }
 
 type NavItem = {
-  to: "/events" | "/map" | "/me";
+  to: "/events" | "/map" | "/me" | "/settings";
   label: string;
   icon: LucideIcon;
 };
