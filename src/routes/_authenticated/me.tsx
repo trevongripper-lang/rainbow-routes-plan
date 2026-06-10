@@ -139,7 +139,7 @@ function MyAccount({ userId, email, displayName, isPro }: { userId: string; emai
       const { error } = await supabase.from("profiles").update({ display_name: name.trim() || null }).eq("id", userId);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["me"] }); toast.success("Saved"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["me"] }); qc.invalidateQueries({ queryKey: ["me", "profile"] }); toast.success("Saved"); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
