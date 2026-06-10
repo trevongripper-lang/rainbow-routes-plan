@@ -144,9 +144,29 @@ function TripDetail() {
           </div>
           {dest.description && <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">{dest.description}</p>}
           {isOwner && (
-            <div className="mt-5 flex flex-wrap gap-4 text-xs">
+            <div className="mt-5 flex flex-wrap items-end gap-4">
+              <InviteModal destinationId={id} />
+              <div className="flex items-end gap-2">
+                <div>
+                  <Label className="text-xs">Trip end date</Label>
+                  <Input
+                    type="date"
+                    value={endDateDraft}
+                    onChange={(e) => setEndDateDraft(e.target.value)}
+                    className="w-44"
+                  />
+                </div>
+                {endDateDraft !== (dest.end_date ?? "") && (
+                  <Button size="sm" variant="secondary" onClick={() => saveEndDate.mutate(endDateDraft)}>Save</Button>
+                )}
+              </div>
+              <p className="self-end text-[11px] text-muted-foreground">Trip auto-closes 1 day after end date · ratings open then.</p>
+            </div>
+          )}
+          {isOwner && (
+            <div className="mt-4 flex flex-wrap gap-4 text-xs">
               <button onClick={() => togglePast.mutate()} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
-                {dest.is_past ? <><RotateCcw className="size-3.5" /> Move back to upcoming</> : <><Archive className="size-3.5" /> Archive as past trip</>}
+                {dest.is_past ? <><RotateCcw className="size-3.5" /> Reopen trip</> : <><Archive className="size-3.5" /> Close trip now</>}
               </button>
               <button onClick={() => deleteTrip.mutate()} className="inline-flex items-center gap-1.5 text-destructive hover:underline">
                 <Trash2 className="size-3.5" /> Delete this pitch
