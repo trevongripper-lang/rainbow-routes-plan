@@ -189,8 +189,23 @@ const PRO_HEADCOUNT_MAX = 100;
 
 export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwner }: { destinationId: string; me: string; headcount: number; isOwner: boolean }) {
   const qc = useQueryClient();
-  const [headcount, setHeadcount] = useState(initialHeadcount);
-  useEffect(() => setHeadcount(initialHeadcount), [initialHeadcount]);
+
+  // Fetch trip members — this is the canonical headcount source
+  const { data: members = [] } = useQuery({
+    queryKey: ["trip-members", destinationId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("trip_members").select("user_id, role").eq("destination_id", destinationId);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const memberCount = members.length || 1;
+
+  const [headcount, setHeadcount] = useState(Math.max(initialHeadcount, memberCount));
+  const [autoFromMembers, setAutoFromMembers] = useState(true);
+  useEffect(() => {
+    if (autoFromMembers) setHeadcount(memberCount);
+  }, [memberCount, autoFromMembers]);
 
   // Fetch owner's pro status (cap depends on the owner)
   const { data: ownerProfile } = useQuery({
@@ -214,15 +229,15 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     },
   });
 
-  // Members = anyone who has paid or logged a cost in this trip, plus me.
+  // Members for display = trip_members ∪ payers ∪ loggers
   const memberIds = useMemo(() => {
-    const s = new Set<string>([me]);
+    const s = new Set<string>([me, ...members.map((m) => m.user_id)]);
     for (const c of costs) {
       if (c.paid_by) s.add(c.paid_by);
       if (c.user_id) s.add(c.user_id);
     }
     return Array.from(s);
-  }, [costs, me]);
+  }, [costs, me, members]);
 
   const { data: profiles = [] } = useQuery({
     queryKey: ["cost-profiles", destinationId, memberIds.join(",")],
@@ -352,18 +367,39 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Users className="size-4 text-muted-foreground" />
           <Label className="text-xs">Group size</Label>
-          <Input
-            type="number"
-            min={1}
-            max={headcountMax}
-            value={headcount}
-            onChange={(e) => {
-              const v = Math.max(1, parseInt(e.target.value || "1", 10));
-              setHeadcount(Math.min(v, headcountMax));
-            }}
-            className="w-20"
-            disabled={!isOwner}
-          />
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">
+            {memberCount} {memberCount === 1 ? "member" : "members"} in crew
+          </span>
+          {autoFromMembers ? (
+            <button
+              type="button"
+              onClick={() => setAutoFromMembers(false)}
+              className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Override
+            </button>
+          ) : (
+            <>
+              <Input
+                type="number"
+                min={1}
+                max={headcountMax}
+                value={headcount}
+                onChange={(e) => {
+                  const v = Math.max(1, parseInt(e.target.value || "1", 10));
+                  setHeadcount(Math.min(v, headcountMax));
+                }}
+                className="w-20"
+              />
+              <button
+                type="button"
+                onClick={() => { setAutoFromMembers(true); setHeadcount(memberCount); }}
+                className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                Use crew count
+              </button>
+            </>
+          )}
           {isOwner && headcount !== initialHeadcount && (
             <Button size="sm" variant="secondary" onClick={() => saveHeadcount.mutate(headcount)} disabled={saveHeadcount.isPending}>Save</Button>
           )}
@@ -428,7 +464,28 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
       </section>
 
       <section className="rounded-2xl border border-border/60 bg-card p-5">
-        <h3 className="font-display text-lg">Log a cost</h3>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="font-display text-lg">Log a cost</h3>
+          <div className="flex flex-wrap gap-1.5">
+            {([
+              { label: "Dinner", category: "Food & drink" },
+              { label: "Drinks", category: "Food & drink" },
+              { label: "Activity", category: "Tickets & events" },
+              { label: "Taxi", category: "Transport" },
+              { label: "Groceries", category: "Food & drink" },
+            ] as const).map((q) => (
+              <button
+                key={q.label}
+                type="button"
+                onClick={() => setForm({ ...form, category: q.category, label: q.label, is_shared: true, paid_by: me })}
+                className="rounded-full border border-border/60 bg-background/40 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-primary"
+              >
+                + {q.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">Quick-add picks a category and marks it shared — split is auto-calculated from your crew of {memberCount}.</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
             <Label className="text-xs">Category</Label>
