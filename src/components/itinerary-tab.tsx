@@ -132,7 +132,7 @@ export function ItineraryTab({
     }
     for (const e of attached) {
       const d = e.start_date ? parseISO(e.start_date) : null;
-      const matched = (r && norm(e.region) === r) || (c && norm(e.country) === c);
+      const matched = !!((r && norm(e.region) === r) || (c && norm(e.country) === c));
       out.push({
         id: `e-${e.id}`,
         date: d && isValid(d) ? d : null,
