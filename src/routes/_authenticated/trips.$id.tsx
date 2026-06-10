@@ -7,9 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ArrowLeft, ArrowUp, MapPin, Trash2, Star, Archive, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
+
 import { StaysTab, TicketsTab, CostsTab } from "@/components/trip-tabs";
 import { FlightsTab } from "@/components/flights-tab";
+import { Chatter } from "@/components/chatter";
+import { InviteModal } from "@/components/invite-modal";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/_authenticated/trips/$id")({
   component: TripDetail,
@@ -54,7 +58,11 @@ function TripDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["trip", id], queryFn: () => fetchTrip(id) });
-  const [body, setBody] = useState("");
+  const [endDateDraft, setEndDateDraft] = useState<string>("");
+
+  useEffect(() => {
+    if (data?.dest.end_date) setEndDateDraft(data.dest.end_date);
+  }, [data?.dest.end_date]);
 
   const vote = useMutation({
     mutationFn: async () => {
@@ -68,13 +76,13 @@ function TripDetail() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["trip", id] }); qc.invalidateQueries({ queryKey: ["trips"] }); },
   });
 
-  const addComment = useMutation({
-    mutationFn: async () => {
-      if (!data?.me || !body.trim()) return;
-      const { error } = await supabase.from("comments").insert({ destination_id: id, user_id: data.me, body: body.trim() });
+  const saveEndDate = useMutation({
+    mutationFn: async (val: string) => {
+      const v = val ? val : null;
+      const { error } = await supabase.from("destinations").update({ end_date: v }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { setBody(""); qc.invalidateQueries({ queryKey: ["trip", id] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["trip", id] }); toast.success("End date saved"); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
@@ -99,7 +107,7 @@ function TripDetail() {
   if (isLoading) return <div className="h-96 animate-pulse rounded-2xl bg-card/60" />;
   if (!data) return <div className="py-20 text-center text-muted-foreground">Trip not found.</div>;
 
-  const { dest, author, votes, voted, comments, me } = data;
+  const { dest, author, votes, voted, me } = data;
   const isOwner = me === dest.user_id;
 
   return (
@@ -136,9 +144,29 @@ function TripDetail() {
           </div>
           {dest.description && <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">{dest.description}</p>}
           {isOwner && (
-            <div className="mt-5 flex flex-wrap gap-4 text-xs">
+            <div className="mt-5 flex flex-wrap items-end gap-4">
+              <InviteModal destinationId={id} />
+              <div className="flex items-end gap-2">
+                <div>
+                  <Label className="text-xs">Trip end date</Label>
+                  <Input
+                    type="date"
+                    value={endDateDraft}
+                    onChange={(e) => setEndDateDraft(e.target.value)}
+                    className="w-44"
+                  />
+                </div>
+                {endDateDraft !== (dest.end_date ?? "") && (
+                  <Button size="sm" variant="secondary" onClick={() => saveEndDate.mutate(endDateDraft)}>Save</Button>
+                )}
+              </div>
+              <p className="self-end text-[11px] text-muted-foreground">Trip auto-closes 1 day after end date · ratings open then.</p>
+            </div>
+          )}
+          {isOwner && (
+            <div className="mt-4 flex flex-wrap gap-4 text-xs">
               <button onClick={() => togglePast.mutate()} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
-                {dest.is_past ? <><RotateCcw className="size-3.5" /> Move back to upcoming</> : <><Archive className="size-3.5" /> Archive as past trip</>}
+                {dest.is_past ? <><RotateCcw className="size-3.5" /> Reopen trip</> : <><Archive className="size-3.5" /> Close trip now</>}
               </button>
               <button onClick={() => deleteTrip.mutate()} className="inline-flex items-center gap-1.5 text-destructive hover:underline">
                 <Trash2 className="size-3.5" /> Delete this pitch
@@ -159,31 +187,7 @@ function TripDetail() {
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">
-          <section>
-            <h2 className="font-display text-2xl">Chatter</h2>
-            <p className="text-sm text-muted-foreground">Trip tips, flight finds, club intel.</p>
-
-            <form onSubmit={(e) => { e.preventDefault(); addComment.mutate(); }} className="mt-4 space-y-2">
-              <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add to the chatter..." rows={3} />
-              <div className="flex justify-end"><Button type="submit" disabled={addComment.isPending || !body.trim()}>Post</Button></div>
-            </form>
-
-            <ul className="mt-6 space-y-3">
-              {comments.length === 0 && <li className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No chatter yet. Kick it off.</li>}
-              {comments.map((c) => (
-                <li key={c.id} className="rounded-xl border border-border/60 bg-card p-4">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <div className="grid size-6 place-items-center rounded-full bg-primary/20 text-[10px] font-medium text-primary">
-                      {(c.author?.display_name ?? "?").slice(0, 1).toUpperCase()}
-                    </div>
-                    <span className="text-foreground">{c.author?.display_name ?? "Someone"}</span>
-                    <span>· {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}</span>
-                  </div>
-                  <p className="mt-2 whitespace-pre-wrap text-sm">{c.body}</p>
-                </li>
-              ))}
-            </ul>
-          </section>
+          {me ? <Chatter destinationId={id} me={me} /> : null}
         </TabsContent>
 
         {me && (

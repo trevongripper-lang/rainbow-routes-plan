@@ -20,6 +20,8 @@ export type Database = {
           created_at: string
           destination_id: string
           id: string
+          mentions: string[]
+          parent_id: string | null
           user_id: string
         }
         Insert: {
@@ -27,6 +29,8 @@ export type Database = {
           created_at?: string
           destination_id: string
           id?: string
+          mentions?: string[]
+          parent_id?: string | null
           user_id: string
         }
         Update: {
@@ -34,6 +38,8 @@ export type Database = {
           created_at?: string
           destination_id?: string
           id?: string
+          mentions?: string[]
+          parent_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -44,6 +50,13 @@ export type Database = {
             referencedRelation: "destinations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
         ]
       }
       destinations: {
@@ -52,6 +65,7 @@ export type Database = {
           country: string | null
           created_at: string
           description: string | null
+          end_date: string | null
           headcount: number
           id: string
           image_url: string | null
@@ -65,6 +79,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           description?: string | null
+          end_date?: string | null
           headcount?: number
           id?: string
           image_url?: string | null
@@ -78,6 +93,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           description?: string | null
+          end_date?: string | null
           headcount?: number
           id?: string
           image_url?: string | null
@@ -133,24 +149,71 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          destination_id: string
+          id: string
+          kind: string
+          payload: Json
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          destination_id: string
+          id?: string
+          kind: string
+          payload?: Json
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          destination_id?: string
+          id?: string
+          kind?: string
+          payload?: Json
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
           display_name: string | null
           id: string
+          is_pro: boolean
+          stripe_customer_id: string | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           id: string
+          is_pro?: boolean
+          stripe_customer_id?: string | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          is_pro?: boolean
+          stripe_customer_id?: string | null
         }
         Relationships: []
       }
@@ -254,6 +317,82 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      trip_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          destination_id: string
+          email: string | null
+          expires_at: string
+          id: string
+          invited_by: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          destination_id: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          invited_by: string
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          destination_id?: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_invites_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_members: {
+        Row: {
+          destination_id: string
+          id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          destination_id: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          destination_id?: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_members_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trip_ratings: {
         Row: {
@@ -403,6 +542,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_close_trips: { Args: never; Returns: number }
+      fanout_notification: {
+        Args: { _actor: string; _dest: string; _kind: string; _payload: Json }
+        Returns: undefined
+      }
       get_trip_rating_aggregate: {
         Args: { _destination_id: string }
         Returns: {
@@ -411,6 +555,27 @@ export type Database = {
           rating_count: number
         }[]
       }
+      is_trip_member: {
+        Args: { _dest: string; _user: string }
+        Returns: boolean
+      }
+      is_trip_owner: {
+        Args: { _dest: string; _user: string }
+        Returns: boolean
+      }
+      preview_trip_invite: {
+        Args: { _token: string }
+        Returns: {
+          country: string
+          destination_id: string
+          expired: boolean
+          image_url: string
+          region: string
+          title: string
+          used: boolean
+        }[]
+      }
+      redeem_trip_invite: { Args: { _token: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never

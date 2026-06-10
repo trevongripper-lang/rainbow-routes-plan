@@ -4,6 +4,7 @@ import { getTripTabLinkProps } from "@/lib/trip-tab-link";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight, List, Plane, type LucideIcon } from "lucide-react";
+import { NotificationsBell } from "@/components/notifications-bell";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sidebar,
@@ -96,9 +97,12 @@ function AppShell() {
                 </Link>
               </div>
 
-              <button onClick={signOut} className="rounded-full p-2 text-muted-foreground hover:text-foreground" title="Sign out">
-                <LogOut className="size-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <NotificationsBell />
+                <button onClick={signOut} className="rounded-full p-2 text-muted-foreground hover:text-foreground" title="Sign out">
+                  <LogOut className="size-4" />
+                </button>
+              </div>
             </div>
           </header>
 

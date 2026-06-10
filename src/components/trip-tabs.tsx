@@ -185,11 +185,25 @@ export function TicketsTab({ destinationId, me }: { destinationId: string; me: s
 const CATEGORIES = ["Flights", "Lodging", "Food & drink", "Tickets & events", "Transport", "Other"] as const;
 
 const FREE_HEADCOUNT_MAX = 5;
+const PRO_HEADCOUNT_MAX = 100;
 
 export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwner }: { destinationId: string; me: string; headcount: number; isOwner: boolean }) {
   const qc = useQueryClient();
   const [headcount, setHeadcount] = useState(initialHeadcount);
   useEffect(() => setHeadcount(initialHeadcount), [initialHeadcount]);
+
+  // Fetch owner's pro status (cap depends on the owner)
+  const { data: ownerProfile } = useQuery({
+    queryKey: ["owner-profile", destinationId],
+    queryFn: async () => {
+      const { data: d } = await supabase.from("destinations").select("user_id").eq("id", destinationId).maybeSingle();
+      if (!d) return null;
+      const { data: p } = await supabase.from("profiles").select("is_pro").eq("id", d.user_id).maybeSingle();
+      return p as { is_pro: boolean } | null;
+    },
+  });
+  const isPro = !!ownerProfile?.is_pro;
+  const headcountMax = isPro ? PRO_HEADCOUNT_MAX : FREE_HEADCOUNT_MAX;
 
   const { data: costs = [] } = useQuery({
     queryKey: ["costs", destinationId],
@@ -224,12 +238,14 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
 
   const saveHeadcount = useMutation({
     mutationFn: async (n: number) => {
-      if (n < 1 || n > FREE_HEADCOUNT_MAX) {
-        throw new Error(`Free plan supports 1–${FREE_HEADCOUNT_MAX} people per trip. Upgrade for larger crews.`);
+      if (n < 1 || n > headcountMax) {
+        if (!isPro && n > FREE_HEADCOUNT_MAX) {
+          throw new Error(`Free plan supports up to ${FREE_HEADCOUNT_MAX} people. Upgrade to Pro for larger crews.`);
+        }
+        throw new Error(`Group size must be between 1 and ${headcountMax}.`);
       }
       const { error } = await supabase.from("destinations").update({ headcount: n }).eq("id", destinationId);
       if (error) {
-        // Map Postgres CHECK violation (23514) to a friendly message.
         const msg = error.message?.toLowerCase() ?? "";
         if (error.code === "23514" || msg.includes("destinations_headcount_free_plan_max") || msg.includes("check constraint")) {
           throw new Error(`Free plan supports up to ${FREE_HEADCOUNT_MAX} people per trip. Upgrade for larger crews.`);
@@ -318,7 +334,7 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
 
   const fmt = (cents: number, cur: string) => `${(cents / 100).toFixed(2)} ${cur}`;
 
-  const atFreeCap = headcount >= FREE_HEADCOUNT_MAX;
+  const atFreeCap = !isPro && headcount >= FREE_HEADCOUNT_MAX;
 
   return (
     <div className="space-y-6">
@@ -339,11 +355,11 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
           <Input
             type="number"
             min={1}
-            max={FREE_HEADCOUNT_MAX}
+            max={headcountMax}
             value={headcount}
             onChange={(e) => {
               const v = Math.max(1, parseInt(e.target.value || "1", 10));
-              setHeadcount(Math.min(v, FREE_HEADCOUNT_MAX));
+              setHeadcount(Math.min(v, headcountMax));
             }}
             className="w-20"
             disabled={!isOwner}
@@ -351,9 +367,15 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
           {isOwner && headcount !== initialHeadcount && (
             <Button size="sm" variant="secondary" onClick={() => saveHeadcount.mutate(headcount)} disabled={saveHeadcount.isPending}>Save</Button>
           )}
-          <span className={`inline-flex items-center gap-1 text-[11px] ${atFreeCap ? "text-amber-400" : "text-muted-foreground"}`}>
-            <Lock className="size-3" /> Free plan · up to {FREE_HEADCOUNT_MAX} people
-          </span>
+          {isPro ? (
+            <span className="inline-flex items-center gap-1 text-[11px] text-primary">
+              ✦ Pro · unlimited crew
+            </span>
+          ) : (
+            <span className={`inline-flex items-center gap-1 text-[11px] ${atFreeCap ? "text-amber-400" : "text-muted-foreground"}`}>
+              <Lock className="size-3" /> Free plan · up to {FREE_HEADCOUNT_MAX} people · <a href="/pricing" className="text-primary hover:underline">Upgrade</a>
+            </span>
+          )}
         </div>
         {summary.rows.length > 0 && (
           <ul className="mt-4 divide-y divide-border/60 rounded-xl border border-border/60">
