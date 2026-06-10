@@ -185,11 +185,25 @@ export function TicketsTab({ destinationId, me }: { destinationId: string; me: s
 const CATEGORIES = ["Flights", "Lodging", "Food & drink", "Tickets & events", "Transport", "Other"] as const;
 
 const FREE_HEADCOUNT_MAX = 5;
+const PRO_HEADCOUNT_MAX = 100;
 
 export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwner }: { destinationId: string; me: string; headcount: number; isOwner: boolean }) {
   const qc = useQueryClient();
   const [headcount, setHeadcount] = useState(initialHeadcount);
   useEffect(() => setHeadcount(initialHeadcount), [initialHeadcount]);
+
+  // Fetch owner's pro status (cap depends on the owner)
+  const { data: ownerProfile } = useQuery({
+    queryKey: ["owner-profile", destinationId],
+    queryFn: async () => {
+      const { data: d } = await supabase.from("destinations").select("user_id").eq("id", destinationId).maybeSingle();
+      if (!d) return null;
+      const { data: p } = await supabase.from("profiles").select("is_pro").eq("id", d.user_id).maybeSingle();
+      return p as { is_pro: boolean } | null;
+    },
+  });
+  const isPro = !!ownerProfile?.is_pro;
+  const headcountMax = isPro ? PRO_HEADCOUNT_MAX : FREE_HEADCOUNT_MAX;
 
   const { data: costs = [] } = useQuery({
     queryKey: ["costs", destinationId],
