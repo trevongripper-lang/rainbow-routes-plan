@@ -10,7 +10,7 @@ export type MyProfile = {
 
 export function useMe() {
   return useQuery({
-    queryKey: ["me"],
+    queryKey: ["me", "profile"],
     queryFn: async (): Promise<MyProfile | null> => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return null;
