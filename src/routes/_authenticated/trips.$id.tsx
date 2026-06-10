@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ArrowLeft, ArrowUp, MapPin, Trash2, Star, Archive, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
+
 import { StaysTab, TicketsTab, CostsTab } from "@/components/trip-tabs";
 import { FlightsTab } from "@/components/flights-tab";
 import { Chatter } from "@/components/chatter";
