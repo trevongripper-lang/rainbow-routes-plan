@@ -93,7 +93,7 @@ function MapPage() {
         </div>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-border/60 bg-card" style={{ height: "60vh", minHeight: 420 }}>
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card" style={{ height: "60vh", minHeight: 420 }}>
         {mounted && EventsMap ? (
           <EventsMap events={filtered as EventRow[]} />
         ) : (
