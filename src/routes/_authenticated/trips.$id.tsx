@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowUp, MapPin, Trash2, Star, Archive, RotateCcw } from "lucide-react";
+import { ArrowUp, MapPin, Trash2, Star, Archive, RotateCcw, Wand2 } from "lucide-react";
 import { Breadcrumbs } from "@/components/page-hero";
 import { toast } from "sonner";
 
