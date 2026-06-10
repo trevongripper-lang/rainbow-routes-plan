@@ -16,6 +16,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import howItWorksHero from "@/assets/how-it-works-hero.png";
+import { Reveal } from "@/components/reveal";
 
 export const Route = createFileRoute("/")({
   ssr: false,
