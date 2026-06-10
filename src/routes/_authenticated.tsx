@@ -97,9 +97,12 @@ function AppShell() {
                 </Link>
               </div>
 
-              <button onClick={signOut} className="rounded-full p-2 text-muted-foreground hover:text-foreground" title="Sign out">
-                <LogOut className="size-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <NotificationsBell />
+                <button onClick={signOut} className="rounded-full p-2 text-muted-foreground hover:text-foreground" title="Sign out">
+                  <LogOut className="size-4" />
+                </button>
+              </div>
             </div>
           </header>
 
