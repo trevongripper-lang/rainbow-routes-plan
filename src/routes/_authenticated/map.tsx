@@ -78,7 +78,7 @@ function MapPage() {
       />
 
 
-      <div className="mt-6 grid gap-3 rounded-2xl border border-border/60 bg-card p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+      <div className="grid gap-3 rounded-2xl border border-border/60 bg-card/60 p-4 backdrop-blur sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <div>
           <Label htmlFor="from" className="text-xs text-muted-foreground">From</Label>
           <Input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
