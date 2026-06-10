@@ -54,35 +54,44 @@ function TripsPage() {
   const filtered = (data ?? []).filter((d) => (tab === "past" ? d.is_past : !d.is_past));
 
   return (
-    <div>
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl md:text-4xl">Where to next?</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Pitch a destination, upvote favorites, plot the move.</p>
+    <div className="space-y-10">
+      <header className="rounded-3xl border border-border/60 bg-card/30 p-8 backdrop-blur md:p-10">
+        <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/40 px-3 py-1 text-xs text-muted-foreground backdrop-blur">
+          <Sparkles className="size-3.5 text-accent" /> Your crew's wanderlust
+        </p>
+        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-xl">
+            <h1 className="font-display text-4xl leading-[1.05] md:text-6xl">
+              Where to <em className="text-primary not-italic">next</em>?
+            </h1>
+            <p className="mt-4 text-base text-muted-foreground md:text-lg">
+              Pitch a destination, upvote favorites, plot the move — together.
+            </p>
+          </div>
+          <NewTripDialog />
         </div>
-        <NewTripDialog />
-      </div>
 
-      <div className="mt-6 inline-flex rounded-full border border-border/60 bg-card p-1 text-sm">
-        {(["upcoming", "past"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`rounded-full px-4 py-1.5 capitalize transition ${tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            {t} trips
-          </button>
-        ))}
-      </div>
+        <div className="mt-8 inline-flex rounded-full border border-border/60 bg-card/60 p-1 text-sm backdrop-blur">
+          {(["upcoming", "past"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`rounded-full px-4 py-1.5 capitalize transition ${tab === t ? "bg-primary text-primary-foreground shadow-[var(--shadow-soft)]" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {t} trips
+            </button>
+          ))}
+        </div>
+      </header>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-2">
         {isLoading && Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="h-64 animate-pulse rounded-2xl bg-card/60" />
         ))}
         {!isLoading && filtered.length === 0 && (
-          <div className="col-span-full rounded-2xl border border-dashed border-border bg-card/30 p-10 text-center">
-            <p className="font-display text-xl">{tab === "past" ? "No past trips yet." : "No destinations yet."}</p>
-            <p className="mt-1 text-sm text-muted-foreground">
+          <div className="col-span-full rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center backdrop-blur">
+            <p className="font-display text-2xl">{tab === "past" ? "No past trips yet." : "No destinations yet."}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
               {tab === "past" ? "Mark a trip as past from its detail page after the trip wraps." : "Be the first to pitch one."}
             </p>
           </div>
