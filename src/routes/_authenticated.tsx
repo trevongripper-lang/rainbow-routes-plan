@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import { getTripTabLinkProps } from "@/lib/trip-tab-link";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight, List, Plane, type LucideIcon } from "lucide-react";
+import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight, List, Plane, Sparkles, type LucideIcon } from "lucide-react";
 import { NotificationsBell } from "@/components/notifications-bell";
+import { useMe } from "@/hooks/use-me";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sidebar,
