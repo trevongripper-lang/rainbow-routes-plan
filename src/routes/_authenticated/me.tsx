@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowUp, MessageCircle, MapPin, User2 } from "lucide-react";
-import { PageHero, Breadcrumbs } from "@/components/page-hero";
+import { PageHero } from "@/components/page-hero";
 
 export const Route = createFileRoute("/_authenticated/me")({
   component: MePage,
