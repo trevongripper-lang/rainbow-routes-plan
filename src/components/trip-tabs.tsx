@@ -334,7 +334,7 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
 
   const fmt = (cents: number, cur: string) => `${(cents / 100).toFixed(2)} ${cur}`;
 
-  const atFreeCap = headcount >= FREE_HEADCOUNT_MAX;
+  const atFreeCap = !isPro && headcount >= FREE_HEADCOUNT_MAX;
 
   return (
     <div className="space-y-6">
@@ -355,11 +355,11 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
           <Input
             type="number"
             min={1}
-            max={FREE_HEADCOUNT_MAX}
+            max={headcountMax}
             value={headcount}
             onChange={(e) => {
               const v = Math.max(1, parseInt(e.target.value || "1", 10));
-              setHeadcount(Math.min(v, FREE_HEADCOUNT_MAX));
+              setHeadcount(Math.min(v, headcountMax));
             }}
             className="w-20"
             disabled={!isOwner}
@@ -367,9 +367,15 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
           {isOwner && headcount !== initialHeadcount && (
             <Button size="sm" variant="secondary" onClick={() => saveHeadcount.mutate(headcount)} disabled={saveHeadcount.isPending}>Save</Button>
           )}
-          <span className={`inline-flex items-center gap-1 text-[11px] ${atFreeCap ? "text-amber-400" : "text-muted-foreground"}`}>
-            <Lock className="size-3" /> Free plan · up to {FREE_HEADCOUNT_MAX} people
-          </span>
+          {isPro ? (
+            <span className="inline-flex items-center gap-1 text-[11px] text-primary">
+              ✦ Pro · unlimited crew
+            </span>
+          ) : (
+            <span className={`inline-flex items-center gap-1 text-[11px] ${atFreeCap ? "text-amber-400" : "text-muted-foreground"}`}>
+              <Lock className="size-3" /> Free plan · up to {FREE_HEADCOUNT_MAX} people · <a href="/pricing" className="text-primary hover:underline">Upgrade</a>
+            </span>
+          )}
         </div>
         {summary.rows.length > 0 && (
           <ul className="mt-4 divide-y divide-border/60 rounded-xl border border-border/60">
