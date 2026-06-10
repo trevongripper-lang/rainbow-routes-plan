@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowUp, MessageCircle, MapPin } from "lucide-react";
+import { ArrowUp, MessageCircle, MapPin, User2 } from "lucide-react";
+import { PageHero } from "@/components/page-hero";
 
 export const Route = createFileRoute("/_authenticated/me")({
   component: MePage,
 });
+
 
 async function fetchMine() {
   const { data: u } = await supabase.auth.getUser();
@@ -43,16 +45,21 @@ function MePage() {
   const totalVotes = dests.reduce((s, d) => s + d.votes, 0);
 
   return (
-    <div className="space-y-10">
-      <header className="flex items-center gap-5">
-        <div className="grid size-16 place-items-center rounded-full bg-primary/20 text-2xl font-display text-primary">
-          {name.slice(0, 1).toUpperCase()}
-        </div>
-        <div>
-          <h1 className="font-display text-3xl">{name}</h1>
-          <p className="text-sm text-muted-foreground">{user.email}</p>
-        </div>
-      </header>
+    <div className="space-y-8">
+      <PageHero
+        crumbs={[{ label: "Mine" }]}
+        eyebrow={user.email ?? "Your profile"}
+        eyebrowIcon={User2}
+        title="Hey,"
+        highlight={name}
+        description="Everything you've pitched, voted for, and chattered about — all in one place."
+        actions={
+          <div className="grid size-16 place-items-center rounded-2xl bg-primary/20 font-display text-2xl text-primary shadow-[var(--shadow-soft)]">
+            {name.slice(0, 1).toUpperCase()}
+          </div>
+        }
+      />
+
 
       <div className="grid grid-cols-3 gap-3">
         {[

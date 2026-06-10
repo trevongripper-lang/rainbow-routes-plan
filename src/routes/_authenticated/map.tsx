@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { format, addMonths, parseISO } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Map as MapIcon } from "lucide-react";
+import { PageHero } from "@/components/page-hero";
+
 
 type EventRow = {
   id: string;
@@ -65,11 +67,18 @@ function MapPage() {
   }, [data, from, to]);
 
   return (
-    <div>
-      <h1 className="font-display text-3xl md:text-4xl">Events on the map</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Pick a date range and see what's happening where.</p>
+    <div className="space-y-8">
+      <PageHero
+        crumbs={[{ label: "Map" }]}
+        eyebrow="See it on the globe"
+        eyebrowIcon={MapIcon}
+        title="Events on the"
+        highlight="map"
+        description="Pick a date range and see what's happening where — perfect for stacking a trip around an event."
+      />
 
-      <div className="mt-6 grid gap-3 rounded-2xl border border-border/60 bg-card p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+
+      <div className="grid gap-3 rounded-2xl border border-border/60 bg-card/60 p-4 backdrop-blur sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <div>
           <Label htmlFor="from" className="text-xs text-muted-foreground">From</Label>
           <Input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -84,7 +93,7 @@ function MapPage() {
         </div>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-border/60 bg-card" style={{ height: "60vh", minHeight: 420 }}>
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card" style={{ height: "60vh", minHeight: 420 }}>
         {mounted && EventsMap ? (
           <EventsMap events={filtered as EventRow[]} />
         ) : (

@@ -2,12 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMemo, useState } from "react";
-import { CalendarDays, MapPin, ExternalLink } from "lucide-react";
+import { CalendarDays, MapPin, ExternalLink, Sparkles } from "lucide-react";
 import { format } from "date-fns";
+import { PageHero } from "@/components/page-hero";
 
 export const Route = createFileRoute("/_authenticated/events")({
   component: EventsPage,
 });
+
 
 async function fetchEvents() {
   const { data, error } = await supabase.from("events").select("*").order("start_date", { ascending: true });
@@ -23,20 +25,27 @@ function EventsPage() {
   const filtered = region === "All" ? data ?? [] : (data ?? []).filter((e) => e.region === region);
 
   return (
-    <div>
-      <h1 className="font-display text-3xl md:text-4xl">Events by region</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Curated pride, circuit, and beach events around the world.</p>
+    <div className="space-y-8">
+      <PageHero
+        crumbs={[{ label: "Events" }]}
+        eyebrow="Pride · circuit · beach"
+        eyebrowIcon={Sparkles}
+        title="Events by"
+        highlight="region"
+        description="Curated celebrations and parties around the world — sorted by where you're headed."
+      />
 
-      <div className="mt-6 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
         {regions.map((r) => (
           <button key={r} onClick={() => setRegion(r)}
-            className={`rounded-full border px-3.5 py-1.5 text-sm transition ${region === r ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}>
+            className={`rounded-full border px-3.5 py-1.5 text-sm transition ${region === r ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card/40 text-muted-foreground backdrop-blur hover:text-foreground"}`}>
             {r}
           </button>
         ))}
       </div>
 
-      <div className="mt-6 grid gap-3">
+
+      <div className="grid gap-3">
         {isLoading && Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-card/60" />)}
         {filtered.map((e) => (
           <article key={e.id} className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-5 md:flex-row md:items-center md:justify-between">
