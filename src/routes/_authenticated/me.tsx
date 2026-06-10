@@ -1,8 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowUp, MessageCircle, MapPin, User2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowUp, MessageCircle, MapPin, Sparkles, Check, Mail, LogOut } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/me")({
   component: MePage,
