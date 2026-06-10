@@ -223,9 +223,22 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
   const nameOf = (id: string | null | undefined) => (id ? (pmap.get(id)?.display_name ?? "Someone") : "Someone");
 
   const saveHeadcount = useMutation({
-    mutationFn: async (n: number) => { const { error } = await supabase.from("destinations").update({ headcount: n }).eq("id", destinationId); if (error) throw error; },
+    mutationFn: async (n: number) => {
+      if (n < 1 || n > FREE_HEADCOUNT_MAX) {
+        throw new Error(`Free plan supports 1–${FREE_HEADCOUNT_MAX} people per trip. Upgrade for larger crews.`);
+      }
+      const { error } = await supabase.from("destinations").update({ headcount: n }).eq("id", destinationId);
+      if (error) {
+        // Map Postgres CHECK violation (23514) to a friendly message.
+        const msg = error.message?.toLowerCase() ?? "";
+        if (error.code === "23514" || msg.includes("destinations_headcount_free_plan_max") || msg.includes("check constraint")) {
+          throw new Error(`Free plan supports up to ${FREE_HEADCOUNT_MAX} people per trip. Upgrade for larger crews.`);
+        }
+        throw error;
+      }
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["trip", destinationId] }); toast.success("Group size updated"); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't update group size"),
   });
 
   const [form, setForm] = useState({ category: CATEGORIES[0] as string, label: "", amount: "", currency: "USD", is_shared: true, note: "", paid_by: me });
