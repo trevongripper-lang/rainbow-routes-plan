@@ -113,9 +113,8 @@ function TripDetail() {
 
   return (
     <div className="space-y-8">
-      <Link to="/trips" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> All trips
-      </Link>
+      <Breadcrumbs items={[{ label: "Trips", to: "/trips" }, { label: dest.title }]} />
+
 
       <header className="overflow-hidden rounded-3xl border border-border/60 bg-card">
         {dest.image_url ? (
