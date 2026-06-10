@@ -49,22 +49,16 @@ function MePage() {
   const name = profile?.display_name ?? user.email?.split("@")[0] ?? "you";
   const totalVotes = dests.reduce((s, d) => s + d.votes, 0);
 
+  const firstName = (profile?.display_name?.trim() || user.email?.split("@")[0] || "you").split(/\s+/)[0];
+  const isPro = !!(profile as { is_pro?: boolean } | null)?.is_pro;
+
   return (
     <div className="space-y-8">
       <PageHero
         crumbs={[{ label: "Mine" }]}
-        eyebrow={user.email ?? "Your profile"}
-        eyebrowIcon={User2}
         title="Hey,"
-        highlight={name}
-        description="Everything you've pitched, voted for, and chattered about — all in one place."
-        actions={
-          <div className="grid size-16 place-items-center rounded-2xl bg-primary/20 font-display text-2xl text-primary shadow-[var(--shadow-soft)]">
-            {name.slice(0, 1).toUpperCase()}
-          </div>
-        }
+        highlight={firstName}
       />
-
 
       <div className="grid grid-cols-3 gap-3">
         {[
@@ -72,12 +66,20 @@ function MePage() {
           { label: "Votes received", value: totalVotes },
           { label: "Comments", value: commentCount },
         ].map((s) => (
-          <div key={s.label} className="rounded-2xl border border-border/60 bg-card p-5">
+          <div key={s.label} className="rounded-2xl border border-border/60 bg-card/60 p-5 backdrop-blur">
             <div className="font-display text-3xl text-primary">{s.value}</div>
             <div className="mt-1 text-xs text-muted-foreground">{s.label}</div>
           </div>
         ))}
       </div>
+
+      <MyAccount
+        userId={user.id}
+        email={user.email ?? ""}
+        displayName={profile?.display_name ?? ""}
+        isPro={isPro}
+      />
+
 
       <section>
         <h2 className="font-display text-2xl">Your pitches</h2>
