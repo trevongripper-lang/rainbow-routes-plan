@@ -21,6 +21,7 @@ import { Route as AuthenticatedEventsRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedTripsIndexRouteImport } from './routes/_authenticated/trips.index'
 import { Route as ApiPublicPaddleWebhookRouteImport } from './routes/api/public/paddle-webhook'
 import { Route as AuthenticatedTripsIdRouteImport } from './routes/_authenticated/trips.$id'
+import { Route as AuthenticatedConsolePromoCodesRouteImport } from './routes/_authenticated/console.promo-codes'
 
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
@@ -81,6 +82,12 @@ const AuthenticatedTripsIdRoute = AuthenticatedTripsIdRouteImport.update({
   path: '/trips/$id',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedConsolePromoCodesRoute =
+  AuthenticatedConsolePromoCodesRouteImport.update({
+    id: '/console/promo-codes',
+    path: '/console/promo-codes',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByFullPath {
   '/me': typeof AuthenticatedMeRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/join/$token': typeof JoinTokenRoute
+  '/console/promo-codes': typeof AuthenticatedConsolePromoCodesRoute
   '/trips/$id': typeof AuthenticatedTripsIdRoute
   '/api/public/paddle-webhook': typeof ApiPublicPaddleWebhookRoute
   '/trips/': typeof AuthenticatedTripsIndexRoute
@@ -104,6 +112,7 @@ export interface FileRoutesByTo {
   '/me': typeof AuthenticatedMeRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/join/$token': typeof JoinTokenRoute
+  '/console/promo-codes': typeof AuthenticatedConsolePromoCodesRoute
   '/trips/$id': typeof AuthenticatedTripsIdRoute
   '/api/public/paddle-webhook': typeof ApiPublicPaddleWebhookRoute
   '/trips': typeof AuthenticatedTripsIndexRoute
@@ -119,6 +128,7 @@ export interface FileRoutesById {
   '/_authenticated/me': typeof AuthenticatedMeRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/join/$token': typeof JoinTokenRoute
+  '/_authenticated/console/promo-codes': typeof AuthenticatedConsolePromoCodesRoute
   '/_authenticated/trips/$id': typeof AuthenticatedTripsIdRoute
   '/api/public/paddle-webhook': typeof ApiPublicPaddleWebhookRoute
   '/_authenticated/trips/': typeof AuthenticatedTripsIndexRoute
@@ -134,6 +144,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/settings'
     | '/join/$token'
+    | '/console/promo-codes'
     | '/trips/$id'
     | '/api/public/paddle-webhook'
     | '/trips/'
@@ -147,6 +158,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/settings'
     | '/join/$token'
+    | '/console/promo-codes'
     | '/trips/$id'
     | '/api/public/paddle-webhook'
     | '/trips'
@@ -161,6 +173,7 @@ export interface FileRouteTypes {
     | '/_authenticated/me'
     | '/_authenticated/settings'
     | '/join/$token'
+    | '/_authenticated/console/promo-codes'
     | '/_authenticated/trips/$id'
     | '/api/public/paddle-webhook'
     | '/_authenticated/trips/'
@@ -261,6 +274,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTripsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/console/promo-codes': {
+      id: '/_authenticated/console/promo-codes'
+      path: '/console/promo-codes'
+      fullPath: '/console/promo-codes'
+      preLoaderRoute: typeof AuthenticatedConsolePromoCodesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
@@ -269,6 +289,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMapRoute: typeof AuthenticatedMapRoute
   AuthenticatedMeRoute: typeof AuthenticatedMeRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedConsolePromoCodesRoute: typeof AuthenticatedConsolePromoCodesRoute
   AuthenticatedTripsIdRoute: typeof AuthenticatedTripsIdRoute
   AuthenticatedTripsIndexRoute: typeof AuthenticatedTripsIndexRoute
 }
@@ -278,6 +299,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMapRoute: AuthenticatedMapRoute,
   AuthenticatedMeRoute: AuthenticatedMeRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedConsolePromoCodesRoute: AuthenticatedConsolePromoCodesRoute,
   AuthenticatedTripsIdRoute: AuthenticatedTripsIdRoute,
   AuthenticatedTripsIndexRoute: AuthenticatedTripsIndexRoute,
 }
