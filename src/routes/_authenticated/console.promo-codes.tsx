@@ -1,10 +1,10 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2, Plus, Power, PowerOff, Save, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import {
-  checkIsAdmin,
   createPromoCode,
   listPromoCodes,
   setPromoCodeActive,
