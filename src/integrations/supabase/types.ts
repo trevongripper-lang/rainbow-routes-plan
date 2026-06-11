@@ -243,6 +243,33 @@ export type Database = {
           },
         ]
       }
+      paddle_events: {
+        Row: {
+          error: string | null
+          event_id: string
+          event_type: string
+          payload: Json
+          processed_at: string
+          result: string | null
+        }
+        Insert: {
+          error?: string | null
+          event_id: string
+          event_type: string
+          payload: Json
+          processed_at?: string
+          result?: string | null
+        }
+        Update: {
+          error?: string | null
+          event_id?: string
+          event_type?: string
+          payload?: Json
+          processed_at?: string
+          result?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -250,7 +277,11 @@ export type Database = {
           display_name: string | null
           id: string
           is_pro: boolean
+          paddle_customer_id: string | null
+          paddle_subscription_id: string | null
           paid_trip_count: number
+          plus_renews_at: string | null
+          plus_status: string | null
           referred_by: string | null
           stripe_customer_id: string | null
         }
@@ -260,7 +291,11 @@ export type Database = {
           display_name?: string | null
           id: string
           is_pro?: boolean
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
           paid_trip_count?: number
+          plus_renews_at?: string | null
+          plus_status?: string | null
           referred_by?: string | null
           stripe_customer_id?: string | null
         }
@@ -270,7 +305,11 @@ export type Database = {
           display_name?: string | null
           id?: string
           is_pro?: boolean
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
           paid_trip_count?: number
+          plus_renews_at?: string | null
+          plus_status?: string | null
           referred_by?: string | null
           stripe_customer_id?: string | null
         }
