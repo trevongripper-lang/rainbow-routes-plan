@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { ArrowUp, MessageCircle, MapPin, Sparkles, Check, Mail, LogOut } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
+import { CreditsPanel } from "@/components/credits-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
