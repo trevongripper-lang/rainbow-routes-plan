@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getMyCredits } from "@/lib/unlock.functions";
 import { Sparkles, Gift, Award } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { PromoCodeRedeem } from "@/components/promo-code-redeem";
 
 export function CreditsPanel() {
   const fn = useServerFn(getMyCredits);
@@ -47,6 +48,8 @@ export function CreditsPanel() {
           <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
         </div>
       </div>
+
+      <PromoCodeRedeem />
     </section>
   );
 }
