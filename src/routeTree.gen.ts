@@ -19,6 +19,7 @@ import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedMapRouteImport } from './routes/_authenticated/map'
 import { Route as AuthenticatedEventsRouteImport } from './routes/_authenticated/events'
 import { Route as AuthenticatedTripsIndexRouteImport } from './routes/_authenticated/trips.index'
+import { Route as ApiPublicPaddleWebhookRouteImport } from './routes/api/public/paddle-webhook'
 import { Route as AuthenticatedTripsIdRouteImport } from './routes/_authenticated/trips.$id'
 
 const PricingRoute = PricingRouteImport.update({
@@ -70,6 +71,11 @@ const AuthenticatedTripsIndexRoute = AuthenticatedTripsIndexRouteImport.update({
   path: '/trips/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiPublicPaddleWebhookRoute = ApiPublicPaddleWebhookRouteImport.update({
+  id: '/api/public/paddle-webhook',
+  path: '/api/public/paddle-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedTripsIdRoute = AuthenticatedTripsIdRouteImport.update({
   id: '/trips/$id',
   path: '/trips/$id',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/join/$token': typeof JoinTokenRoute
   '/trips/$id': typeof AuthenticatedTripsIdRoute
+  '/api/public/paddle-webhook': typeof ApiPublicPaddleWebhookRoute
   '/trips/': typeof AuthenticatedTripsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/join/$token': typeof JoinTokenRoute
   '/trips/$id': typeof AuthenticatedTripsIdRoute
+  '/api/public/paddle-webhook': typeof ApiPublicPaddleWebhookRoute
   '/trips': typeof AuthenticatedTripsIndexRoute
 }
 export interface FileRoutesById {
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/join/$token': typeof JoinTokenRoute
   '/_authenticated/trips/$id': typeof AuthenticatedTripsIdRoute
+  '/api/public/paddle-webhook': typeof ApiPublicPaddleWebhookRoute
   '/_authenticated/trips/': typeof AuthenticatedTripsIndexRoute
 }
 export interface FileRouteTypes {
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/join/$token'
     | '/trips/$id'
+    | '/api/public/paddle-webhook'
     | '/trips/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/join/$token'
     | '/trips/$id'
+    | '/api/public/paddle-webhook'
     | '/trips'
   id:
     | '__root__'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/join/$token'
     | '/_authenticated/trips/$id'
+    | '/api/public/paddle-webhook'
     | '/_authenticated/trips/'
   fileRoutesById: FileRoutesById
 }
@@ -160,6 +172,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   PricingRoute: typeof PricingRoute
   JoinTokenRoute: typeof JoinTokenRoute
+  ApiPublicPaddleWebhookRoute: typeof ApiPublicPaddleWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -234,6 +247,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTripsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/public/paddle-webhook': {
+      id: '/api/public/paddle-webhook'
+      path: '/api/public/paddle-webhook'
+      fullPath: '/api/public/paddle-webhook'
+      preLoaderRoute: typeof ApiPublicPaddleWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/trips/$id': {
       id: '/_authenticated/trips/$id'
       path: '/trips/$id'
@@ -272,7 +292,18 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   PricingRoute: PricingRoute,
   JoinTokenRoute: JoinTokenRoute,
+  ApiPublicPaddleWebhookRoute: ApiPublicPaddleWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
