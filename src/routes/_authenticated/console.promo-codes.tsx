@@ -13,6 +13,12 @@ import {
 } from "@/lib/promo-admin.functions";
 
 export const Route = createFileRoute("/_authenticated/console/promo-codes")({
+  beforeLoad: async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) throw notFound();
+    const { data } = await supabase.rpc("has_role", { _user_id: userData.user.id, _role: "admin" });
+    if (!data) throw notFound();
+  },
   component: PromoAdminPage,
   head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow" }, { title: "Console" }] }),
 });
