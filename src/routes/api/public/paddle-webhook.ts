@@ -147,14 +147,8 @@ type CustomData = {
 };
 
 type AdminClient = Awaited<
-  ReturnType<typeof import("@/integrations/supabase/client.server").supabaseAdmin.from>
->["constructor"] extends never
-  ? never
-  : ReturnType<typeof getClientAlias>;
-
-function getClientAlias() {
-  return null as unknown as Parameters<typeof dispatch>[1];
-}
+  typeof import("@/integrations/supabase/client.server")
+>["supabaseAdmin"];
 
 // ────────────────────────────────────────────────────────────────────────────
 // Dispatch
