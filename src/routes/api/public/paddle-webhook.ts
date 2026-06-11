@@ -87,7 +87,7 @@ export const Route = createFileRoute("/api/public/paddle-webhook")({
           .insert({
             event_id: event.event_id,
             event_type: event.event_type,
-            payload: event as unknown as Record<string, unknown>,
+            payload: event as never,
           });
 
         if (insertErr) {
