@@ -13,6 +13,7 @@ import { StaysTab, TicketsTab, CostsTab } from "@/components/trip-tabs";
 import { FlightsTab } from "@/components/flights-tab";
 import { Chatter } from "@/components/chatter";
 import { InviteModal } from "@/components/invite-modal";
+import { UnlockTripButton } from "@/components/unlock-trip-button";
 import { ItineraryTab } from "@/components/itinerary-tab";
 import { TripEventsStrip } from "@/components/trip-events-strip";
 import { SmartAdd } from "@/components/smart-add";
