@@ -1,80 +1,94 @@
+# Per-trip pricing — final spec
 
-## Scope
+## Model
 
-Six interlocking features. Building bottom-up: schema → server logic → UI.
+**Free tier stays:** trips with ≤5 members are always free, no unlock needed.
 
----
+**Paid tier (organizer pays once):**
 
-### 1. Trip membership (foundation for everything else)
+| Trip size (members) | Price |
+|---|---|
+| 6–10 | **$4.99** |
+| 11–20 | **$9.99** |
+| 21+   | **$19.99** |
 
-Today, a "trip" has one owner (`destinations.user_id`) and `headcount` is just a number. Almost every other feature in this request needs a real list of members, so I'll add that first.
+- Charged to the **organizer** (trip owner) only. Guests never pay to RSVP or join.
+- Unlock is per-trip and permanent. Adding more members later that pushes a trip into a higher tier triggers a **top-up charge** equal to the price difference.
+- Subscription model (`profiles.is_pro`, `/pricing`) is **retired**. Repurpose `is_pro` as a legacy flag that grandfathers existing subscribers to unlimited unlocks; remove the Pro upsell UI.
 
-**New tables**
-- `trip_members(destination_id, user_id, role 'owner'|'member', joined_at)` — unique (destination_id, user_id). Backfill owner row for every existing trip.
-- `trip_invites(id, destination_id, token, email NULL, invited_by, accepted_by NULL, expires_at, created_at)` — link invites have `email = NULL`, email invites store the recipient.
+## Credits
 
-**RLS**: members can `SELECT` their own trip's members; owner can `INSERT`/`DELETE` members. Invites readable by token (via security-definer RPC) so unauthenticated viewers can preview before signing in.
+**Loyalty:** every **8 paid unlocks** grants the user **2 free unlock credits** (25% effective discount for power organizers). Counter resets every 8.
 
-**Headcount semantics**: `destinations.headcount` becomes the cap (free = 5). Actual seat count = `COUNT(trip_members)`. Block invite acceptance when seats are full.
+**Referral:** when a new user signs up via an invite link, they get **3 free organizer credits** — **only if the inviter has paid for ≥1 trip** at the moment of signup. One bonus per inviter→invitee pair.
 
----
+**Credit usage:** auto-applied at checkout in cheapest-first order. Credits cover any tier (a credit on a $19.99 trip = $19.99 saved). User sees "1 free credit will be used — $0 due" before confirming.
 
-### 2. Pricing & Stripe upgrade
+## Anti-abuse
 
-- New public route `/pricing` with Free vs Pro cards. Pro = unlimited headcount + (room for more later).
-- Add `profiles.is_pro` boolean + `stripe_customer_id`.
-- Run `recommend_payment_provider` → `enable_stripe_payments` (user fills the form). I'll then create one Pro product ($9/mo) via `batch_create_product`, wire the checkout server fn, and webhook handler that flips `is_pro` on `checkout.session.completed` / `customer.subscription.deleted`.
-- Headcount cap check moves to: `is_pro ? unlimited : 5`. Both the existing CHECK constraint and client validation get updated to consult `profiles.is_pro` via a security-definer function.
+1. **Referral credits require a paying sponsor.** No paid trips by inviter → no credit. Prevents free-account chains from compounding.
+2. **One referral bonus per (inviter, invitee) pair.** Enforced by unique constraint on the credit_events ledger.
+3. **Credits are non-transferable, non-refundable.** Tied to `user_id`.
+4. **Device/email fingerprinting:** out of scope for v1; rely on the "inviter must have paid" gate.
+5. **Top-up rule** blocks the "create as 5-person free trip, then add 50 members" exploit.
 
----
+## Schema (single migration)
 
-### 3. Threaded chatter + @mentions
+New columns on `destinations`:
+- `unlock_status text` — `'free' | 'paid' | 'credited'`, default `'free'`
+- `unlock_tier text NULL` — `'tier1' | 'tier2' | 'tier3'`
+- `unlocked_at timestamptz NULL`
+- `unlocked_by uuid NULL` (FK profiles)
+- `paid_amount_cents int NOT NULL DEFAULT 0`
 
-- Add `comments.parent_id uuid NULL REFERENCES comments(id)` and `comments.mentions uuid[]` (array of mentioned user IDs).
-- Chatter UI: top-level messages render with a "Reply" affordance; replies nest one level (Slack/Linear style — no deep nesting).
-- `@` triggers a member picker (autocomplete over `trip_members` joined to `profiles`). On submit, parse `@displayName` tokens back to user IDs and store in `mentions`.
-- Mentioned users see a highlighted notification (see #4).
+New columns on `profiles`:
+- `paid_trip_count int NOT NULL DEFAULT 0` (denormalized)
+- `referred_by uuid NULL` (FK profiles, set at signup via invite token)
 
----
+New tables:
+- `user_credits(id, user_id, source 'loyalty'|'referral', remaining int, earned_at)` — RLS: owner read.
+- `credit_events(id, user_id, kind 'earned_loyalty'|'earned_referral'|'spent', amount int, destination_id NULL, related_user_id NULL, created_at)` — append-only ledger. **Unique (kind='earned_referral', user_id, related_user_id)** to enforce one-per-pair.
 
-### 4. Notifications
+Triggers / functions (security definer):
+- `required_unlock_tier(member_count int)` → returns tier + cents.
+- `unlock_destination(_dest, _use_credit bool)` → validates owner, computes tier, spends credit or records paid amount, sets unlock fields, bumps `paid_trip_count`, fires loyalty grant every 8.
+- `topup_destination(_dest)` → called when member count crosses a tier boundary.
+- `grant_referral_credits(_invitee, _inviter)` → only fires if inviter `paid_trip_count >= 1`; unique constraint blocks duplicates.
+- Modify `redeem_trip_invite`: also call referral grant on first acceptance from a new user.
+- Modify `check_headcount_cap`: free if `unlock_status != 'free'`, otherwise enforce 5-person cap (drop the `is_pro` branch).
 
-- `notifications(id, user_id, destination_id, kind, actor_id, payload jsonb, read_at NULL, created_at)`.
-- Kinds: `cost_added`, `chatter_message`, `chatter_reply`, `chatter_mention`, `event_added`, `member_joined`, `trip_closed`.
-- DB triggers fan-out: on `INSERT` into `trip_costs` / `comments` / `events` / `trip_members`, insert one notification row per *other* trip member.
-- Bell icon in header → popover. **Grouped by trip**: one row per trip with a count badge (e.g. "Lisbon — 4 updates"). Clicking opens that trip and marks the group read.
-- Realtime: subscribe to `notifications` filtered by `user_id` for live badge updates.
+## Server functions
 
----
+`src/lib/unlock.functions.ts`:
+- `quoteUnlock({ destinationId })` → returns `{ tier, priceCents, creditsAvailable, dueCents }`.
+- `unlockTripWithCredit({ destinationId })` → applies credit, no Paddle call.
+- `createUnlockCheckout({ destinationId })` → returns Paddle checkout URL with `destinationId` + `tier` in metadata.
 
-### 5. Invites (link + email)
+`src/routes/api/public/paddle-webhook.ts`: on `transaction.completed`, call `unlock_destination` for the matching destination, mark `paid`, store `paid_amount_cents`.
 
-- **Link**: owner clicks "Invite" → server fn creates `trip_invites` row → returns `/join/:token`. Public route shows trip preview + "Join trip" (auth-gated). Accepting inserts a `trip_members` row and marks invite accepted.
-- **Email**: same flow but enter email(s). Requires email domain setup — I'll scaffold the transactional email function and surface the domain-setup dialog if not configured. If the user skips domain setup, the link path still works and the email field shows "Add email domain to enable".
-- Owner UI: invite modal on trip detail page with "Copy link" + email input.
+## UI
 
----
+1. **Trip detail page:** when adding the 6th member (or member count would push into a new tier), show **Unlock dialog**:
+   - "This trip needs unlocking — 6 people → $4.99"
+   - Shows credits available; auto-applies them
+   - "Pay $4.99" → Paddle checkout, OR "Use 1 free credit"
+2. **Invite acceptance:** if trip not unlocked and accepting would push to ≥6, block with "Organizer needs to unlock this trip first" (notify organizer).
+3. **`/me` page:** "Your credits" panel — loyalty progress bar (`X / 8 paid trips → next 2 free`), referral credits remaining.
+4. **`/pricing` page:** replace subscription cards with the tier table + credit rules.
+5. **Remove:** Pro upsell badges, "Upgrade to Pro" CTAs, headcount-cap error messaging tied to `is_pro`.
 
-### 6. Auto-close at midnight UTC + open ratings
+## Implementation order
 
-- Add `destinations.end_date date NULL` (currently no end date exists — `is_past` is manual). Owner sets it in trip detail.
-- pg_cron job daily at 00:05 UTC: `UPDATE destinations SET is_past = true WHERE end_date IS NOT NULL AND end_date < (now() - interval '1 day')::date AND is_past = false`. Also fans out `trip_closed` notifications.
-- Ratings tab is currently gated on `is_past`; this transition naturally opens it. Add a banner on the Ratings tab when freshly closed.
+1. Migration (schema + functions + triggers + retire is_pro headcount logic).
+2. Paddle: `recommend_payment_provider` → `enable_paddle_payments` → create 3 one-time products via `batch_create_product`.
+3. Server fns: `unlock.functions.ts` + webhook route.
+4. UI: unlock dialog, credits panel on `/me`, rewrite `/pricing`.
+5. Backfill: existing trips with ≤5 members stay `free`; existing trips with >5 members get auto-`credited` (grandfathered) so nothing breaks.
 
----
+## Not in this pass
+- Refunds via Paddle portal (manual for now).
+- Per-tier currency localization.
+- Annual "organizer" subscription bundle.
+- Anti-abuse fingerprinting beyond the paying-sponsor gate.
 
-## Implementation order (single migration where possible)
-
-1. **Migration A**: `trip_members`, `trip_invites`, `notifications`, `comments.parent_id` + `comments.mentions`, `destinations.end_date`, `profiles.is_pro` + `stripe_customer_id`, all GRANTs/policies, triggers, security-definer `is_trip_member()` helper, backfill owner rows, updated headcount CHECK using `is_pro`.
-2. **Migration B**: pg_cron job for auto-close.
-3. **Stripe**: `recommend_payment_provider` → `enable_stripe_payments` (user form) → `batch_create_product` → checkout server fn + webhook route.
-4. **Code**: `/pricing` route, invite modal + `/join/:token` route, notifications bell, threaded chatter with mention picker, ratings banner.
-5. **Email**: scaffold transactional email function for invites; if no domain configured, show setup dialog.
-
-## What I'm NOT doing in this pass
-- Real-time presence / typing indicators in chatter.
-- @everyone or channel-style mentions.
-- Configurable per-user notification preferences (all-on by default).
-- Stripe customer portal (just checkout + webhook is enough to flip the flag).
-
-If anything in here is wrong, push back before I start. Otherwise I'll execute top-to-bottom.
+Approve and I'll execute top-to-bottom.

@@ -1,18 +1,31 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, Gift, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
     meta: [
       { title: "Pricing — Tribe Trips" },
-      { name: "description", content: "Free for crews up to 5. Upgrade to Pro for unlimited group size, advanced settlements, and more." },
+      { name: "description", content: "Free for crews up to 5. Pay once per trip when your group grows — no subscriptions." },
       { property: "og:title", content: "Tribe Trips — Pricing" },
-      { property: "og:description", content: "Free for crews up to 5. Pro for the rest." },
+      { property: "og:description", content: "Pay once per trip. No subscriptions. Earn free trips when you keep planning." },
     ],
   }),
   component: PricingPage,
 });
+
+const tiers = [
+  { range: "6–10", price: "$4.99", note: "Most crews" },
+  { range: "11–20", price: "$9.99", note: "Group getaways" },
+  { range: "21+",   price: "$19.99", note: "Whole-squad trips" },
+];
+
+const features = [
+  "Chatter, costs, settle-up, ratings",
+  "Travel plans & stays",
+  "Notifications & invites",
+  "AI flight lookup",
+];
 
 function PricingPage() {
   return (
@@ -20,68 +33,77 @@ function PricingPage() {
       <div className="mx-auto max-w-5xl">
         <div className="text-center">
           <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← Tribe Trips</Link>
-          <h1 className="mt-4 font-display text-5xl md:text-6xl">Simple pricing</h1>
+          <h1 className="mt-4 font-display text-5xl md:text-6xl">Pay once, when it counts</h1>
           <p className="mt-3 text-lg text-muted-foreground">
-            Free for your first crew. Upgrade when the group grows.
+            Free for crews up to 5. For bigger trips, the organizer pays a single one-time fee — no subscriptions, ever.
           </p>
         </div>
 
-        <div className="mt-12 grid gap-6 md:grid-cols-2">
-          {/* FREE */}
-          <div className="rounded-3xl border border-border/60 bg-card p-8">
-            <div className="flex items-baseline justify-between">
+        {/* Free tier card */}
+        <div className="mt-12 rounded-3xl border border-border/60 bg-card p-8">
+          <div className="flex flex-wrap items-baseline justify-between gap-4">
+            <div>
               <h2 className="font-display text-2xl">Free</h2>
-              <div><span className="font-display text-4xl">$0</span><span className="text-muted-foreground"> / forever</span></div>
+              <p className="mt-1 text-sm text-muted-foreground">For trips up to 5 people. Unlimited free trips.</p>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">Everything you need to plan a trip with up to 5 people.</p>
-            <ul className="mt-6 space-y-3 text-sm">
-              {[
-                "Up to 5 people per trip",
-                "Unlimited trips",
-                "Chatter, costs, settle-up, ratings",
-                "Travel plans & stays",
-                "Notifications",
-              ].map((f) => (
-                <li key={f} className="flex items-start gap-2">
-                  <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-            <Button asChild variant="secondary" className="mt-8 w-full">
-              <Link to="/auth">Start free</Link>
-            </Button>
+            <div><span className="font-display text-4xl">$0</span><span className="text-muted-foreground"> / forever</span></div>
           </div>
+          <ul className="mt-6 grid gap-2 sm:grid-cols-2">
+            {features.map((f) => (
+              <li key={f} className="flex items-start gap-2 text-sm">
+                <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span>{f}</span>
+              </li>
+            ))}
+          </ul>
+          <Button asChild variant="secondary" className="mt-6">
+            <Link to="/auth">Start free</Link>
+          </Button>
+        </div>
 
-          {/* PRO */}
-          <div className="relative rounded-3xl border-2 border-primary/60 bg-gradient-to-b from-primary/10 to-card p-8 shadow-xl">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">
-              <Sparkles className="mr-1 inline size-3" /> Best for bigger crews
+        {/* Tiered unlock */}
+        <div className="mt-8 rounded-3xl border-2 border-primary/40 bg-gradient-to-b from-primary/10 to-card p-8">
+          <div className="flex items-center gap-2 text-sm text-primary">
+            <Users className="size-4" /> One-time unlock for bigger trips
+          </div>
+          <h2 className="mt-2 font-display text-3xl">Unlock a trip — pay once, done</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            When a trip grows past 5 people, the organizer unlocks it for the whole crew. Permanent. No renewals.
+          </p>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {tiers.map((t) => (
+              <div key={t.range} className="rounded-2xl border border-border/60 bg-card p-5">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t.note}</p>
+                <p className="mt-1 font-display text-xl">{t.range} people</p>
+                <p className="mt-3 font-display text-4xl">{t.price}</p>
+                <p className="mt-1 text-xs text-muted-foreground">one-time, per trip</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Adding members later that pushes the trip into a larger tier triggers a small top-up for the difference. Guests never pay.
+          </p>
+        </div>
+
+        {/* Credits */}
+        <div className="mt-8 grid gap-6 md:grid-cols-2">
+          <div className="rounded-3xl border border-border/60 bg-card p-6">
+            <div className="flex items-center gap-2 text-primary">
+              <Sparkles className="size-5" />
+              <h3 className="font-display text-xl">Loyalty credits</h3>
             </div>
-            <div className="flex items-baseline justify-between">
-              <h2 className="font-display text-2xl">Pro</h2>
-              <div><span className="font-display text-4xl">$9</span><span className="text-muted-foreground"> / month</span></div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Every <strong>8 trips you pay to unlock</strong>, you get <strong>2 free unlock credits</strong> — usable on any tier.
+            </p>
+          </div>
+          <div className="rounded-3xl border border-border/60 bg-card p-6">
+            <div className="flex items-center gap-2 text-primary">
+              <Gift className="size-5" />
+              <h3 className="font-display text-xl">Referral credits</h3>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">For the trips that get out of hand (in a good way).</p>
-            <ul className="mt-6 space-y-3 text-sm">
-              {[
-                "Unlimited group size",
-                "Everything in Free",
-                "Email invites with custom branding",
-                "Priority notifications",
-                "Early access to new features",
-              ].map((f) => (
-                <li key={f} className="flex items-start gap-2">
-                  <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-            <Button asChild className="mt-8 w-full">
-              <Link to="/auth" search={{ upgrade: "pro" } as never}>Upgrade to Pro</Link>
-            </Button>
-            <p className="mt-3 text-center text-[11px] text-muted-foreground">
-              Secure checkout via Stripe. Cancel anytime.
+            <p className="mt-2 text-sm text-muted-foreground">
+              Join via an invite from someone who's paid for at least one trip? You get <strong>3 free unlock credits</strong> for trips you organize.
             </p>
           </div>
         </div>

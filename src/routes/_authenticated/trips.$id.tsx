@@ -13,6 +13,7 @@ import { StaysTab, TicketsTab, CostsTab } from "@/components/trip-tabs";
 import { FlightsTab } from "@/components/flights-tab";
 import { Chatter } from "@/components/chatter";
 import { InviteModal } from "@/components/invite-modal";
+import { UnlockTripButton } from "@/components/unlock-trip-button";
 import { ItineraryTab } from "@/components/itinerary-tab";
 import { TripEventsStrip } from "@/components/trip-events-strip";
 import { SmartAdd } from "@/components/smart-add";
@@ -159,6 +160,7 @@ function TripDetail() {
           {isOwner && (
             <div className="mt-5 flex flex-wrap items-end gap-4">
               <InviteModal destinationId={id} />
+              <UnlockTripButton destinationId={id} isOwner={isOwner} />
               <div className="flex items-end gap-2">
                 <div>
                   <Label className="text-xs">Trip end date</Label>
