@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, Sparkles, Gift, Users } from "lucide-react";
+import { Check, Sparkles, Gift, Users, Crown, Infinity as InfinityIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/pricing")({
