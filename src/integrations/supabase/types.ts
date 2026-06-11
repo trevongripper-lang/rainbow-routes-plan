@@ -59,6 +59,44 @@ export type Database = {
           },
         ]
       }
+      credit_events: {
+        Row: {
+          amount: number
+          created_at: string
+          destination_id: string | null
+          id: string
+          kind: string
+          related_user_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          destination_id?: string | null
+          id?: string
+          kind: string
+          related_user_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          destination_id?: string | null
+          id?: string
+          kind?: string
+          related_user_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_events_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       destinations: {
         Row: {
           best_months: string | null
@@ -70,8 +108,13 @@ export type Database = {
           id: string
           image_url: string | null
           is_past: boolean
+          paid_amount_cents: number
           region: string
           title: string
+          unlock_status: string
+          unlock_tier: string | null
+          unlocked_at: string | null
+          unlocked_by: string | null
           user_id: string
         }
         Insert: {
@@ -84,8 +127,13 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_past?: boolean
+          paid_amount_cents?: number
           region: string
           title: string
+          unlock_status?: string
+          unlock_tier?: string | null
+          unlocked_at?: string | null
+          unlocked_by?: string | null
           user_id: string
         }
         Update: {
@@ -98,8 +146,13 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_past?: boolean
+          paid_amount_cents?: number
           region?: string
           title?: string
+          unlock_status?: string
+          unlock_tier?: string | null
+          unlocked_at?: string | null
+          unlocked_by?: string | null
           user_id?: string
         }
         Relationships: []
@@ -197,6 +250,8 @@ export type Database = {
           display_name: string | null
           id: string
           is_pro: boolean
+          paid_trip_count: number
+          referred_by: string | null
           stripe_customer_id: string | null
         }
         Insert: {
@@ -205,6 +260,8 @@ export type Database = {
           display_name?: string | null
           id: string
           is_pro?: boolean
+          paid_trip_count?: number
+          referred_by?: string | null
           stripe_customer_id?: string | null
         }
         Update: {
@@ -213,9 +270,19 @@ export type Database = {
           display_name?: string | null
           id?: string
           is_pro?: boolean
+          paid_trip_count?: number
+          referred_by?: string | null
           stripe_customer_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trip_costs: {
         Row: {
@@ -668,6 +735,30 @@ export type Database = {
           },
         ]
       }
+      user_credits: {
+        Row: {
+          earned_at: string
+          id: string
+          remaining: number
+          source: string
+          user_id: string
+        }
+        Insert: {
+          earned_at?: string
+          id?: string
+          remaining?: number
+          source: string
+          user_id: string
+        }
+        Update: {
+          earned_at?: string
+          id?: string
+          remaining?: number
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       votes: {
         Row: {
           created_at: string
@@ -699,6 +790,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _maybe_grant_loyalty: { Args: { _user: string }; Returns: undefined }
       auto_close_trips: { Args: never; Returns: number }
       fanout_notification: {
         Args: { _actor: string; _dest: string; _kind: string; _payload: Json }
@@ -711,6 +803,10 @@ export type Database = {
           feedbacks: string[]
           rating_count: number
         }[]
+      }
+      grant_referral_credits: {
+        Args: { _invitee: string; _inviter: string }
+        Returns: boolean
       }
       is_trip_member: {
         Args: { _dest: string; _user: string }
@@ -733,6 +829,17 @@ export type Database = {
         }[]
       }
       redeem_trip_invite: { Args: { _token: string }; Returns: string }
+      required_unlock_tier: {
+        Args: { _members: number }
+        Returns: {
+          cents: number
+          tier: string
+        }[]
+      }
+      unlock_destination: {
+        Args: { _dest: string; _paid_cents?: number; _use_credit: boolean }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
