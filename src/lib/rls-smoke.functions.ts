@@ -70,7 +70,7 @@ export const runRlsSmokeTests = createServerFn({ method: "POST" })
     const rpcChecks = await Promise.all(
       RPCS.map<Promise<SmokeCheck>>(async ({ name, args }) => {
         const start = Date.now();
-        const { error, status } = await supabase.rpc(name, args);
+        const { error, status } = await supabase.rpc(name as never, args as never);
         // RPC may legitimately return "no rows" / false; only EXECUTE/permission
         // errors are real failures. 42501 = permission denied.
         const code = (error as { code?: string } | null)?.code ?? null;
