@@ -1,10 +1,10 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2, Plus, Power, PowerOff, Save, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import {
-  checkIsAdmin,
   createPromoCode,
   listPromoCodes,
   setPromoCodeActive,
@@ -13,6 +13,12 @@ import {
 } from "@/lib/promo-admin.functions";
 
 export const Route = createFileRoute("/_authenticated/console/promo-codes")({
+  beforeLoad: async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) throw notFound();
+    const { data } = await supabase.rpc("has_role", { _user_id: userData.user.id, _role: "admin" });
+    if (!data) throw notFound();
+  },
   component: PromoAdminPage,
   head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow" }, { title: "Console" }] }),
 });
@@ -37,18 +43,15 @@ const empty: FormState = {
 };
 
 function PromoAdminPage() {
-  const checkFn = useServerFn(checkIsAdmin);
   const listFn = useServerFn(listPromoCodes);
   const createFn = useServerFn(createPromoCode);
   const updateFn = useServerFn(updatePromoCode);
   const toggleFn = useServerFn(setPromoCodeActive);
   const qc = useQueryClient();
 
-  const admin = useQuery({ queryKey: ["is-admin"], queryFn: () => checkFn({ data: {} as never }) });
   const codes = useQuery({
     queryKey: ["promo-codes"],
     queryFn: () => listFn({ data: {} as never }),
-    enabled: admin.data?.isAdmin === true,
   });
 
   const [form, setForm] = useState<FormState>(empty);
@@ -79,19 +82,6 @@ function PromoAdminPage() {
     mutationFn: (v: { id: string; active: boolean }) => toggleFn({ data: v }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["promo-codes"] }),
   });
-
-  useEffect(() => {
-    if (admin.data && !admin.data.isAdmin) throw notFound();
-  }, [admin.data]);
-
-  if (admin.isLoading) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center text-muted-foreground">
-        <Loader2 className="size-5 animate-spin" />
-      </div>
-    );
-  }
-  if (!admin.data?.isAdmin) return null;
 
   const startEdit = (r: PromoCodeRow) =>
     setForm({
