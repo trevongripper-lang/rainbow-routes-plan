@@ -92,8 +92,9 @@ export type CreditsSummary = {
   total: number;
   loyaltyRemaining: number;
   referralRemaining: number;
+  promoRemaining: number;
   paidTripCount: number;
-  loyaltyProgress: number; // 0..7 (count since last 8-cycle)
+  loyaltyProgress: number;
   loyaltyTarget: 8;
 };
 
@@ -101,17 +102,26 @@ export const getMyCredits = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<CreditsSummary> => {
     const { supabase, userId } = context;
+    const nowIso = new Date().toISOString();
     const [{ data: credits }, { data: prof }] = await Promise.all([
-      supabase.from("user_credits").select("source, remaining").eq("user_id", userId),
+      supabase
+        .from("user_credits")
+        .select("source, remaining, expires_at")
+        .eq("user_id", userId)
+        .or(`expires_at.is.null,expires_at.gt.${nowIso}`),
       supabase.from("profiles").select("paid_trip_count").eq("id", userId).maybeSingle(),
     ]);
-    const loyalty = (credits ?? []).filter((c) => c.source === "loyalty").reduce((s, c) => s + (c.remaining ?? 0), 0);
-    const referral = (credits ?? []).filter((c) => c.source === "referral").reduce((s, c) => s + (c.remaining ?? 0), 0);
+    const sumBy = (s: string) =>
+      (credits ?? []).filter((c) => c.source === s).reduce((acc, c) => acc + (c.remaining ?? 0), 0);
+    const loyalty = sumBy("loyalty");
+    const referral = sumBy("referral");
+    const promo = sumBy("promo");
     const paid = prof?.paid_trip_count ?? 0;
     return {
-      total: loyalty + referral,
+      total: loyalty + referral + promo,
       loyaltyRemaining: loyalty,
       referralRemaining: referral,
+      promoRemaining: promo,
       paidTripCount: paid,
       loyaltyProgress: paid % 8,
       loyaltyTarget: 8,

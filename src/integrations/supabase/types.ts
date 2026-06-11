@@ -323,6 +323,80 @@ export type Database = {
           },
         ]
       }
+      promo_codes: {
+        Row: {
+          active: boolean
+          code: string
+          code_expires_at: string | null
+          created_at: string
+          credits: number
+          id: string
+          max_redemptions: number | null
+          note: string | null
+          redemptions_count: number
+          validity_days: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          code_expires_at?: string | null
+          created_at?: string
+          credits: number
+          id?: string
+          max_redemptions?: number | null
+          note?: string | null
+          redemptions_count?: number
+          validity_days?: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          code_expires_at?: string | null
+          created_at?: string
+          credits?: number
+          id?: string
+          max_redemptions?: number | null
+          note?: string | null
+          redemptions_count?: number
+          validity_days?: number
+        }
+        Relationships: []
+      }
+      promo_redemptions: {
+        Row: {
+          credits_granted: number
+          expires_at: string
+          id: string
+          promo_code_id: string
+          redeemed_at: string
+          user_id: string
+        }
+        Insert: {
+          credits_granted: number
+          expires_at: string
+          id?: string
+          promo_code_id: string
+          redeemed_at?: string
+          user_id: string
+        }
+        Update: {
+          credits_granted?: number
+          expires_at?: string
+          id?: string
+          promo_code_id?: string
+          redeemed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_redemptions_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_costs: {
         Row: {
           amount_cents: number
@@ -777,6 +851,7 @@ export type Database = {
       user_credits: {
         Row: {
           earned_at: string
+          expires_at: string | null
           id: string
           remaining: number
           source: string
@@ -784,6 +859,7 @@ export type Database = {
         }
         Insert: {
           earned_at?: string
+          expires_at?: string | null
           id?: string
           remaining?: number
           source: string
@@ -791,6 +867,7 @@ export type Database = {
         }
         Update: {
           earned_at?: string
+          expires_at?: string | null
           id?: string
           remaining?: number
           source?: string
@@ -867,6 +944,7 @@ export type Database = {
           used: boolean
         }[]
       }
+      redeem_promo_code: { Args: { _code: string }; Returns: Json }
       redeem_trip_invite: { Args: { _token: string }; Returns: string }
       required_unlock_tier: {
         Args: { _members: number }
