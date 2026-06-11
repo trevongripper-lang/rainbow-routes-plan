@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, Sparkles, Gift, Users } from "lucide-react";
+import { Check, Sparkles, Gift, Users, Crown, Infinity as InfinityIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/pricing")({
@@ -85,6 +85,49 @@ function PricingPage() {
             Adding members later that pushes the trip into a larger tier triggers a small top-up for the difference. Guests never pay.
           </p>
         </div>
+
+        {/* Organizer Plus */}
+        <div className="mt-8 overflow-hidden rounded-3xl border-2 border-amber-400/50 bg-gradient-to-br from-amber-500/15 via-card to-primary/10 p-8 shadow-xl">
+          <div className="flex flex-wrap items-start justify-between gap-6">
+            <div className="max-w-xl">
+              <div className="flex items-center gap-2 text-sm text-amber-500">
+                <Crown className="size-4" /> For power organizers
+              </div>
+              <h2 className="mt-2 font-display text-3xl">Organizer Plus</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Plan as many trips as you want, any size, without thinking about unlocks.
+                Pays for itself at roughly <strong>7 paid trips a year</strong>.
+              </p>
+              <ul className="mt-5 grid gap-2 sm:grid-cols-2">
+                {[
+                  { icon: InfinityIcon, label: "Unlimited trip unlocks, any tier" },
+                  { icon: Sparkles, label: "Priority AI flight lookup" },
+                  { icon: Gift, label: "Early access to new features" },
+                  { icon: Check, label: "Cancel anytime, no lock-in" },
+                ].map(({ icon: Icon, label }) => (
+                  <li key={label} className="flex items-start gap-2 text-sm">
+                    <Icon className="mt-0.5 size-4 shrink-0 text-amber-500" />
+                    <span>{label}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="flex shrink-0 flex-col items-end">
+              <div className="text-right">
+                <span className="font-display text-5xl">$35</span>
+                <span className="text-muted-foreground"> / year</span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">~$2.92 / month, billed annually</p>
+              <Button asChild className="mt-4 bg-amber-500 text-amber-50 hover:bg-amber-500/90">
+                <Link to="/auth" search={{ upgrade: "plus" } as never}>
+                  <Crown className="size-4" /> Get Organizer Plus
+                </Link>
+              </Button>
+              <p className="mt-2 text-[11px] text-muted-foreground">Checkout activates once payments are live.</p>
+            </div>
+          </div>
+        </div>
+
 
         {/* Credits */}
         <div className="mt-8 grid gap-6 md:grid-cols-2">
