@@ -160,6 +160,7 @@ function TripDetail() {
           {isOwner && (
             <div className="mt-5 flex flex-wrap items-end gap-4">
               <InviteModal destinationId={id} />
+              <UnlockTripButton destinationId={id} isOwner={isOwner} />
               <div className="flex items-end gap-2">
                 <div>
                   <Label className="text-xs">Trip end date</Label>
