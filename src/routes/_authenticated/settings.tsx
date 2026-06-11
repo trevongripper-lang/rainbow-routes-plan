@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, CheckCircle2, XCircle, ShieldCheck, Loader2, ExternalLink, Plane, Sparkles } from "lucide-react";
 import { getIntegrationsStatus, testSerpstack } from "@/lib/integrations.functions";
 import { lookupFlight } from "@/lib/flight-lookup.functions";
+import { runRlsSmokeTests, type SmokeCheck } from "@/lib/rls-smoke.functions";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
