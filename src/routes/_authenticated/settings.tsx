@@ -269,7 +269,105 @@ function SettingsPage() {
           )}
         </div>
       </section>
+
+      <RlsSmokeSection />
     </div>
+  );
+}
+
+function RlsSmokeSection() {
+  const run = useServerFn(runRlsSmokeTests);
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<Awaited<ReturnType<typeof runRlsSmokeTests>> | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function onRun() {
+    setLoading(true);
+    setErr(null);
+    try {
+      setData(await run());
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Smoke test failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const failed = data?.checks.filter((c) => !c.ok) ?? [];
+  const passed = data?.checks.filter((c) => c.ok) ?? [];
+
+  return (
+    <section className="rounded-2xl border border-border/60 bg-card p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <ShieldCheck className="size-5" />
+          </div>
+          <div>
+            <h2 className="font-display text-lg">RLS smoke tests</h2>
+            <p className="mt-1 max-w-prose text-sm text-muted-foreground">
+              Runs a read against every table and helper function as the signed-in user.
+              Run this after any database migration to catch revoked GRANTs / EXECUTE
+              before users do.
+            </p>
+          </div>
+        </div>
+        <Button onClick={onRun} disabled={loading}>
+          {loading ? <><Loader2 className="mr-1.5 size-4 animate-spin" /> Running...</> : "Run smoke tests"}
+        </Button>
+      </div>
+
+      {err && <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{err}</div>}
+
+      {data && (
+        <div className="mt-5 space-y-3">
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600">
+              {passed.length} passing
+            </Badge>
+            <Badge
+              variant="outline"
+              className={failed.length ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-border text-muted-foreground"}
+            >
+              {failed.length} failing
+            </Badge>
+            <span className="text-muted-foreground">as user {data.user_id.slice(0, 8)}…</span>
+          </div>
+
+          {failed.length > 0 && (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-destructive">Failures</div>
+              <ul className="space-y-2">
+                {failed.map((c) => <SmokeRow key={`${c.kind}:${c.name}`} c={c} />)}
+              </ul>
+            </div>
+          )}
+
+          <details className="rounded-xl border border-border/60 bg-background/40 p-3">
+            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              All checks ({data.checks.length})
+            </summary>
+            <ul className="mt-2 space-y-1.5">
+              {data.checks.map((c) => <SmokeRow key={`${c.kind}:${c.name}`} c={c} />)}
+            </ul>
+          </details>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SmokeRow({ c }: { c: SmokeCheck }) {
+  return (
+    <li className="flex items-start gap-2 text-xs">
+      {c.ok ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-500" /> : <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />}
+      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase">{c.kind}</span>
+      <span className="font-mono">{c.name}</span>
+      <span className="ml-auto text-muted-foreground">{c.ms}ms{c.status ? ` · ${c.status}` : ""}</span>
+      {!c.ok && c.message && (
+        <span className="ml-2 max-w-md truncate text-destructive" title={c.message}>{c.code ? `[${c.code}] ` : ""}{c.message}</span>
+      )}
+    </li>
   );
 }
 
