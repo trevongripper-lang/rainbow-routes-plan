@@ -80,6 +80,10 @@ function MePage() {
         isPro={isPro}
       />
 
+      <CreditsPanel />
+
+
+
 
       <section>
         <h2 className="font-display text-2xl">Your pitches</h2>
