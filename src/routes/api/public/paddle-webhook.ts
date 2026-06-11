@@ -323,6 +323,4 @@ async function handlePaymentFailed(
   return "payment-failed:past_due";
 }
 
-// Suppress unused-warning for the alias helper (referenced only for typing context above).
-void getClientAlias;
-export type _Unused = AdminClient;
+export type _AdminClient = AdminClient;
