@@ -1,11 +1,13 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { MessageSquare, Reply, Trash2 } from "lucide-react";
+import { postChatterComment } from "@/lib/rate-limit.functions";
 
 type Profile = { id: string; display_name: string | null; avatar_url: string | null };
 type Comment = {
