@@ -26,8 +26,11 @@ type TripLite = { id: string; title: string; region: string; country: string | n
 
 export const Route = createFileRoute("/_authenticated/map")({
   ssr: false,
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({ queryKey: ["events"], queryFn: fetchEvents, staleTime: 60_000 }),
   component: MapPage,
 });
+
 
 async function fetchEvents() {
   const { data, error } = await supabase.from("events").select("*").order("start_date");
@@ -57,7 +60,7 @@ const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
 
 function MapPage() {
   const me = useMe();
-  const { data } = useQuery({ queryKey: ["events"], queryFn: fetchEvents });
+  const { data } = useQuery({ queryKey: ["events"], queryFn: fetchEvents, staleTime: 60_000 });
   const { data: trips = [] } = useQuery({
     queryKey: ["my-trips-lite", me.data?.id],
     queryFn: () => fetchMyTrips(me.data!.id),

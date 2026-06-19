@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSuspenseQuery, useMutation, useQueryClient, queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,7 +13,14 @@ import { PageHero } from "@/components/page-hero";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/trips/")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(tripsQueryOptions),
   component: TripsPage,
+  errorComponent: ({ error }) => (
+    <div className="py-20 text-center text-muted-foreground">{error.message}</div>
+  ),
+  notFoundComponent: () => (
+    <div className="py-20 text-center text-muted-foreground">Not found.</div>
+  ),
 });
 
 type DestRow = {
@@ -26,7 +34,7 @@ async function fetchTrips() {
     supabase.from("destinations").select("*").order("created_at", { ascending: false }),
     supabase.from("votes").select("destination_id, user_id"),
     supabase.from("comments").select("destination_id"),
-    supabase.auth.getUser(),
+    supabase.auth.getSession().then((r) => ({ data: { user: r.data.session?.user ?? null } })),
   ]);
   const me = user.user?.id;
   const voteCounts: Record<string, number> = {};
@@ -48,8 +56,15 @@ async function fetchTrips() {
   return enriched;
 }
 
+const tripsQueryOptions = queryOptions({
+  queryKey: ["trips"],
+  queryFn: fetchTrips,
+  staleTime: 30_000,
+});
+
 function TripsPage() {
-  const { data, isLoading } = useQuery({ queryKey: ["trips"], queryFn: fetchTrips });
+  const { data } = useSuspenseQuery(tripsQueryOptions);
+
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
 
   const filtered = (data ?? []).filter((d) => (tab === "past" ? d.is_past : !d.is_past));
@@ -79,10 +94,7 @@ function TripsPage() {
       </div>
 
       <div className="grid gap-5 md:grid-cols-2">
-        {isLoading && Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-64 animate-pulse rounded-2xl bg-card/60" />
-        ))}
-        {!isLoading && filtered.length === 0 && (
+        {filtered.length === 0 && (
           <div className="col-span-full rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center backdrop-blur">
             <p className="font-display text-2xl">{tab === "past" ? "No past trips yet." : "No destinations yet."}</p>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -90,6 +102,7 @@ function TripsPage() {
             </p>
           </div>
         )}
+
         {filtered.map((d) => <TripCard key={d.id} d={d} />)}
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSuspenseQuery, useMutation, useQueryClient, useQuery, queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -21,31 +21,64 @@ import { PollsPanel } from "@/components/polls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export const Route = createFileRoute("/_authenticated/trips/$id")({
-  component: TripDetail,
-});
-
 async function fetchTrip(id: string) {
-  const [{ data: dest }, { data: votes }, { data: comments }, { data: user }] = await Promise.all([
-    supabase.from("destinations").select("*").eq("id", id).maybeSingle(),
-    supabase.from("votes").select("user_id").eq("destination_id", id),
-    supabase.from("comments").select("*").eq("destination_id", id).order("created_at", { ascending: true }),
-    supabase.auth.getUser(),
+  // 2 round-trips instead of 5: one combined destinations+votes+comments query,
+  // then one profiles lookup for all author ids. Uses cached session (no network).
+  const [{ data: session }, { data: dest }] = await Promise.all([
+    supabase.auth.getSession(),
+    supabase
+      .from("destinations")
+      .select("*, votes(user_id), comments(id, user_id, body, created_at, destination_id)")
+      .eq("id", id)
+      .order("created_at", { foreignTable: "comments", ascending: true })
+      .maybeSingle(),
   ]);
   if (!dest) return null;
-  const me = user.user?.id;
-  const authorIds = Array.from(new Set([dest.user_id, ...(comments ?? []).map((c) => c.user_id)]));
-  const { data: profiles } = await supabase.from("profiles").select("id, display_name, avatar_url").in("id", authorIds);
+  const me = session.session?.user?.id;
+  const votes = (dest as { votes: { user_id: string }[] }).votes ?? [];
+  const comments = (dest as { comments: { id: string; user_id: string; body: string; created_at: string; destination_id: string }[] }).comments ?? [];
+  const authorIds = Array.from(new Set([dest.user_id, ...comments.map((c) => c.user_id)]));
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, display_name, avatar_url")
+    .in("id", authorIds);
   const pmap = new Map((profiles ?? []).map((p) => [p.id, p]));
   return {
     dest,
     me,
     author: pmap.get(dest.user_id),
-    votes: votes?.length ?? 0,
-    voted: !!votes?.some((v) => v.user_id === me),
-    comments: (comments ?? []).map((c) => ({ ...c, author: pmap.get(c.user_id) })),
+    votes: votes.length,
+    voted: !!me && votes.some((v) => v.user_id === me),
+    comments: comments.map((c) => ({ ...c, author: pmap.get(c.user_id) })),
   };
 }
+
+const tripQueryOptions = (id: string) =>
+  queryOptions({
+    queryKey: ["trip", id],
+    queryFn: () => fetchTrip(id),
+    staleTime: 30_000,
+  });
+
+export const Route = createFileRoute("/_authenticated/trips/$id")({
+  loader: ({ params, context }) =>
+    context.queryClient.ensureQueryData(tripQueryOptions(params.id)),
+  head: ({ loaderData }) => {
+    const img = (loaderData as { dest?: { image_url?: string | null } } | null | undefined)?.dest?.image_url;
+    return {
+      links: img
+        ? [{ rel: "preload", as: "image", href: img, fetchpriority: "high" } as { rel: string; as: string; href: string; fetchpriority: string }]
+        : [],
+    };
+  },
+  component: TripDetail,
+  errorComponent: ({ error }) => (
+    <div className="py-20 text-center text-muted-foreground">{error.message}</div>
+  ),
+  notFoundComponent: () => (
+    <div className="py-20 text-center text-muted-foreground">Trip not found.</div>
+  ),
+});
 
 async function fetchRatingData(id: string, me: string | undefined) {
   const [{ data: agg }, mine] = await Promise.all([
@@ -63,7 +96,7 @@ function TripDetail() {
   const activeTab = tab || "overview";
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["trip", id], queryFn: () => fetchTrip(id) });
+  const { data } = useSuspenseQuery(tripQueryOptions(id));
   const [endDateDraft, setEndDateDraft] = useState<string>("");
 
   useEffect(() => {
@@ -110,7 +143,6 @@ function TripDetail() {
     },
   });
 
-  if (isLoading) return <div className="h-96 animate-pulse rounded-2xl bg-card/60" />;
   if (!data) return <div className="py-20 text-center text-muted-foreground">Trip not found.</div>;
 
   const { dest, author, votes, voted, me } = data;
@@ -123,7 +155,7 @@ function TripDetail() {
 
       <header className="overflow-hidden rounded-3xl border border-border/60 bg-card">
         {dest.image_url ? (
-          <img src={dest.image_url} alt={dest.title} className="aspect-[16/8] w-full object-cover" />
+          <img src={dest.image_url} alt={dest.title} className="aspect-[16/8] w-full object-cover" fetchPriority="high" />
         ) : (
           <div className="aspect-[16/8] w-full" style={{ background: "var(--gradient-hero)" }} />
         )}
