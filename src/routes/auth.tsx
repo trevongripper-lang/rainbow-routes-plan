@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { rlCheckPublic } from "@/lib/rate-limit.functions";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -14,17 +16,35 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const rlCheck = useServerFn(rlCheckPublic);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState<{ scope: string; until: number } | null>(null);
+
+  const secsLeft = cooldown ? Math.max(0, Math.ceil((cooldown.until - Date.now()) / 1000)) : 0;
+  const blocked = secsLeft > 0;
+
+  async function guard(scope: "login" | "reset" | "signup", emailVal: string): Promise<boolean> {
+    const r = await rlCheck({ data: { scope, email: emailVal } });
+    if (!r.allowed) {
+      setCooldown({ scope, until: Date.now() + r.retryAfter * 1000 });
+      const label = scope === "login" ? "sign-in" : scope === "reset" ? "reset" : "signup";
+      toast.error(`Too many ${label} attempts. Try again in ${r.retryAfter}s.`);
+      return false;
+    }
+    return true;
+  }
 
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
+    if (blocked) return;
     setLoading(true);
     try {
       if (mode === "signup") {
+        if (!(await guard("signup", email))) return;
         const { error } = await supabase.auth.signUp({
           email, password,
           options: {
@@ -36,12 +56,33 @@ function AuthPage() {
         toast.success("Check your email to confirm, then sign in.");
         setMode("signin");
       } else {
+        if (!(await guard("login", email))) return;
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         navigate({ to: "/trips" });
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleForgot() {
+    if (blocked) return;
+    const trimmed = email.trim();
+    if (!trimmed.includes("@")) {
+      toast.error("Enter your email above first.");
+      return;
+    }
+    setLoading(true);
+    try {
+      if (!(await guard("reset", trimmed))) return;
+      await supabase.auth.resetPasswordForEmail(trimmed, {
+        redirectTo: window.location.origin + "/auth",
+      });
+      // Don't disclose whether the email exists.
+      toast.success("If that email is registered, a reset link is on its way.");
     } finally {
       setLoading(false);
     }
@@ -65,7 +106,7 @@ function AuthPage() {
         <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">← back</Link>
         <h1 className="mt-3 font-display text-3xl">{mode === "signin" ? "Welcome back" : "Join the crew"}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {mode === "signin" ? "Sign in to keep planning." : "Create an account to start planning."}
+          Get your tribe out of the text thread and off to the next adventure.
         </p>
 
         <Button onClick={handleGoogle} disabled={loading} variant="outline" className="mt-6 w-full">
@@ -92,10 +133,26 @@ function AuthPage() {
             <Label htmlFor="password">Password</Label>
             <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
-          <Button type="submit" disabled={loading} className="w-full">
-            {mode === "signin" ? "Sign in" : "Create account"}
+          <Button type="submit" disabled={loading || blocked} className="w-full">
+            {blocked ? `Wait ${secsLeft}s` : mode === "signin" ? "Sign in" : "Create account"}
           </Button>
+          {blocked && (
+            <p className="text-center text-xs text-destructive">
+              Too many attempts. You can try again in {secsLeft}s.
+            </p>
+          )}
         </form>
+
+        {mode === "signin" && (
+          <button
+            type="button"
+            onClick={handleForgot}
+            disabled={loading || blocked}
+            className="mt-3 w-full text-center text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+          >
+            Forgot password?
+          </button>
+        )}
 
         <button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="mt-5 w-full text-sm text-muted-foreground hover:text-foreground">
           {mode === "signin" ? "No account yet? Sign up" : "Have an account? Sign in"}
