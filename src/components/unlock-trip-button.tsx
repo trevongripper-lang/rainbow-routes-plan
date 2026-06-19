@@ -2,9 +2,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { quoteUnlock, unlockTripWithCredit } from "@/lib/unlock.functions";
 import { startPaddleCheckout } from "@/lib/paddle-checkout.functions";
+import { validatePaddleConfig, type PaddleConfigIssue } from "@/lib/paddle-config.functions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Lock, Sparkles, CheckCircle2 } from "lucide-react";
+import { Lock, Sparkles, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { loadPaddle } from "@/lib/paddle-client";
@@ -25,18 +26,29 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
   const quote = useServerFn(quoteUnlock);
   const spend = useServerFn(unlockTripWithCredit);
   const startCheckout = useServerFn(startPaddleCheckout);
+  const validateConfig = useServerFn(validatePaddleConfig);
   const [paying, setPaying] = useState(false);
+  const [configIssues, setConfigIssues] = useState<PaddleConfigIssue[] | null>(null);
 
   async function handlePay() {
     try {
       setPaying(true);
+      setConfigIssues(null);
+
+      // Pre-flight: validate Paddle secrets and surface per-secret issues in-UI
+      const report = await validateConfig({});
+      if (!report.ok) {
+        setConfigIssues(report.issues);
+        toast.error(`Paddle is misconfigured (${report.issues.length} issue${report.issues.length === 1 ? "" : "s"})`);
+        return;
+      }
+
       const cfg = await startCheckout({ data: { destinationId } });
       const paddle = await loadPaddle({
         clientToken: cfg.clientToken,
         environment: cfg.environment,
         onComplete: () => {
           toast.success("Payment received — unlocking your trip…");
-          // Webhook unlocks server-side; refetch shortly after.
           setTimeout(() => {
             qc.invalidateQueries({ queryKey: ["trip", destinationId] });
             qc.invalidateQueries({ queryKey: ["unlock-quote", destinationId] });
@@ -143,6 +155,28 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
             </div>
           )}
 
+          {configIssues && configIssues.length > 0 && (
+            <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <AlertTriangle className="size-4" />
+                Paddle configuration problems
+              </div>
+              <ul className="mt-2 space-y-2">
+                {configIssues.map((i) => (
+                  <li key={i.secret} className="rounded-lg border border-destructive/30 bg-background/40 p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <code className="text-xs font-semibold">{i.secret}</code>
+                      <span className="rounded-full border border-destructive/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-destructive">
+                        {i.problem.replace(/_/g, " ")}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{i.message}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <Button
             variant={creditsAvailable > 0 ? "outline" : "default"}
             className="w-full"
@@ -154,6 +188,7 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
           <p className="text-center text-[11px] text-muted-foreground">
             Secure checkout by Paddle · sandbox mode
           </p>
+
         </div>
       </DialogContent>
     </Dialog>
