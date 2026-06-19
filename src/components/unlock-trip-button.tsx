@@ -35,14 +35,8 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
       setPaying(true);
       setConfigIssues(null);
 
-      // Pre-flight: validate Paddle secrets and surface per-secret issues in-UI
-      const report = await validateConfig({});
-      if (!report.ok) {
-        setConfigIssues(report.issues);
-        toast.error(`Paddle is misconfigured (${report.issues.length} issue${report.issues.length === 1 ? "" : "s"})`);
-        return;
-      }
-
+      // Happy path: try checkout immediately. Validate only on failure
+      // so the validator never adds latency to a successful unlock.
       const cfg = await startCheckout({ data: { destinationId } });
       const paddle = await loadPaddle({
         clientToken: cfg.clientToken,
@@ -64,11 +58,23 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
         settings: { displayMode: "overlay", theme: "dark", allowLogout: false },
       });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not start checkout");
+      // On failure, run the validator and surface per-secret issues.
+      try {
+        const report = await validateConfig({});
+        if (!report.ok) {
+          setConfigIssues(report.issues);
+          toast.error(`Paddle is misconfigured (${report.issues.length} issue${report.issues.length === 1 ? "" : "s"})`);
+        } else {
+          toast.error(e instanceof Error ? e.message : "Could not start checkout");
+        }
+      } catch {
+        toast.error(e instanceof Error ? e.message : "Could not start checkout");
+      }
     } finally {
       setPaying(false);
     }
   }
+
 
   const q = useQuery({
     queryKey: ["unlock-quote", destinationId],

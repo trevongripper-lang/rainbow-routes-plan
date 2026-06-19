@@ -26,6 +26,8 @@ export function useMe() {
         is_pro: false,
       };
     },
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
   });
+
 }
