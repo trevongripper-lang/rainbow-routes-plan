@@ -397,6 +397,24 @@ export type Database = {
           },
         ]
       }
+      rate_limits: {
+        Row: {
+          count: number
+          key: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          key: string
+          window_start: string
+        }
+        Update: {
+          count?: number
+          key?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       trip_costs: {
         Row: {
           amount_cents: number
@@ -929,6 +947,7 @@ export type Database = {
     Functions: {
       _maybe_grant_loyalty: { Args: { _user: string }; Returns: undefined }
       auto_close_trips: { Args: never; Returns: number }
+      cleanup_rate_limits: { Args: never; Returns: number }
       fanout_notification: {
         Args: { _actor: string; _dest: string; _kind: string; _payload: Json }
         Returns: undefined
@@ -990,6 +1009,10 @@ export type Database = {
           cents: number
           tier: string
         }[]
+      }
+      rl_hit: {
+        Args: { _key: string; _max: number; _window_seconds: number }
+        Returns: Json
       }
       unlock_destination: {
         Args: { _dest: string; _paid_cents?: number; _use_credit: boolean }

@@ -1,11 +1,13 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { MessageSquare, Reply, Trash2 } from "lucide-react";
+import { postChatterComment } from "@/lib/rate-limit.functions";
 
 type Profile = { id: string; display_name: string | null; avatar_url: string | null };
 type Comment = {
@@ -202,6 +204,7 @@ function Composer({
   onDone?: () => void;
 }) {
   const qc = useQueryClient();
+  const postFn = useServerFn(postChatterComment);
   const [body, setBody] = useState("");
   const [showPicker, setShowPicker] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
@@ -242,7 +245,6 @@ function Composer({
   const submit = useMutation({
     mutationFn: async () => {
       if (!body.trim()) return;
-      // Parse mentions by matching @<displayName> tokens against members
       const mentioned: string[] = [];
       for (const m of members) {
         const name = m.display_name?.trim();
@@ -250,14 +252,14 @@ function Composer({
         const re = new RegExp(`(^|\\s)@${escapeRegex(name)}(?=\\s|[.,!?]|$)`, "i");
         if (re.test(body) && !mentioned.includes(m.id)) mentioned.push(m.id);
       }
-      const { error } = await supabase.from("comments").insert({
-        destination_id: destinationId,
-        user_id: me,
-        body: body.trim(),
-        parent_id: parentId,
-        mentions: mentioned,
+      await postFn({
+        data: {
+          destinationId,
+          body: body.trim(),
+          parentId,
+          mentions: mentioned,
+        },
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       setBody("");
