@@ -26,15 +26,22 @@ export function TripEventsStrip({
   me,
   region,
   country,
+  startDate = null,
+  endDate = null,
+  bufferDays = 3,
   variant = "compact",
 }: {
   destinationId: string;
   me: string;
   region: string | null;
   country: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  bufferDays?: number;
   variant?: "compact" | "full";
 }) {
   const qc = useQueryClient();
+  const [buffer, setBuffer] = useState<number>(bufferDays);
 
   const { data: allEvents = [] } = useQuery({
     queryKey: ["events"],
@@ -59,14 +66,28 @@ export function TripEventsStrip({
     [allEvents, attachedIds],
   );
 
+  const hasDates = !!(startDate && endDate);
+  const windowMs = useMemo(() => {
+    if (!hasDates) return null;
+    const bufMs = Math.max(0, buffer) * 86400000;
+    const s = new Date(startDate as string).getTime() - bufMs;
+    const e = new Date(endDate as string).getTime() + bufMs + 86399999;
+    return { s, e };
+  }, [hasDates, startDate, endDate, buffer]);
+
   const matches = useMemo(() => {
     const r = norm(region);
     const c = norm(country);
     return allEvents.filter((e) => {
       if (attachedIds.includes(e.id)) return false;
-      return (r && norm(e.region) === r) || (c && norm(e.country) === c);
+      const placeOk = (r && norm(e.region) === r) || (c && norm(e.country) === c);
+      if (!placeOk) return false;
+      if (!windowMs) return true;
+      const es = new Date(e.start_date).getTime();
+      const ee = e.end_date ? new Date(e.end_date).getTime() + 86399999 : es + 86399999;
+      return ee >= windowMs.s && es <= windowMs.e;
     });
-  }, [allEvents, attachedIds, region, country]);
+  }, [allEvents, attachedIds, region, country, windowMs]);
 
   const toggle = useMutation({
     mutationFn: async ({ eventId, attached }: { eventId: string; attached: boolean }) => {
