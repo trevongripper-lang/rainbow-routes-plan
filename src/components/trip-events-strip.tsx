@@ -66,14 +66,30 @@ export function TripEventsStrip({
     [allEvents, attachedIds],
   );
 
-  const hasDates = !!(startDate && endDate);
+  const dateState = useMemo(() => {
+    const hasStart = !!startDate;
+    const hasEnd = !!endDate;
+    if (!hasStart && !hasEnd) return { kind: "none" as const };
+    if (!hasStart || !hasEnd) {
+      return { kind: "incomplete" as const, message: `Add a ${!hasStart ? "start" : "end"} date to match events to this trip.` };
+    }
+    const s = new Date(startDate as string).getTime();
+    const e = new Date(endDate as string).getTime();
+    if (Number.isNaN(s) || Number.isNaN(e)) {
+      return { kind: "invalid" as const, message: "Trip dates aren't valid — fix them to match events." };
+    }
+    if (e < s) {
+      return { kind: "invalid" as const, message: "Trip end date is before the start date." };
+    }
+    return { kind: "ok" as const, s, e };
+  }, [startDate, endDate]);
+
+  const hasDates = dateState.kind === "ok";
   const windowMs = useMemo(() => {
-    if (!hasDates) return null;
+    if (dateState.kind !== "ok") return null;
     const bufMs = Math.max(0, buffer) * 86400000;
-    const s = new Date(startDate as string).getTime() - bufMs;
-    const e = new Date(endDate as string).getTime() + bufMs + 86399999;
-    return { s, e };
-  }, [hasDates, startDate, endDate, buffer]);
+    return { s: dateState.s - bufMs, e: dateState.e + bufMs + 86399999 };
+  }, [dateState, buffer]);
 
   const matches = useMemo(() => {
     const r = norm(region);
@@ -106,7 +122,8 @@ export function TripEventsStrip({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
-  if (attached.length === 0 && matches.length === 0 && !hasDates) return null;
+  const dateProblem = dateState.kind === "incomplete" || dateState.kind === "invalid" ? dateState.message : null;
+  if (attached.length === 0 && matches.length === 0 && !hasDates && !dateProblem) return null;
 
   const list = variant === "compact" ? [...attached, ...matches.slice(0, 4)] : [...attached, ...matches];
 
@@ -134,6 +151,18 @@ export function TripEventsStrip({
           <span>{attached.length} attached · {matches.length} suggested</span>
         </div>
       </div>
+      {dateProblem && (
+        <p
+          role="status"
+          className={`mt-3 rounded-lg border px-3 py-2 text-xs ${
+            dateState.kind === "invalid"
+              ? "border-destructive/40 bg-destructive/10 text-destructive"
+              : "border-border/60 bg-background/40 text-muted-foreground"
+          }`}
+        >
+          {dateProblem} Showing location matches only.
+        </p>
+      )}
       {hasDates && matches.length === 0 && attached.length === 0 && (
         <p className="mt-3 text-xs text-muted-foreground">No events overlap this trip's window. Widen the ± buffer to see more.</p>
       )}
