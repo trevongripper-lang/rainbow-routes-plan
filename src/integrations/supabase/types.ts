@@ -110,6 +110,7 @@ export type Database = {
           is_past: boolean
           paid_amount_cents: number
           region: string
+          start_date: string | null
           title: string
           unlock_status: string
           unlock_tier: string | null
@@ -129,6 +130,7 @@ export type Database = {
           is_past?: boolean
           paid_amount_cents?: number
           region: string
+          start_date?: string | null
           title: string
           unlock_status?: string
           unlock_tier?: string | null
@@ -148,6 +150,7 @@ export type Database = {
           is_past?: boolean
           paid_amount_cents?: number
           region?: string
+          start_date?: string | null
           title?: string
           unlock_status?: string
           unlock_tier?: string | null
