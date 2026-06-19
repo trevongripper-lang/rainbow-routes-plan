@@ -146,13 +146,13 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
           <Button
             variant={creditsAvailable > 0 ? "outline" : "default"}
             className="w-full"
-            disabled
-            title="Checkout coming online soon"
+            onClick={handlePay}
+            disabled={paying}
           >
-            Pay {fmt(dueCents || priceCents)} (checkout coming online soon)
+            {paying ? "Opening checkout…" : `Pay ${fmt(priceCents)} with card / Apple Pay`}
           </Button>
           <p className="text-center text-[11px] text-muted-foreground">
-            Hosted checkout will be wired up once payments are enabled for this project.
+            Secure checkout by Paddle · sandbox mode
           </p>
         </div>
       </DialogContent>
