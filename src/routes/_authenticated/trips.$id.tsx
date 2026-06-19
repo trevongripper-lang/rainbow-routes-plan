@@ -38,10 +38,7 @@ async function fetchTrip(id: string) {
   const votes = (dest as { votes: { user_id: string }[] }).votes ?? [];
   const comments = (dest as { comments: { id: string; user_id: string; body: string; created_at: string; destination_id: string }[] }).comments ?? [];
   const authorIds = Array.from(new Set([dest.user_id, ...comments.map((c) => c.user_id)]));
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, display_name, avatar_url")
-    .in("id", authorIds);
+  const { data: profiles } = await supabase.rpc("get_public_profiles", { _ids: authorIds });
   const pmap = new Map((profiles ?? []).map((p) => [p.id, p]));
   return {
     dest,

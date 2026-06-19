@@ -24,7 +24,7 @@ export function InviteModal({ destinationId }: { destinationId: string }) {
       const ids = (rows ?? []).map((r) => r.user_id);
       let profs: { id: string; display_name: string | null; avatar_url: string | null }[] = [];
       if (ids.length) {
-        const { data } = await supabase.from("profiles").select("id, display_name, avatar_url").in("id", ids);
+        const { data } = await supabase.rpc("get_public_profiles", { _ids: ids });
         profs = data ?? [];
       }
       const pmap = new Map(profs.map((p) => [p.id, p]));

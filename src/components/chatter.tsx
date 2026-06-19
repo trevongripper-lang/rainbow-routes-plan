@@ -28,8 +28,7 @@ export function Chatter({ destinationId, me }: { destinationId: string; me: stri
         .from("trip_members").select("user_id").eq("destination_id", destinationId);
       const ids = (rows ?? []).map((r) => r.user_id);
       if (ids.length === 0) return [];
-      const { data: profs } = await supabase
-        .from("profiles").select("id, display_name, avatar_url").in("id", ids);
+      const { data: profs } = await supabase.rpc("get_public_profiles", { _ids: ids });
       return (profs as Profile[]) ?? [];
     },
   });
