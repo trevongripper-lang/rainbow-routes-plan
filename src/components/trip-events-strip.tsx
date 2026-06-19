@@ -99,12 +99,12 @@ export function TripEventsStrip({
       if (attachedIds.includes(e.id)) return false;
       const placeOk = (r && norm(e.region) === r) || (c && norm(e.country) === c);
       if (!placeOk) return false;
-      if (!windowMs) return true;
+      if (!windowMs || showOutside) return true;
       const es = new Date(e.start_date).getTime();
       const ee = e.end_date ? new Date(e.end_date).getTime() + 86399999 : es + 86399999;
       return ee >= windowMs.s && es <= windowMs.e;
     });
-  }, [allEvents, attachedIds, region, country, windowMs]);
+  }, [allEvents, attachedIds, region, country, windowMs, showOutside]);
 
   const toggle = useMutation({
     mutationFn: async ({ eventId, attached }: { eventId: string; attached: boolean }) => {
