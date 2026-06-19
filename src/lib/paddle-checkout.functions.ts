@@ -84,4 +84,9 @@ export const startPaddleCheckout = createServerFn({ method: "POST" })
       customerEmail,
       customData: { destinationId: data.destinationId, userId },
     };
+    } catch (err) {
+      console.error("[startPaddleCheckout] failed", { destinationId: data.destinationId, err });
+      throw err instanceof Error ? err : new Error(String(err));
+    }
   });
+
