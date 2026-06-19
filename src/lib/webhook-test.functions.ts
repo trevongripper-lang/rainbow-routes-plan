@@ -58,15 +58,15 @@ export const listRecentWebhookEvents = createServerFn({ method: "GET" }).handler
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("paddle_events")
-      .select("event_id, event_type, created_at, result, error")
-      .order("created_at", { ascending: false })
+      .select("event_id, event_type, processed_at, result, error")
+      .order("processed_at", { ascending: false })
       .limit(50);
 
     if (error) throw new Error(error.message);
     return (data ?? []) as {
       event_id: string;
       event_type: string;
-      created_at: string;
+      processed_at: string;
       result: string | null;
       error: string | null;
     }[];
