@@ -180,7 +180,9 @@ export function TripEventsStrip({
         </p>
       )}
       {hasDates && matches.length === 0 && attached.length === 0 && (
-        <p className="mt-3 text-xs text-muted-foreground">No events overlap this trip's window. Widen the ± buffer to see more.</p>
+        <p className="mt-3 text-xs text-muted-foreground">
+          No events overlap this trip's window. Widen the ± buffer or tap "See events outside my dates".
+        </p>
       )}
       <ul className="mt-3 grid gap-2 sm:grid-cols-2">
         {list.map((e) => {
