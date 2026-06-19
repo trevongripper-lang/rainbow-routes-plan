@@ -95,10 +95,15 @@ function TripDetail() {
   const qc = useQueryClient();
   const { data } = useSuspenseQuery(tripQueryOptions(id));
   const [endDateDraft, setEndDateDraft] = useState<string>("");
+  const [startDateDraft, setStartDateDraft] = useState<string>("");
 
   useEffect(() => {
     if (data?.dest.end_date) setEndDateDraft(data.dest.end_date);
   }, [data?.dest.end_date]);
+  useEffect(() => {
+    const sd = (data?.dest as { start_date?: string | null } | undefined)?.start_date;
+    if (sd) setStartDateDraft(sd);
+  }, [data?.dest]);
 
   const vote = useMutation({
     mutationFn: async () => {
@@ -112,13 +117,16 @@ function TripDetail() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["trip", id] }); qc.invalidateQueries({ queryKey: ["trips"] }); },
   });
 
-  const saveEndDate = useMutation({
-    mutationFn: async (val: string) => {
-      const v = val ? val : null;
-      const { error } = await supabase.from("destinations").update({ end_date: v }).eq("id", id);
+  const saveDates = useMutation({
+    mutationFn: async ({ start, end }: { start: string; end: string }) => {
+      if (start && end && end < start) throw new Error("End date can't be before start date");
+      const { error } = await supabase
+        .from("destinations")
+        .update({ start_date: start || null, end_date: end || null } as never)
+        .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["trip", id] }); toast.success("End date saved"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["trip", id] }); toast.success("Trip dates saved"); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
@@ -192,16 +200,34 @@ function TripDetail() {
               <UnlockTripButton destinationId={id} isOwner={isOwner} />
               <div className="flex items-end gap-2">
                 <div>
-                  <Label className="text-xs">Trip end date</Label>
+                  <Label className="text-xs">Start date</Label>
+                  <Input
+                    type="date"
+                    value={startDateDraft}
+                    onChange={(e) => setStartDateDraft(e.target.value)}
+                    className="w-40"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">End date</Label>
                   <Input
                     type="date"
                     value={endDateDraft}
+                    min={startDateDraft || undefined}
                     onChange={(e) => setEndDateDraft(e.target.value)}
-                    className="w-44"
+                    className="w-40"
                   />
                 </div>
-                {endDateDraft !== (dest.end_date ?? "") && (
-                  <Button size="sm" variant="secondary" onClick={() => saveEndDate.mutate(endDateDraft)}>Save</Button>
+                {(startDateDraft !== ((dest as { start_date?: string | null }).start_date ?? "") ||
+                  endDateDraft !== (dest.end_date ?? "")) && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={saveDates.isPending}
+                    onClick={() => saveDates.mutate({ start: startDateDraft, end: endDateDraft })}
+                  >
+                    Save dates
+                  </Button>
                 )}
               </div>
               <p className="self-end text-[11px] text-muted-foreground">Trip auto-closes 1 day after end date · ratings open then.</p>
