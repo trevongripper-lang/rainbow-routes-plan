@@ -27,7 +27,9 @@ export const startPaddleCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { destinationId: string }) => d)
   .handler(async ({ data, context }): Promise<PaddleCheckoutConfig> => {
+    try {
     const { supabase, userId, claims } = context;
+
 
     const clientToken = process.env.PADDLE_CLIENT_TOKEN;
     if (!clientToken) throw new Error("Paddle is not configured (missing PADDLE_CLIENT_TOKEN).");
