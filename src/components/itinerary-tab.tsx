@@ -184,7 +184,7 @@ export function ItineraryTab({
         </p>
       </section>
 
-      <TripEventsStrip destinationId={destinationId} me={me} region={region} country={country} variant="full" />
+      <TripEventsStrip destinationId={destinationId} me={me} region={region} country={country} startDate={startDate} endDate={endDate} variant="full" />
 
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
