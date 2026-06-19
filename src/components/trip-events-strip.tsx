@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CalendarDays, MapPin, ExternalLink, Sparkles, X, Plus } from "lucide-react";
@@ -26,15 +26,22 @@ export function TripEventsStrip({
   me,
   region,
   country,
+  startDate = null,
+  endDate = null,
+  bufferDays = 3,
   variant = "compact",
 }: {
   destinationId: string;
   me: string;
   region: string | null;
   country: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  bufferDays?: number;
   variant?: "compact" | "full";
 }) {
   const qc = useQueryClient();
+  const [buffer, setBuffer] = useState<number>(bufferDays);
 
   const { data: allEvents = [] } = useQuery({
     queryKey: ["events"],
@@ -59,14 +66,28 @@ export function TripEventsStrip({
     [allEvents, attachedIds],
   );
 
+  const hasDates = !!(startDate && endDate);
+  const windowMs = useMemo(() => {
+    if (!hasDates) return null;
+    const bufMs = Math.max(0, buffer) * 86400000;
+    const s = new Date(startDate as string).getTime() - bufMs;
+    const e = new Date(endDate as string).getTime() + bufMs + 86399999;
+    return { s, e };
+  }, [hasDates, startDate, endDate, buffer]);
+
   const matches = useMemo(() => {
     const r = norm(region);
     const c = norm(country);
     return allEvents.filter((e) => {
       if (attachedIds.includes(e.id)) return false;
-      return (r && norm(e.region) === r) || (c && norm(e.country) === c);
+      const placeOk = (r && norm(e.region) === r) || (c && norm(e.country) === c);
+      if (!placeOk) return false;
+      if (!windowMs) return true;
+      const es = new Date(e.start_date).getTime();
+      const ee = e.end_date ? new Date(e.end_date).getTime() + 86399999 : es + 86399999;
+      return ee >= windowMs.s && es <= windowMs.e;
     });
-  }, [allEvents, attachedIds, region, country]);
+  }, [allEvents, attachedIds, region, country, windowMs]);
 
   const toggle = useMutation({
     mutationFn: async ({ eventId, attached }: { eventId: string; attached: boolean }) => {
@@ -85,7 +106,7 @@ export function TripEventsStrip({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
-  if (attached.length === 0 && matches.length === 0) return null;
+  if (attached.length === 0 && matches.length === 0 && !hasDates) return null;
 
   const list = variant === "compact" ? [...attached, ...matches.slice(0, 4)] : [...attached, ...matches];
 
@@ -96,10 +117,26 @@ export function TripEventsStrip({
           <Sparkles className="size-4 text-primary" />
           <h3 className="font-display text-base">Events near this trip</h3>
         </div>
-        <div className="text-[11px] text-muted-foreground">
-          {attached.length} attached · {matches.length} suggested
+        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+          {hasDates && (
+            <label className="flex items-center gap-1.5">
+              <span>± days</span>
+              <input
+                type="number"
+                min={0}
+                max={60}
+                value={buffer}
+                onChange={(e) => setBuffer(Math.max(0, Math.min(60, Number(e.target.value) || 0)))}
+                className="w-12 rounded-md border border-border/60 bg-background px-1.5 py-0.5 text-foreground"
+              />
+            </label>
+          )}
+          <span>{attached.length} attached · {matches.length} suggested</span>
         </div>
       </div>
+      {hasDates && matches.length === 0 && attached.length === 0 && (
+        <p className="mt-3 text-xs text-muted-foreground">No events overlap this trip's window. Widen the ± buffer to see more.</p>
+      )}
       <ul className="mt-3 grid gap-2 sm:grid-cols-2">
         {list.map((e) => {
           const isAttached = attachedIds.includes(e.id);
