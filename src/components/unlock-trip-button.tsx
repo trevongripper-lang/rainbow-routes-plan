@@ -155,6 +155,28 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
             </div>
           )}
 
+          {configIssues && configIssues.length > 0 && (
+            <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <AlertTriangle className="size-4" />
+                Paddle configuration problems
+              </div>
+              <ul className="mt-2 space-y-2">
+                {configIssues.map((i) => (
+                  <li key={i.secret} className="rounded-lg border border-destructive/30 bg-background/40 p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <code className="text-xs font-semibold">{i.secret}</code>
+                      <span className="rounded-full border border-destructive/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-destructive">
+                        {i.problem.replace(/_/g, " ")}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{i.message}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <Button
             variant={creditsAvailable > 0 ? "outline" : "default"}
             className="w-full"
@@ -166,6 +188,7 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
           <p className="text-center text-[11px] text-muted-foreground">
             Secure checkout by Paddle · sandbox mode
           </p>
+
         </div>
       </DialogContent>
     </Dialog>
