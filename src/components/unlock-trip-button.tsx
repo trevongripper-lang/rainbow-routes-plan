@@ -26,18 +26,29 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
   const quote = useServerFn(quoteUnlock);
   const spend = useServerFn(unlockTripWithCredit);
   const startCheckout = useServerFn(startPaddleCheckout);
+  const validateConfig = useServerFn(validatePaddleConfig);
   const [paying, setPaying] = useState(false);
+  const [configIssues, setConfigIssues] = useState<PaddleConfigIssue[] | null>(null);
 
   async function handlePay() {
     try {
       setPaying(true);
+      setConfigIssues(null);
+
+      // Pre-flight: validate Paddle secrets and surface per-secret issues in-UI
+      const report = await validateConfig({});
+      if (!report.ok) {
+        setConfigIssues(report.issues);
+        toast.error(`Paddle is misconfigured (${report.issues.length} issue${report.issues.length === 1 ? "" : "s"})`);
+        return;
+      }
+
       const cfg = await startCheckout({ data: { destinationId } });
       const paddle = await loadPaddle({
         clientToken: cfg.clientToken,
         environment: cfg.environment,
         onComplete: () => {
           toast.success("Payment received — unlocking your trip…");
-          // Webhook unlocks server-side; refetch shortly after.
           setTimeout(() => {
             qc.invalidateQueries({ queryKey: ["trip", destinationId] });
             qc.invalidateQueries({ queryKey: ["unlock-quote", destinationId] });
