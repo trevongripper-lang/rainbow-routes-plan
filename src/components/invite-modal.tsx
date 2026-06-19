@@ -84,6 +84,10 @@ export function InviteModal({ destinationId }: { destinationId: string }) {
         <DialogHeader>
           <DialogTitle>Invite to this trip</DialogTitle>
         </DialogHeader>
+        <p className="-mt-1 text-sm text-muted-foreground">
+          Get your tribe out of the text thread and off to the next adventure.
+        </p>
+
 
         <div className="space-y-5">
           <div>
