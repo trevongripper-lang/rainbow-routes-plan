@@ -1,11 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { quoteUnlock, unlockTripWithCredit } from "@/lib/unlock.functions";
+import { startPaddleCheckout } from "@/lib/paddle-checkout.functions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Lock, Sparkles, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { loadPaddle } from "@/lib/paddle-client";
 
 const TIER_LABEL: Record<string, string> = {
   tier1: "6–10 people",
@@ -22,6 +24,39 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
   const qc = useQueryClient();
   const quote = useServerFn(quoteUnlock);
   const spend = useServerFn(unlockTripWithCredit);
+  const startCheckout = useServerFn(startPaddleCheckout);
+  const [paying, setPaying] = useState(false);
+
+  async function handlePay() {
+    try {
+      setPaying(true);
+      const cfg = await startCheckout({ data: { destinationId } });
+      const paddle = await loadPaddle({
+        clientToken: cfg.clientToken,
+        environment: cfg.environment,
+        onComplete: () => {
+          toast.success("Payment received — unlocking your trip…");
+          // Webhook unlocks server-side; refetch shortly after.
+          setTimeout(() => {
+            qc.invalidateQueries({ queryKey: ["trip", destinationId] });
+            qc.invalidateQueries({ queryKey: ["unlock-quote", destinationId] });
+          }, 1500);
+          setOpen(false);
+        },
+      });
+      if (!paddle) throw new Error("Failed to load Paddle");
+      paddle.Checkout.open({
+        items: [{ priceId: cfg.priceId, quantity: 1 }],
+        customer: cfg.customerEmail ? { email: cfg.customerEmail } : undefined,
+        customData: cfg.customData,
+        settings: { displayMode: "overlay", theme: "dark", allowLogout: false },
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not start checkout");
+    } finally {
+      setPaying(false);
+    }
+  }
 
   const q = useQuery({
     queryKey: ["unlock-quote", destinationId],
@@ -42,7 +77,7 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
   });
 
   if (!isOwner || !q.data) return null;
-  const { status, tier, priceCents, creditsAvailable, dueCents } = q.data;
+  const { status, tier, priceCents, creditsAvailable } = q.data;
 
   // Already unlocked → tiny badge
   if (status !== "free") {
@@ -111,13 +146,13 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
           <Button
             variant={creditsAvailable > 0 ? "outline" : "default"}
             className="w-full"
-            disabled
-            title="Checkout coming online soon"
+            onClick={handlePay}
+            disabled={paying}
           >
-            Pay {fmt(dueCents || priceCents)} (checkout coming online soon)
+            {paying ? "Opening checkout…" : `Pay ${fmt(priceCents)} with card / Apple Pay`}
           </Button>
           <p className="text-center text-[11px] text-muted-foreground">
-            Hosted checkout will be wired up once payments are enabled for this project.
+            Secure checkout by Paddle · sandbox mode
           </p>
         </div>
       </DialogContent>
