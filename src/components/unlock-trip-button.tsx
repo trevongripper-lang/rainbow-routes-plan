@@ -24,6 +24,39 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
   const qc = useQueryClient();
   const quote = useServerFn(quoteUnlock);
   const spend = useServerFn(unlockTripWithCredit);
+  const startCheckout = useServerFn(startPaddleCheckout);
+  const [paying, setPaying] = useState(false);
+
+  async function handlePay() {
+    try {
+      setPaying(true);
+      const cfg = await startCheckout({ data: { destinationId } });
+      const paddle = await loadPaddle({
+        clientToken: cfg.clientToken,
+        environment: cfg.environment,
+        onComplete: () => {
+          toast.success("Payment received — unlocking your trip…");
+          // Webhook unlocks server-side; refetch shortly after.
+          setTimeout(() => {
+            qc.invalidateQueries({ queryKey: ["trip", destinationId] });
+            qc.invalidateQueries({ queryKey: ["unlock-quote", destinationId] });
+          }, 1500);
+          setOpen(false);
+        },
+      });
+      if (!paddle) throw new Error("Failed to load Paddle");
+      paddle.Checkout.open({
+        items: [{ priceId: cfg.priceId, quantity: 1 }],
+        customer: cfg.customerEmail ? { email: cfg.customerEmail } : undefined,
+        customData: cfg.customData,
+        settings: { displayMode: "overlay", theme: "dark", allowLogout: false },
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not start checkout");
+    } finally {
+      setPaying(false);
+    }
+  }
 
   const q = useQuery({
     queryKey: ["unlock-quote", destinationId],
