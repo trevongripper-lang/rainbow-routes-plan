@@ -135,19 +135,34 @@ export function TripEventsStrip({
           <Sparkles className="size-4 text-primary" />
           <h3 className="font-display text-base">Events near this trip</h3>
         </div>
-        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground">
           {hasDates && (
-            <label className="flex items-center gap-1.5">
-              <span>± days</span>
-              <input
-                type="number"
-                min={0}
-                max={60}
-                value={buffer}
-                onChange={(e) => setBuffer(Math.max(0, Math.min(60, Number(e.target.value) || 0)))}
-                className="w-12 rounded-md border border-border/60 bg-background px-1.5 py-0.5 text-foreground"
-              />
-            </label>
+            <>
+              <label className="flex items-center gap-1.5">
+                <span>± days</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={60}
+                  value={buffer}
+                  onChange={(e) => setBuffer(Math.max(0, Math.min(60, Number(e.target.value) || 0)))}
+                  disabled={showOutside}
+                  className="w-12 rounded-md border border-border/60 bg-background px-1.5 py-0.5 text-foreground disabled:opacity-50"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowOutside((v) => !v)}
+                className={`rounded-full border px-2 py-0.5 transition ${
+                  showOutside
+                    ? "border-primary/50 bg-primary/15 text-primary"
+                    : "border-border/60 hover:border-primary/40"
+                }`}
+                aria-pressed={showOutside}
+              >
+                {showOutside ? "Showing all dates" : "See events outside my dates"}
+              </button>
+            </>
           )}
           <span>{attached.length} attached · {matches.length} suggested</span>
         </div>
