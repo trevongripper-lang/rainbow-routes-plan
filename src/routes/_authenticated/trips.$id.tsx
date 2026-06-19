@@ -236,7 +236,7 @@ function TripDetail() {
             <div className="space-y-6">
               <SmartAdd destinationId={id} me={me} />
               <PollsPanel destinationId={id} me={me} />
-              <TripEventsStrip destinationId={id} me={me} region={dest.region} country={dest.country} />
+              <TripEventsStrip destinationId={id} me={me} region={dest.region} country={dest.country} startDate={(dest as { start_date?: string | null }).start_date ?? null} endDate={dest.end_date} />
               <Chatter destinationId={id} me={me} />
             </div>
           ) : null}
