@@ -42,6 +42,7 @@ export function TripEventsStrip({
 }) {
   const qc = useQueryClient();
   const [buffer, setBuffer] = useState<number>(bufferDays);
+  const [showOutside, setShowOutside] = useState<boolean>(false);
 
   const { data: allEvents = [] } = useQuery({
     queryKey: ["events"],
