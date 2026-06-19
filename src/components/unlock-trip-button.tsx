@@ -77,7 +77,7 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
   });
 
   if (!isOwner || !q.data) return null;
-  const { status, tier, priceCents, creditsAvailable, dueCents } = q.data;
+  const { status, tier, priceCents, creditsAvailable } = q.data;
 
   // Already unlocked → tiny badge
   if (status !== "free") {
