@@ -66,14 +66,30 @@ export function TripEventsStrip({
     [allEvents, attachedIds],
   );
 
-  const hasDates = !!(startDate && endDate);
+  const dateState = useMemo(() => {
+    const hasStart = !!startDate;
+    const hasEnd = !!endDate;
+    if (!hasStart && !hasEnd) return { kind: "none" as const };
+    if (!hasStart || !hasEnd) {
+      return { kind: "incomplete" as const, message: `Add a ${!hasStart ? "start" : "end"} date to match events to this trip.` };
+    }
+    const s = new Date(startDate as string).getTime();
+    const e = new Date(endDate as string).getTime();
+    if (Number.isNaN(s) || Number.isNaN(e)) {
+      return { kind: "invalid" as const, message: "Trip dates aren't valid — fix them to match events." };
+    }
+    if (e < s) {
+      return { kind: "invalid" as const, message: "Trip end date is before the start date." };
+    }
+    return { kind: "ok" as const, s, e };
+  }, [startDate, endDate]);
+
+  const hasDates = dateState.kind === "ok";
   const windowMs = useMemo(() => {
-    if (!hasDates) return null;
+    if (dateState.kind !== "ok") return null;
     const bufMs = Math.max(0, buffer) * 86400000;
-    const s = new Date(startDate as string).getTime() - bufMs;
-    const e = new Date(endDate as string).getTime() + bufMs + 86399999;
-    return { s, e };
-  }, [hasDates, startDate, endDate, buffer]);
+    return { s: dateState.s - bufMs, e: dateState.e + bufMs + 86399999 };
+  }, [dateState, buffer]);
 
   const matches = useMemo(() => {
     const r = norm(region);
