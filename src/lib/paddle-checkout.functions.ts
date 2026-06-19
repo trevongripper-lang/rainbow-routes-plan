@@ -11,6 +11,23 @@ export type PaddleCheckoutConfig = {
   customData: { destinationId: string; userId: string };
 };
 
+function assertPaddleClientToken(token: string, environment: "sandbox" | "production") {
+  const expectedPrefix = environment === "sandbox" ? "test_" : "live_";
+  if (!token.startsWith(expectedPrefix)) {
+    throw new Error(
+      `Invalid Paddle client token. Expected a ${environment} client-side token starting with ${expectedPrefix}.`,
+    );
+  }
+}
+
+function assertPaddlePriceId(priceId: string, tier: string) {
+  if (!priceId.startsWith("pri_")) {
+    throw new Error(
+      `Invalid Paddle price ID for ${tier}. Paddle price IDs start with pri_; pro_ IDs are product IDs.`,
+    );
+  }
+}
+
 /**
  * Returns everything the client needs to open a Paddle overlay checkout
  * for unlocking a trip. All sensitive config (client token, price IDs)
@@ -36,6 +53,7 @@ export const startPaddleCheckout = createServerFn({ method: "POST" })
     const environment = (process.env.PADDLE_ENVIRONMENT ?? "sandbox") as
       | "sandbox"
       | "production";
+    assertPaddleClientToken(clientToken, environment);
 
     // Re-quote on the server to determine tier + price authoritatively.
     const { data: dest, error: derr } = await supabase
@@ -72,6 +90,7 @@ export const startPaddleCheckout = createServerFn({ method: "POST" })
       throw new Error(
         `Paddle price ID for ${tier} is not configured (set PADDLE_PRICE_${tier.toUpperCase()}).`,
       );
+    assertPaddlePriceId(priceId, tier);
 
     const customerEmail = (claims?.email as string | undefined) ?? null;
 
