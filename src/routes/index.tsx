@@ -52,13 +52,13 @@ function Landing() {
           <Sparkles className="size-3.5 text-accent" /> For you and your crew
         </p>
         <h1 className="font-display text-5xl leading-[1.05] md:text-7xl">
-          Plan the gay <br /> getaway,{" "}
-          <em className="text-primary not-italic">together</em>.
+          Get your tribe out of the text thread and{" "}
+          <em className="text-primary not-italic">off to the next adventure</em>.
         </h1>
         <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-          Pitch destinations, upvote favorites, chatter about logistics, and
-          surface regional pride, circuit, and beach events — all in one cozy
-          place.
+          Plan whatever trip you want — pitch destinations, upvote favorites,
+          chatter about logistics, and surface regional pride, circuit, and
+          beach events all in one cozy place.
         </p>
 
         <div className="mt-10 flex flex-wrap gap-3">
