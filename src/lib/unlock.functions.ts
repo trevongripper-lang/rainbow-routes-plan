@@ -61,7 +61,12 @@ export const quoteUnlock = createServerFn({ method: "POST" })
       dueCents,
       isOwner: dest.user_id === userId,
     };
+    } catch (err) {
+      console.error("[quoteUnlock] failed", { destinationId: data.destinationId, err });
+      throw err instanceof Error ? err : new Error(String(err));
+    }
   });
+
 
 export const unlockTripWithCredit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
