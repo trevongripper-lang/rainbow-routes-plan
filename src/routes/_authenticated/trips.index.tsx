@@ -13,7 +13,14 @@ import { PageHero } from "@/components/page-hero";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/trips/")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(tripsQueryOptions),
   component: TripsPage,
+  errorComponent: ({ error }) => (
+    <div className="py-20 text-center text-muted-foreground">{error.message}</div>
+  ),
+  notFoundComponent: () => (
+    <div className="py-20 text-center text-muted-foreground">Not found.</div>
+  ),
 });
 
 type DestRow = {
@@ -27,7 +34,7 @@ async function fetchTrips() {
     supabase.from("destinations").select("*").order("created_at", { ascending: false }),
     supabase.from("votes").select("destination_id, user_id"),
     supabase.from("comments").select("destination_id"),
-    supabase.auth.getUser(),
+    supabase.auth.getSession().then((r) => ({ data: { user: r.data.session?.user ?? null } })),
   ]);
   const me = user.user?.id;
   const voteCounts: Record<string, number> = {};
@@ -49,8 +56,15 @@ async function fetchTrips() {
   return enriched;
 }
 
+const tripsQueryOptions = queryOptions({
+  queryKey: ["trips"],
+  queryFn: fetchTrips,
+  staleTime: 30_000,
+});
+
 function TripsPage() {
-  const { data, isLoading } = useQuery({ queryKey: ["trips"], queryFn: fetchTrips });
+  const { data } = useSuspenseQuery(tripsQueryOptions);
+
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
 
   const filtered = (data ?? []).filter((d) => (tab === "past" ? d.is_past : !d.is_past));
