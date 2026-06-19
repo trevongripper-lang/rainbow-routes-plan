@@ -96,9 +96,13 @@ function TripsPage() {
       <div className="grid gap-5 md:grid-cols-2">
         {filtered.length === 0 && (
           <div className="col-span-full rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center backdrop-blur">
-            <p className="font-display text-2xl">{tab === "past" ? "No past trips yet." : "No destinations yet."}</p>
+            <p className="font-display text-2xl">
+              {tab === "past" ? "No past trips yet." : "Were there people planning a tribe trip in your bathroom?"}
+            </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              {tab === "past" ? "Mark a trip as past from its detail page after the trip wraps." : "Be the first to pitch one."}
+              {tab === "past"
+                ? "Mark a trip as past from its detail page after the trip wraps."
+                : "Get them out of the group chat and into the plan — pitch the first destination."}
             </p>
           </div>
         )}

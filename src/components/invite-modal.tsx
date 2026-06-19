@@ -84,14 +84,13 @@ export function InviteModal({ destinationId }: { destinationId: string }) {
         <DialogHeader>
           <DialogTitle>Invite to this trip</DialogTitle>
         </DialogHeader>
-        <p className="-mt-1 text-sm text-muted-foreground">
-          Get your tribe out of the text thread and off to the next adventure.
-        </p>
-
 
         <div className="space-y-5">
           <div>
-            <Label className="text-xs">Shareable link</Label>
+            <p className="text-sm text-foreground/90">
+              Get your tribe out of the text thread and off to the next adventure.
+            </p>
+            <Label className="mt-3 block text-xs">Shareable link</Label>
             <p className="mt-1 text-xs text-muted-foreground">Anyone signed in with this link can join.</p>
             <Button onClick={onCopyLink} disabled={createInvite.isPending} variant="outline" className="mt-2 w-full justify-start gap-2">
               {copied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
