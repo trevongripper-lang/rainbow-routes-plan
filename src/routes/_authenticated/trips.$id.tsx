@@ -195,27 +195,27 @@ function TripDetail() {
           </div>
           {dest.description && <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">{dest.description}</p>}
           {isOwner && (
-            <div className="mt-5 flex flex-wrap items-end gap-4">
+            <div className="mt-5 flex flex-wrap items-end gap-3">
               <InviteModal destinationId={id} />
               <UnlockTripButton destinationId={id} isOwner={isOwner} />
-              <div className="flex items-end gap-2">
-                <div>
+              <div className="flex w-full flex-wrap items-end gap-2 sm:w-auto">
+                <div className="min-w-0 flex-1 sm:flex-none">
                   <Label className="text-xs">Start date</Label>
                   <Input
                     type="date"
                     value={startDateDraft}
                     onChange={(e) => setStartDateDraft(e.target.value)}
-                    className="w-40"
+                    className="w-full sm:w-40"
                   />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1 sm:flex-none">
                   <Label className="text-xs">End date</Label>
                   <Input
                     type="date"
                     value={endDateDraft}
                     min={startDateDraft || undefined}
                     onChange={(e) => setEndDateDraft(e.target.value)}
-                    className="w-40"
+                    className="w-full sm:w-40"
                   />
                 </div>
                 {(startDateDraft !== ((dest as { start_date?: string | null }).start_date ?? "") ||
@@ -225,12 +225,15 @@ function TripDetail() {
                     variant="secondary"
                     disabled={saveDates.isPending}
                     onClick={() => saveDates.mutate({ start: startDateDraft, end: endDateDraft })}
+                    className="shrink-0"
                   >
                     Save dates
                   </Button>
                 )}
               </div>
-              <p className="self-end text-[11px] text-muted-foreground">Trip auto-closes 1 day after end date · ratings open then.</p>
+              <p className="basis-full text-[11px] text-muted-foreground sm:basis-auto sm:self-end">
+                Trip auto-closes 1 day after end date · ratings open then.
+              </p>
             </div>
           )}
           {isOwner && (
