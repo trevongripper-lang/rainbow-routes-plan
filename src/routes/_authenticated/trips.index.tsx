@@ -94,10 +94,7 @@ function TripsPage() {
       </div>
 
       <div className="grid gap-5 md:grid-cols-2">
-        {isLoading && Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-64 animate-pulse rounded-2xl bg-card/60" />
-        ))}
-        {!isLoading && filtered.length === 0 && (
+        {filtered.length === 0 && (
           <div className="col-span-full rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center backdrop-blur">
             <p className="font-display text-2xl">{tab === "past" ? "No past trips yet." : "No destinations yet."}</p>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -105,6 +102,7 @@ function TripsPage() {
             </p>
           </div>
         )}
+
         {filtered.map((d) => <TripCard key={d.id} d={d} />)}
       </div>
     </div>
