@@ -11,8 +11,11 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/me")({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({ queryKey: ["me"], queryFn: fetchMine, staleTime: 30_000 }),
   component: MePage,
 });
+
 
 
 async function fetchMine() {
@@ -43,7 +46,7 @@ async function fetchMine() {
 }
 
 function MePage() {
-  const { data, isLoading } = useQuery({ queryKey: ["me"], queryFn: fetchMine });
+  const { data, isLoading } = useQuery({ queryKey: ["me"], queryFn: fetchMine, staleTime: 30_000 });
   if (isLoading || !data) return <div className="h-96 animate-pulse rounded-2xl bg-card/60" />;
 
   const { profile, user, dests, voted, commentCount } = data;

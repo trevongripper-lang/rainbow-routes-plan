@@ -9,8 +9,11 @@ import { useMe } from "@/hooks/use-me";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/events")({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({ queryKey: ["events"], queryFn: fetchEvents, staleTime: 60_000 }),
   component: EventsPage,
 });
+
 
 type EventRow = {
   id: string;
@@ -58,7 +61,7 @@ function norm(s: string | null | undefined) {
 function EventsPage() {
   const me = useMe();
   const qc = useQueryClient();
-  const { data: events, isLoading } = useQuery({ queryKey: ["events"], queryFn: fetchEvents });
+  const { data: events, isLoading } = useQuery({ queryKey: ["events"], queryFn: fetchEvents, staleTime: 60_000 });
   const { data: trips = [] } = useQuery({
     queryKey: ["my-trips-lite", me.data?.id],
     queryFn: () => fetchMyTrips(me.data!.id),
