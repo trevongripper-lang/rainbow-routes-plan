@@ -213,8 +213,9 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     queryFn: async () => {
       const { data: d } = await supabase.from("destinations").select("user_id").eq("id", destinationId).maybeSingle();
       if (!d) return null;
-      const { data: p } = await supabase.from("profiles").select("is_pro").eq("id", d.user_id).maybeSingle();
-      return p as { is_pro: boolean } | null;
+      const { data: p } = await supabase.rpc("get_public_profiles", { _ids: [d.user_id] });
+      const row = (p ?? [])[0] as { is_pro: boolean } | undefined;
+      return row ? { is_pro: row.is_pro } : null;
     },
   });
   const isPro = !!ownerProfile?.is_pro;
@@ -243,7 +244,7 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     queryKey: ["cost-profiles", destinationId, memberIds.join(",")],
     queryFn: async () => {
       if (memberIds.length === 0) return [];
-      const { data, error } = await supabase.from("profiles").select("id, display_name, avatar_url").in("id", memberIds);
+      const { data, error } = await supabase.rpc("get_public_profiles", { _ids: memberIds });
       if (error) throw error;
       return data ?? [];
     },

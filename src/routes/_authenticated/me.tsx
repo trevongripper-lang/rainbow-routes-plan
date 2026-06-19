@@ -2,13 +2,15 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
-import { ArrowUp, MessageCircle, MapPin, Sparkles, Check, Mail, LogOut } from "lucide-react";
+import { ArrowUp, MessageCircle, MapPin, Sparkles, Check, Mail, LogOut, Trash2 } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
 import { CreditsPanel } from "@/components/credits-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { deleteMyAccount } from "@/lib/account.functions";
 
 export const Route = createFileRoute("/_authenticated/me")({
   loader: ({ context }) =>
@@ -158,6 +160,21 @@ function MyAccount({ userId, email, displayName, isPro }: { userId: string; emai
     window.location.assign("/auth");
   }
 
+  const deleteFn = useServerFn(deleteMyAccount);
+  const [confirmText, setConfirmText] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const del = useMutation({
+    mutationFn: async () => { await deleteFn({}); },
+    onSuccess: async () => {
+      toast.success("Account deleted");
+      await qc.cancelQueries();
+      qc.clear();
+      await supabase.auth.signOut();
+      window.location.assign("/auth");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to delete account"),
+  });
+
   return (
     <section className="space-y-4">
       <h2 className="font-display text-2xl">My account</h2>
@@ -181,11 +198,30 @@ function MyAccount({ userId, email, displayName, isPro }: { userId: string; emai
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex items-center justify-between">
+          <button onClick={() => setConfirming((v) => !v)} className="inline-flex items-center gap-1.5 text-xs text-destructive/80 hover:text-destructive">
+            <Trash2 className="size-3.5" /> Delete account
+          </button>
           <button onClick={signOut} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
             <LogOut className="size-3.5" /> Sign out
           </button>
         </div>
+
+        {confirming && (
+          <div className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-4">
+            <p className="text-sm text-foreground">
+              This permanently deletes your account, profile, pitches, votes, comments, and credits. This cannot be undone.
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">Type <span className="font-mono">DELETE</span> to confirm.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="DELETE" className="max-w-[200px]" />
+              <Button variant="destructive" size="sm" disabled={confirmText !== "DELETE" || del.isPending} onClick={() => del.mutate()}>
+                {del.isPending ? "Deleting…" : "Delete forever"}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => { setConfirming(false); setConfirmText(""); }}>Cancel</Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {isPro ? (

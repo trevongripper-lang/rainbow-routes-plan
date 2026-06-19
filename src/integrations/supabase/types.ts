@@ -933,6 +933,16 @@ export type Database = {
         Args: { _actor: string; _dest: string; _kind: string; _payload: Json }
         Returns: undefined
       }
+      get_public_profiles: {
+        Args: { _ids: string[] }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          id: string
+          is_pro: boolean
+          plus_status: string
+        }[]
+      }
       get_trip_rating_aggregate: {
         Args: { _destination_id: string }
         Returns: {
