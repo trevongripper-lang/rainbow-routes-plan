@@ -175,8 +175,18 @@ export function NotificationsBell() {
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
-        <div className="border-b border-border/60 px-4 py-2 text-xs font-medium text-muted-foreground">
-          Notifications {totalUnread > 0 && `· ${totalUnread} unread`}
+        <div className="flex items-center justify-between gap-2 border-b border-border/60 px-4 py-2 text-xs font-medium text-muted-foreground">
+          <span>Notifications {totalUnread > 0 && `· ${totalUnread} unread`}</span>
+          {totalUnread > 0 && (
+            <button
+              type="button"
+              onClick={() => markAllRead.mutate()}
+              disabled={markAllRead.isPending}
+              className="rounded-full px-2 py-0.5 text-[11px] text-primary hover:bg-primary/10 disabled:opacity-50"
+            >
+              Mark all read
+            </button>
+          )}
         </div>
         <div className="max-h-96 overflow-y-auto">
           {groups.length === 0 && (
@@ -189,6 +199,7 @@ export function NotificationsBell() {
               key={g.destinationId}
               to="/trips/$id"
               params={{ id: g.destinationId }}
+              search={{ tab: KIND_TAB[g.latest.kind] ?? "overview" }}
               onClick={() => markRead.mutate(g.destinationId)}
               className={`flex items-start gap-3 border-b border-border/40 px-4 py-3 transition hover:bg-card/60 ${g.unread > 0 ? "bg-primary/5" : ""}`}
             >
