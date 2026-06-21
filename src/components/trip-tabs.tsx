@@ -359,7 +359,7 @@ const CATEGORIES = ["Flights", "Lodging", "Food & drink", "Tickets & events", "T
 const FREE_HEADCOUNT_MAX = 5;
 const PRO_HEADCOUNT_MAX = 100;
 
-export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwner }: { destinationId: string; me: string; headcount: number; isOwner: boolean }) {
+export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwner, defaultCurrency = "USD" }: { destinationId: string; me: string; headcount: number; isOwner: boolean; defaultCurrency?: string }) {
   const qc = useQueryClient();
 
   // Fetch trip members — this is the canonical headcount source
