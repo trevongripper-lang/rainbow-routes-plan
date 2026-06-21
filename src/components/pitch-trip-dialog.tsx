@@ -174,7 +174,16 @@ export function PitchTripDialog() {
       setOpen(false);
       resetAll();
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+    onError: (e: unknown) => {
+      console.error("[pitch-trip] create failed:", e);
+      const msg =
+        e instanceof Error
+          ? e.message
+          : (e && typeof e === "object" && "message" in e && typeof (e as { message: unknown }).message === "string")
+            ? (e as { message: string }).message
+            : "Failed to create trip";
+      toast.error(msg);
+    },
   });
 
   return (
