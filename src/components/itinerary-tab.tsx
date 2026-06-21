@@ -1,10 +1,16 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plane, BedDouble, Ticket, Wallet, Sparkles, CalendarDays, MapPin, ExternalLink, List, LayoutGrid, GripVertical } from "lucide-react";
+import { Plane, BedDouble, Ticket, Wallet, Sparkles, CalendarDays, MapPin, ExternalLink, List, LayoutGrid, GripVertical, Trash2, CalendarClock } from "lucide-react";
 import { addDays, differenceInCalendarDays, format, parseISO, isValid } from "date-fns";
 import { TripEventsStrip } from "@/components/trip-events-strip";
 import { track } from "@/lib/analytics";
+import { useBulkSelection } from "@/hooks/use-bulk-selection";
+import { BulkActionBar } from "@/components/bulk-action-bar";
+import { BulkConfirmDialog } from "@/components/bulk-confirm-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { toast } from "sonner";
 
 type OrderRow = { item_key: string; day_key: string; sort_order: number };
 
