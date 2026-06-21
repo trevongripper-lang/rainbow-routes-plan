@@ -108,6 +108,8 @@ export type Database = {
           id: string
           image_url: string | null
           is_past: boolean
+          latitude: number | null
+          longitude: number | null
           paid_amount_cents: number
           region: string
           start_date: string | null
@@ -128,6 +130,8 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_past?: boolean
+          latitude?: number | null
+          longitude?: number | null
           paid_amount_cents?: number
           region: string
           start_date?: string | null
@@ -148,6 +152,8 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_past?: boolean
+          latitude?: number | null
+          longitude?: number | null
           paid_amount_cents?: number
           region?: string
           start_date?: string | null
@@ -991,6 +997,28 @@ export type Database = {
       is_trip_owner: {
         Args: { _dest: string; _user: string }
         Returns: boolean
+      }
+      match_trip_events: {
+        Args: {
+          _buffer_days?: number
+          _dest: string
+          _include_outside_dates?: boolean
+          _radius_miles?: number
+        }
+        Returns: {
+          city: string
+          country: string
+          distance_miles: number
+          end_date: string
+          id: string
+          latitude: number
+          longitude: number
+          name: string
+          region: string
+          start_date: string
+          tags: string
+          url: string
+        }[]
       }
       preview_trip_invite: {
         Args: { _token: string }
