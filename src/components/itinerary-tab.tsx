@@ -100,6 +100,38 @@ export function ItineraryTab({
 
   const tripStart = parseDay(startDate);
   const tripEnd = parseDay(endDate);
+  const qc = useQueryClient();
+
+  const { data: orderRows = [] } = useQuery({
+    queryKey: ["itinerary-order", destinationId],
+    queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase.from("trip_itinerary_order" as any) as any)
+        .select("item_key, day_key, sort_order")
+        .eq("destination_id", destinationId);
+      return (data ?? []) as OrderRow[];
+    },
+  });
+
+  const saveOrder = useMutation({
+    mutationFn: async (rows: { item_key: string; day_key: string; sort_order: number }[]) => {
+      if (rows.length === 0) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from("trip_itinerary_order" as any) as any).upsert(
+        rows.map((r) => ({ destination_id: destinationId, ...r })),
+        { onConflict: "destination_id,item_key" },
+      );
+      if (error) throw error;
+      track("itinerary_reordered", { count: rows.length }, destinationId);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["itinerary-order", destinationId] }),
+  });
+
+  const orderMap = useMemo(() => {
+    const m = new Map<string, OrderRow>();
+    for (const r of orderRows) m.set(r.item_key, r);
+    return m;
+  }, [orderRows]);
 
   const items: Item[] = useMemo(() => {
     const r = norm(region);
