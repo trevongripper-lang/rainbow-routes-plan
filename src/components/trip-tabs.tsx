@@ -691,17 +691,92 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
                 <div className="font-display text-xl tabular-nums">{fmt(settle.totalShared, settle.currency)}</div>
               </div>
             </div>
-            {settle.transfers.length === 0 ? (
-              <p className="mt-4 text-sm text-emerald-400">All squared up among known payers ✨</p>
-            ) : (
-              <ul className="mt-4 space-y-2">
-                {settle.transfers.map((t, idx) => (
-                  <li key={idx} className="flex items-center justify-between rounded-xl border border-border/60 bg-background/40 px-4 py-2 text-sm">
-                    <span><span className="font-medium">{nameOf(t.from)}</span> <span className="text-muted-foreground">pays</span> <span className="font-medium">{nameOf(t.to)}</span></span>
-                    <span className="font-medium tabular-nums">{fmt(t.cents, settle.currency)}</span>
-                  </li>
-                ))}
-              </ul>
+            {(() => {
+              // Subtract already-settled amounts from each suggested transfer (per from→to + currency).
+              const settledByPair = new Map<string, number>();
+              for (const s of settlements) {
+                if (s.currency !== settle.currency) continue;
+                const k = `${s.from_user}→${s.to_user}`;
+                settledByPair.set(k, (settledByPair.get(k) ?? 0) + s.amount_cents);
+              }
+              const remaining = settle.transfers.map((t) => {
+                const k = `${t.from}→${t.to}`;
+                const already = settledByPair.get(k) ?? 0;
+                return { ...t, remaining: Math.max(0, t.cents - already), already };
+              });
+              const allDone = remaining.every((r) => r.remaining <= 0);
+              if (allDone) {
+                return <p className="mt-4 text-sm text-emerald-400">All squared up among known payers ✨</p>;
+              }
+              return (
+                <ul className="mt-4 space-y-2">
+                  {remaining.map((t, idx) => {
+                    if (t.remaining <= 0) {
+                      return (
+                        <li key={idx} className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-2 text-sm">
+                          <span className="inline-flex items-center gap-2">
+                            <Check className="size-4 text-emerald-400" />
+                            <span><span className="font-medium">{nameOf(t.from)}</span> <span className="text-muted-foreground">paid</span> <span className="font-medium">{nameOf(t.to)}</span></span>
+                          </span>
+                          <span className="text-xs text-emerald-400">Settled</span>
+                        </li>
+                      );
+                    }
+                    const canMark = me === t.from || me === t.to;
+                    return (
+                      <li key={idx} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-background/40 px-4 py-2 text-sm">
+                        <span className="min-w-0">
+                          <span className="font-medium">{nameOf(t.from)}</span> <span className="text-muted-foreground">pays</span> <span className="font-medium">{nameOf(t.to)}</span>
+                          {t.already > 0 && (
+                            <span className="ml-2 text-[11px] text-muted-foreground">({fmt(t.already, settle.currency)} already paid)</span>
+                          )}
+                        </span>
+                        <div className="flex items-center gap-3">
+                          <span className="font-medium tabular-nums">{fmt(t.remaining, settle.currency)}</span>
+                          {canMark && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              disabled={markSettled.isPending}
+                              onClick={() => markSettled.mutate({ from: t.from, to: t.to, cents: t.remaining, currency: settle.currency })}
+                            >
+                              <Check className="mr-1 size-3.5" />Mark settled
+                            </Button>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              );
+            })()}
+            {settlements.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Settlement history</h4>
+                <ul className="mt-2 space-y-1.5">
+                  {settlements.map((s) => (
+                    <li key={s.id} className="flex items-center justify-between rounded-lg border border-border/40 bg-background/30 px-3 py-1.5 text-xs">
+                      <span>
+                        <span className="font-medium">{nameOf(s.from_user)}</span>
+                        <span className="text-muted-foreground"> → </span>
+                        <span className="font-medium">{nameOf(s.to_user)}</span>
+                        <span className="ml-2 tabular-nums">{fmt(s.amount_cents, s.currency)}</span>
+                        <span className="ml-2 text-muted-foreground">· {format(parseISO(s.settled_at), "MMM d")}</span>
+                      </span>
+                      {s.created_by === me && (
+                        <button
+                          type="button"
+                          onClick={() => undoSettlement.mutate(s.id)}
+                          className="text-muted-foreground hover:text-destructive"
+                          title="Undo settlement"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </>
         )}
