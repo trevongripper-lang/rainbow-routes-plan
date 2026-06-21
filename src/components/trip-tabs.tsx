@@ -708,11 +708,48 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
               ))}
             </select>
           </div>
-          <div className="flex items-end gap-3 rounded-md border border-border/60 bg-background/40 px-3 py-2">
-            <Switch id="shared" checked={form.is_shared} onCheckedChange={(v) => setForm({ ...form, is_shared: v })} />
-            <Label htmlFor="shared" className="text-xs">
-              {form.is_shared ? "Shared (split across group)" : "Per-person (counted once each)"}
-            </Label>
+          <div>
+            <Label className="text-xs">When</Label>
+            <Input type="date" value={form.cost_date} onChange={(e) => setForm({ ...form, cost_date: e.target.value })} />
+          </div>
+          <div className="sm:col-span-2">
+            <Label className="text-xs">Split</Label>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {([
+                { v: "equal_all", label: `Equal · all ${memberIds.length}` },
+                { v: "equal_some", label: "Pick people" },
+                { v: "per_person", label: "Per-person (no split)" },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => setForm({ ...form, split_mode: opt.v, is_shared: opt.v !== "per_person" })}
+                  className={`rounded-full border px-2.5 py-1 text-xs transition ${form.split_mode === opt.v ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background/40 text-muted-foreground hover:border-primary/50"}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {form.split_mode === "equal_some" && (
+              <div className="mt-2 flex flex-wrap gap-2 rounded-md border border-border/60 bg-background/40 p-2">
+                {memberIds.map((id) => {
+                  const checked = form.split_member_ids.includes(id);
+                  return (
+                    <label key={id} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-background/60 px-2 py-1 text-xs">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => {
+                          const set = new Set(form.split_member_ids);
+                          if (v) set.add(id); else set.delete(id);
+                          setForm({ ...form, split_member_ids: Array.from(set) });
+                        }}
+                      />
+                      <span>{id === me ? "Me" : nameOf(id)}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
           <div className="sm:col-span-2"><Label className="text-xs">Note</Label><Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} maxLength={300} /></div>
         </div>
