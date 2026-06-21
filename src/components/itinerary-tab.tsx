@@ -483,17 +483,22 @@ function ListView({ items }: { items: Item[] }) {
   );
 }
 
-function ItemRow({ it, dayKey: dk }: { it: Item; dayKey?: string }) {
+function ItemRow({ it, dayKey: dk, draggable = false }: { it: Item; dayKey?: string; draggable?: boolean }) {
   const { Icon, label, tone } = kindMeta[it.kind];
-  // Stay band indicator: show whether this is check-in / middle / check-out
   let bandLabel: string | null = null;
   if (it.kind === "stay" && dk && it.date && it.endDate) {
     if (dk === format(it.date, "yyyy-MM-dd")) bandLabel = "Check-in";
     else if (dk === format(it.endDate, "yyyy-MM-dd")) bandLabel = "Check-out";
     else bandLabel = "Staying";
   }
-  return (
-    <li className={`flex items-start gap-3 rounded-xl border p-3 text-sm ${it.matched ? "border-primary/60 bg-primary/10" : "border-border/60 bg-card"}`}>
+  const content = (
+    <div className={`flex items-start gap-3 rounded-xl border p-3 text-sm ${it.matched ? "border-primary/60 bg-primary/10" : "border-border/60 bg-card"}`}>
+      {draggable && (
+        <GripVertical
+          className="mt-0.5 size-4 shrink-0 cursor-grab text-muted-foreground/60 active:cursor-grabbing"
+          aria-hidden
+        />
+      )}
       <Icon className={`mt-0.5 size-4 shrink-0 ${tone}`} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -519,6 +524,9 @@ function ItemRow({ it, dayKey: dk }: { it: Item; dayKey?: string }) {
         )}
         {it.meta && <div className="mt-0.5 text-xs text-muted-foreground">{it.meta}</div>}
       </div>
-    </li>
+    </div>
   );
+  // When draggable, the parent <DayList> already provides the <li> wrapper.
+  if (draggable) return content;
+  return <li>{content}</li>;
 }
