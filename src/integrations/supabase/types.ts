@@ -106,6 +106,7 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          default_currency: string | null
           description: string | null
           downsides: string | null
           end_date: string | null
@@ -137,6 +138,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          default_currency?: string | null
           description?: string | null
           downsides?: string | null
           end_date?: string | null
@@ -168,6 +170,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          default_currency?: string | null
           description?: string | null
           downsides?: string | null
           end_date?: string | null
@@ -455,6 +458,7 @@ export type Database = {
         Row: {
           amount_cents: number
           category: string
+          cost_date: string | null
           created_at: string
           currency: string
           destination_id: string
@@ -463,11 +467,15 @@ export type Database = {
           label: string
           note: string | null
           paid_by: string | null
+          split_member_ids: string[] | null
+          split_mode: string | null
+          split_shares: Json | null
           user_id: string
         }
         Insert: {
           amount_cents: number
           category: string
+          cost_date?: string | null
           created_at?: string
           currency?: string
           destination_id: string
@@ -476,11 +484,15 @@ export type Database = {
           label: string
           note?: string | null
           paid_by?: string | null
+          split_member_ids?: string[] | null
+          split_mode?: string | null
+          split_shares?: Json | null
           user_id: string
         }
         Update: {
           amount_cents?: number
           category?: string
+          cost_date?: string | null
           created_at?: string
           currency?: string
           destination_id?: string
@@ -489,6 +501,9 @@ export type Database = {
           label?: string
           note?: string | null
           paid_by?: string | null
+          split_member_ids?: string[] | null
+          split_mode?: string | null
+          split_shares?: Json | null
           user_id?: string
         }
         Relationships: [
@@ -820,30 +835,107 @@ export type Database = {
           },
         ]
       }
+      trip_settlements: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          created_by: string
+          currency: string
+          destination_id: string
+          from_user: string
+          id: string
+          note: string | null
+          settled_at: string
+          to_user: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          created_by: string
+          currency?: string
+          destination_id: string
+          from_user: string
+          id?: string
+          note?: string | null
+          settled_at?: string
+          to_user: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          created_by?: string
+          currency?: string
+          destination_id?: string
+          from_user?: string
+          id?: string
+          note?: string | null
+          settled_at?: string
+          to_user?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_settlements_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_stays: {
         Row: {
+          address: string | null
+          booked_by: string | null
+          check_in: string | null
+          check_out: string | null
+          confirmation: string | null
           created_at: string
+          currency: string | null
           description: string | null
           destination_id: string
           id: string
+          image_url: string | null
+          latitude: number | null
+          longitude: number | null
+          nightly_rate_cents: number | null
           title: string
           url: string | null
           user_id: string
         }
         Insert: {
+          address?: string | null
+          booked_by?: string | null
+          check_in?: string | null
+          check_out?: string | null
+          confirmation?: string | null
           created_at?: string
+          currency?: string | null
           description?: string | null
           destination_id: string
           id?: string
+          image_url?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          nightly_rate_cents?: number | null
           title: string
           url?: string | null
           user_id: string
         }
         Update: {
+          address?: string | null
+          booked_by?: string | null
+          check_in?: string | null
+          check_out?: string | null
+          confirmation?: string | null
           created_at?: string
+          currency?: string | null
           description?: string | null
           destination_id?: string
           id?: string
+          image_url?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          nightly_rate_cents?: number | null
           title?: string
           url?: string | null
           user_id?: string
