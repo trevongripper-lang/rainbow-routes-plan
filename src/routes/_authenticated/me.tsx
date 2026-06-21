@@ -60,7 +60,7 @@ function MePage() {
   return (
     <div className="space-y-8">
       <PageHero
-        crumbs={[{ label: "Mine" }]}
+        crumbs={[{ label: "Profile" }]}
         title="Hey,"
         highlight={firstName}
       />

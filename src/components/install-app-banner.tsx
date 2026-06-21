@@ -12,7 +12,6 @@ function isStandalone() {
   if (typeof window === "undefined") return false;
   return (
     window.matchMedia?.("(display-mode: standalone)").matches ||
-    // iOS Safari
     (window.navigator as unknown as { standalone?: boolean }).standalone === true
   );
 }
@@ -22,11 +21,11 @@ function isIOS() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent) && !/crios|fxios/i.test(navigator.userAgent);
 }
 
-export function InstallAppButton({ className = "" }: { className?: string }) {
+export function InstallAppBanner() {
   const [deferred, setDeferred] = useState<BIPEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [showIOS, setShowIOS] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(true); // assume dismissed until we hydrate
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -47,10 +46,9 @@ export function InstallAppButton({ className = "" }: { className?: string }) {
 
   if (installed || dismissed) return null;
   const canPrompt = !!deferred;
-  const showButton = canPrompt || isIOS();
-  if (!showButton) return null;
+  if (!canPrompt && !isIOS()) return null;
 
-  const handleClick = async () => {
+  const handleInstall = async () => {
     if (deferred) {
       await deferred.prompt();
       const choice = await deferred.userChoice;
@@ -68,22 +66,26 @@ export function InstallAppButton({ className = "" }: { className?: string }) {
 
   return (
     <>
-      <div className={`flex items-center gap-2 ${className}`}>
+      <div className="mx-4 mt-3 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm md:mx-8">
+        <Download className="size-4 shrink-0 text-primary" />
+        <p className="flex-1 text-foreground/90">
+          Install Tribe Trips for a faster, home-screen experience.
+        </p>
         <button
           type="button"
-          onClick={handleClick}
-          className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/15"
+          onClick={handleInstall}
+          className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
         >
-          <Download className="size-3.5" />
-          Install app
+          Install
         </button>
         <button
           type="button"
           onClick={dismiss}
-          aria-label="Dismiss install prompt"
+          aria-label="Don't show again"
+          title="Don't show again"
           className="rounded-full p-1 text-muted-foreground hover:text-foreground"
         >
-          <X className="size-3.5" />
+          <X className="size-4" />
         </button>
       </div>
       {showIOS && (

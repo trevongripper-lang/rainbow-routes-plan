@@ -76,7 +76,17 @@ export function Chatter({ destinationId, me }: { destinationId: string; me: stri
         <MessageSquare className="size-5 text-primary" />
         <h2 className="font-display text-2xl">Chatter</h2>
       </div>
-      <p className="text-sm text-muted-foreground">Trip tips, flight finds, club intel. <span className="text-foreground/80">Type @ to mention.</span></p>
+      <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <span>Trip tips, flight finds, club intel. Discuss it all!</span>
+        <span
+          tabIndex={0}
+          aria-label="Type @ to mention a tripmate"
+          title="Type @ to mention a tripmate"
+          className="inline-flex size-4 cursor-help items-center justify-center rounded-full border border-border/60 text-[10px] font-semibold text-muted-foreground hover:border-primary/50 hover:text-foreground"
+        >
+          i
+        </span>
+      </p>
 
       <Composer
         destinationId={destinationId}

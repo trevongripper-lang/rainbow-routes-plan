@@ -41,7 +41,7 @@ function Landing() {
             to="/auth"
             className="rounded-full border border-border/60 bg-card/40 px-4 py-2 backdrop-blur hover:bg-card/70"
           >
-            Sign in
+            Get started
           </Link>
         </nav>
       </header>
@@ -61,12 +61,15 @@ function Landing() {
           beach events all in one cozy place.
         </p>
 
-        <div className="mt-10 flex flex-wrap gap-3">
+        <div className="mt-10 flex flex-wrap items-center gap-3">
           <Link
             to="/auth"
             className="rounded-full bg-primary px-6 py-3 font-medium text-primary-foreground shadow-[var(--shadow-soft)] hover:opacity-90"
           >
             Start planning
+          </Link>
+          <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground">
+            Free for crews up to 5 · <span className="text-foreground/80">see pricing</span>
           </Link>
           <a
             href="#how"

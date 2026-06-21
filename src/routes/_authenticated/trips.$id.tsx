@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { ArrowUp, MapPin, Trash2, Star, Archive, RotateCcw, Wand2 } from "lucide-react";
 import { Breadcrumbs } from "@/components/page-hero";
 import { toast } from "sonner";
@@ -20,6 +20,7 @@ import { SmartAdd } from "@/components/smart-add";
 import { PollsPanel } from "@/components/polls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AttendeesCard } from "@/components/attendees-card";
 
 async function fetchTrip(id: string) {
   // 2 round-trips instead of 5: one combined destinations+votes+comments query,
@@ -153,112 +154,132 @@ function TripDetail() {
   const { dest, author, votes, voted, me } = data;
   const isOwner = me === dest.user_id;
 
+  const isOverview = activeTab === "overview";
+
   return (
     <div className="space-y-8">
       <Breadcrumbs items={[{ label: "Trips", to: "/trips" }, { label: dest.title }]} />
 
-
-      <header className="overflow-hidden rounded-3xl border border-border/60 bg-card">
-        {dest.image_url ? (
-          <img src={dest.image_url} alt={dest.title} className="aspect-[16/8] w-full object-cover" fetchPriority="high" />
-        ) : (
-          <div className="aspect-[16/8] w-full" style={{ background: "var(--gradient-hero)" }} />
-        )}
-        <div className="p-6 md:p-8">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <MapPin className="size-3.5 text-primary" /> {dest.region}{dest.country ? ` · ${dest.country}` : ""}{dest.best_months ? ` · ${dest.best_months}` : ""}
-                {dest.is_past && <span className="ml-1 rounded-full bg-accent/30 px-2 py-0.5 text-accent-foreground">Past trip</span>}
+      {isOverview ? (
+        <header className="overflow-hidden rounded-3xl border border-border/60 bg-card">
+          {dest.image_url ? (
+            <img src={dest.image_url} alt={dest.title} className="aspect-[16/8] w-full object-cover" fetchPriority="high" />
+          ) : (
+            <div className="aspect-[16/8] w-full" style={{ background: "var(--gradient-hero)" }} />
+          )}
+          <div className="p-6 md:p-8">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <MapPin className="size-3.5 text-primary" /> {dest.region}{dest.country ? ` · ${dest.country}` : ""}
+                  {dest.is_past && <span className="ml-1 rounded-full bg-accent/30 px-2 py-0.5 text-accent-foreground">Past trip</span>}
+                </div>
+                <h1 className="mt-2 font-display text-4xl md:text-5xl">{dest.title}</h1>
+                <p className="mt-2 text-sm text-muted-foreground">Pitched by {author?.display_name ?? "someone"}</p>
+                <div className="mt-3"><AttendeesCard destinationId={id} /></div>
               </div>
-              <h1 className="mt-2 font-display text-4xl md:text-5xl">{dest.title}</h1>
-              <p className="mt-2 text-sm text-muted-foreground">Pitched by {author?.display_name ?? "someone"}</p>
-            </div>
-            {!dest.is_past && (
-              <button
-                onClick={() => vote.mutate()}
-                className={`flex flex-col items-center rounded-2xl border px-5 py-3 text-base transition ${voted ? "border-primary bg-primary/15 text-primary" : "border-border hover:border-primary/50"}`}
+              {!dest.is_past && (
+                <button
+                  onClick={() => vote.mutate()}
+                  aria-pressed={voted}
+                  className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${voted ? "border-primary bg-primary/15 text-primary" : "border-border hover:border-primary/50"}`}
+                >
+                  <ArrowUp className={`size-4 ${voted ? "fill-primary" : ""}`} />
+                  <span>{voted ? "Upvoted" : "Upvote"}</span>
+                  <span className="tabular-nums text-muted-foreground">· {votes}</span>
+                </button>
+              )}
+              <Link
+                to="/trips/$id"
+                params={{ id }}
+                search={{ tab: "flights" }}
+                className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-base font-medium text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary/90"
               >
-                <ArrowUp className="size-5" />
-                <span className="font-medium tabular-nums">{votes}</span>
-              </button>
-            )}
-            <Link
-              to="/trips/$id"
-              params={{ id }}
-              search={{ tab: "flights" }}
-              className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-base font-medium text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary/90"
-            >
-              <Wand2 className="size-5" />
-              AI Flight Lookup
-            </Link>
-          </div>
-          {dest.description && <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">{dest.description}</p>}
-          {isOwner && (
-            <div className="mt-5 flex flex-wrap items-end gap-3">
-              <InviteModal destinationId={id} />
-              <UnlockTripButton destinationId={id} isOwner={isOwner} />
-              <div className="flex w-full flex-wrap items-end gap-2 sm:w-auto">
-                <div className="min-w-0 flex-1 sm:flex-none">
-                  <Label className="text-xs">Start date</Label>
-                  <Input
-                    type="date"
-                    value={startDateDraft}
-                    onChange={(e) => setStartDateDraft(e.target.value)}
-                    className="w-full sm:w-40"
-                  />
+                <Wand2 className="size-5" />
+                AI Flight Lookup
+              </Link>
+            </div>
+            {dest.description && <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">{dest.description}</p>}
+            {isOwner && (
+              <div className="mt-5 flex flex-wrap items-end gap-3">
+                <InviteModal destinationId={id} isOwner={isOwner} />
+                <UnlockTripButton destinationId={id} isOwner={isOwner} />
+                <div className="flex w-full flex-wrap items-end gap-2 sm:w-auto">
+                  <div className="min-w-0 flex-1 sm:flex-none">
+                    <Label className="text-xs">Start date</Label>
+                    <Input
+                      type="date"
+                      value={startDateDraft}
+                      onChange={(e) => setStartDateDraft(e.target.value)}
+                      className="w-full sm:w-40"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1 sm:flex-none">
+                    <Label className="text-xs">End date</Label>
+                    <Input
+                      type="date"
+                      value={endDateDraft}
+                      min={startDateDraft || undefined}
+                      onChange={(e) => setEndDateDraft(e.target.value)}
+                      className="w-full sm:w-40"
+                    />
+                  </div>
+                  {(startDateDraft !== ((dest as { start_date?: string | null }).start_date ?? "") ||
+                    endDateDraft !== (dest.end_date ?? "")) && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={saveDates.isPending}
+                      onClick={() => saveDates.mutate({ start: startDateDraft, end: endDateDraft })}
+                      className="shrink-0"
+                    >
+                      Save dates
+                    </Button>
+                  )}
                 </div>
-                <div className="min-w-0 flex-1 sm:flex-none">
-                  <Label className="text-xs">End date</Label>
-                  <Input
-                    type="date"
-                    value={endDateDraft}
-                    min={startDateDraft || undefined}
-                    onChange={(e) => setEndDateDraft(e.target.value)}
-                    className="w-full sm:w-40"
-                  />
-                </div>
-                {(startDateDraft !== ((dest as { start_date?: string | null }).start_date ?? "") ||
-                  endDateDraft !== (dest.end_date ?? "")) && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={saveDates.isPending}
-                    onClick={() => saveDates.mutate({ start: startDateDraft, end: endDateDraft })}
-                    className="shrink-0"
-                  >
-                    Save dates
-                  </Button>
-                )}
+                <p className="basis-full text-[11px] text-muted-foreground sm:basis-auto sm:self-end">
+                  Trips auto-close 1 day after the end date · ratings open then.
+                </p>
               </div>
-              <p className="basis-full text-[11px] text-muted-foreground sm:basis-auto sm:self-end">
-                Trip auto-closes 1 day after end date · ratings open then.
+            )}
+            {isOwner && (
+              <div className="mt-4 flex flex-wrap gap-4 text-xs">
+                <button onClick={() => togglePast.mutate()} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+                  {dest.is_past ? <><RotateCcw className="size-3.5" /> Override: reopen trip</> : <><Archive className="size-3.5" /> Override: mark as past now</>}
+                </button>
+                <button onClick={() => deleteTrip.mutate()} className="inline-flex items-center gap-1.5 text-destructive hover:underline">
+                  <Trash2 className="size-3.5" /> Delete this pitch
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+      ) : (
+        <header className="relative overflow-hidden rounded-2xl border border-border/60 bg-card">
+          {dest.image_url && (
+            <img src={dest.image_url} alt="" className="absolute inset-0 size-full object-cover opacity-30" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-r from-card via-card/80 to-card/40" />
+          <div className="relative flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+            <div className="min-w-0">
+              <h1 className="truncate font-display text-xl md:text-2xl">{dest.title}</h1>
+              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <MapPin className="size-3 text-primary" />
+                {dest.region}{dest.country ? ` · ${dest.country}` : ""}
+                {dest.end_date && <span> · {dest.end_date}</span>}
+                {dest.is_past && <span className="ml-1 rounded-full bg-accent/30 px-2 py-0.5 text-accent-foreground">Past</span>}
               </p>
             </div>
-          )}
-          {isOwner && (
-            <div className="mt-4 flex flex-wrap gap-4 text-xs">
-              <button onClick={() => togglePast.mutate()} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
-                {dest.is_past ? <><RotateCcw className="size-3.5" /> Reopen trip</> : <><Archive className="size-3.5" /> Close trip now</>}
-              </button>
-              <button onClick={() => deleteTrip.mutate()} className="inline-flex items-center gap-1.5 text-destructive hover:underline">
-                <Trash2 className="size-3.5" /> Delete this pitch
-              </button>
+            <div className="flex items-center gap-2">
+              <AttendeesCard destinationId={id} />
+              {isOwner && <InviteModal destinationId={id} isOwner={isOwner} />}
             </div>
-          )}
-        </div>
-      </header>
+          </div>
+        </header>
+      )}
 
       <Tabs value={activeTab} onValueChange={(v) => navigate({ to: "/trips/$id", params: { id }, search: { tab: v } })} className="w-full">
-        <TabsList className="flex w-full flex-wrap justify-start gap-1 bg-card/60 p-1 md:hidden">
-          <TabsTrigger value="overview">Chatter</TabsTrigger>
-          <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
-          <TabsTrigger value="flights">Travel plans</TabsTrigger>
-          <TabsTrigger value="stays">Where to stay</TabsTrigger>
-          <TabsTrigger value="tickets">Tickets</TabsTrigger>
-          <TabsTrigger value="costs">Costs</TabsTrigger>
-          {dest.is_past && <TabsTrigger value="ratings">Ratings</TabsTrigger>}
-        </TabsList>
+
 
         <TabsContent value="overview" className="mt-6">
           {me ? (

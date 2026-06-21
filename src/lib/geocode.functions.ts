@@ -6,10 +6,9 @@ export const geocodeDestination = createServerFn({ method: "POST" })
   .inputValidator((data: { destinationId: string }) => data)
   .handler(async ({ data, context }) => {
     const { destinationId } = data;
-    // Membership/visibility is enforced by RLS on this select.
     const { data: dest, error } = await context.supabase
       .from("destinations")
-      .select("id, title, region, country, latitude, longitude")
+      .select("id, title, city, region, country, latitude, longitude")
       .eq("id", destinationId)
       .maybeSingle();
     if (error) throw error;
@@ -20,7 +19,7 @@ export const geocodeDestination = createServerFn({ method: "POST" })
     const token = process.env.MAPBOX_TOKEN;
     if (!token) throw new Error("MAPBOX_TOKEN not configured");
 
-    const query = [dest.region, dest.country].filter(Boolean).join(", ") || dest.title;
+    const query = [dest.city, dest.region, dest.country].filter(Boolean).join(", ") || dest.title;
     const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
       query,
     )}.json?limit=1&access_token=${token}`;
@@ -31,7 +30,6 @@ export const geocodeDestination = createServerFn({ method: "POST" })
     if (!center) return { ok: false, cached: false, latitude: null, longitude: null };
     const [lng, lat] = center;
 
-    // Write with service role so any member who views the trip can backfill coords.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error: upErr } = await supabaseAdmin
       .from("destinations")
