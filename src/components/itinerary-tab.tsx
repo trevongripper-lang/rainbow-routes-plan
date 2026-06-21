@@ -662,6 +662,8 @@ function ListView({ items }: { items: Item[] }) {
 
 function ItemRow({ it, dayKey: dk, draggable = false }: { it: Item; dayKey?: string; draggable?: boolean }) {
   const { Icon, label, tone } = kindMeta[it.kind];
+  const sel = useContext(SelectionCtx);
+  const checked = sel?.isSelected(it.id) ?? false;
   let bandLabel: string | null = null;
   if (it.kind === "stay" && dk && it.date && it.endDate) {
     if (dk === format(it.date, "yyyy-MM-dd")) bandLabel = "Check-in";
@@ -669,7 +671,19 @@ function ItemRow({ it, dayKey: dk, draggable = false }: { it: Item; dayKey?: str
     else bandLabel = "Staying";
   }
   const content = (
-    <div className={`flex items-start gap-3 rounded-xl border p-3 text-sm ${it.matched ? "border-primary/60 bg-primary/10" : "border-border/60 bg-card"}`}>
+    <div className={`flex items-start gap-3 rounded-xl border p-3 text-sm transition ${checked ? "border-primary/60 bg-primary/10" : it.matched ? "border-primary/60 bg-primary/10" : "border-border/60 bg-card"}`}>
+      {sel?.enabled && (
+        <Checkbox
+          checked={checked}
+          onClick={(e) => {
+            e.stopPropagation();
+            sel.toggle(it.id, (e as unknown as MouseEvent).shiftKey);
+          }}
+          onCheckedChange={() => { /* handled by onClick */ }}
+          aria-label={`Select ${it.title}`}
+          className="mt-0.5"
+        />
+      )}
       {draggable && (
         <GripVertical
           className="mt-0.5 size-4 shrink-0 cursor-grab text-muted-foreground/60 active:cursor-grabbing"
