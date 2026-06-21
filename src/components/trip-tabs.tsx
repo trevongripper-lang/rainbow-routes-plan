@@ -488,6 +488,48 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     onSuccess: () => qc.invalidateQueries({ queryKey: ["costs", destinationId] }),
   });
 
+  // ---- Settlements: persisted "marked as paid" records ----
+  const { data: settlements = [] } = useQuery({
+    queryKey: ["settlements", destinationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("trip_settlements")
+        .select("*")
+        .eq("destination_id", destinationId)
+        .order("settled_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const markSettled = useMutation({
+    mutationFn: async (args: { from: string; to: string; cents: number; currency: string; note?: string }) => {
+      if (args.cents <= 0) throw new Error("Nothing to settle");
+      if (me !== args.from && me !== args.to) throw new Error("Only the payer or receiver can mark this settled");
+      const { error } = await supabase.from("trip_settlements").insert({
+        destination_id: destinationId,
+        from_user: args.from,
+        to_user: args.to,
+        amount_cents: args.cents,
+        currency: args.currency,
+        note: args.note ?? null,
+        created_by: me,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["settlements", destinationId] }); toast.success("Marked settled"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const undoSettlement = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("trip_settlements").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["settlements", destinationId] }),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
   const summary = useMemo(() => {
     const n = Math.max(1, headcount);
     const byCat = new Map<string, { shared: number; perPerson: number; currency: string }>();
