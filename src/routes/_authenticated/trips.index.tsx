@@ -140,11 +140,17 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
     <article className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-soft)] transition hover:border-primary/40">
       <Link to="/trips/$id" params={{ id: d.id }} className="block">
         <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-          {d.image_url ? (
-            <img src={d.image_url} alt={d.title} className="size-full object-cover transition group-hover:scale-105" loading="lazy" />
-          ) : (
-            <div className="size-full" style={{ background: "var(--gradient-hero)" }} />
-          )}
+          <img
+            src={d.image_url || `https://source.unsplash.com/featured/800x500/?${encodeURIComponent([d.title, d.region, d.country].filter(Boolean).join(","))},travel`}
+            alt={d.title}
+            className="size-full object-cover transition group-hover:scale-105"
+            loading="lazy"
+            onError={(e) => {
+              const img = e.currentTarget;
+              img.onerror = null;
+              img.src = `https://picsum.photos/seed/${encodeURIComponent(d.id)}/800/500`;
+            }}
+          />
           <div className="absolute left-3 top-3 rounded-full bg-background/80 px-2.5 py-1 text-xs backdrop-blur">
             <MapPin className="mr-1 inline size-3 text-primary" />{d.region}
           </div>
