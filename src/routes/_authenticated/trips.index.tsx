@@ -82,6 +82,7 @@ function TripsPage() {
   const { data } = useSuspenseQuery(tripsQueryOptions);
   const qc = useQueryClient();
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
+  const [query, setQuery] = useState("");
 
   // Opportunistic auto-close expired trips, then refresh.
   useEffect(() => {
@@ -92,7 +93,15 @@ function TripsPage() {
     return () => { cancelled = true; };
   }, [qc]);
 
-  const filtered = (data ?? []).filter((d) => (tab === "past" ? isEffectivelyPast(d) : !isEffectivelyPast(d)));
+  const q = query.trim().toLowerCase();
+  const filtered = (data ?? [])
+    .filter((d) => (tab === "past" ? isEffectivelyPast(d) : !isEffectivelyPast(d)))
+    .filter((d) => {
+      if (!q) return true;
+      const hay = [d.title, d.region, d.country, d.city, d.description, ...(d.vibes ?? [])]
+        .filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
 
   return (
     <div className="space-y-8">
