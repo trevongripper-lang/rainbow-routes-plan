@@ -182,26 +182,29 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
     onError: (e) => toast.error(e instanceof Error ? e.message : "Vote failed"),
   });
 
-  const imageSrc = useMemo(() => {
-    if (d.image_url) return d.image_url;
-    const place = d.city || d.title.replace(/\b(trip|week|weekend|circuit|tour|getaway|vacation|holiday|adventure|crew|squad)\b/gi, "").trim();
-    const season = seasonLabel(d.start_date || d.end_date).split(" · ")[1] || "";
-    const parts = [place, d.region, d.country, season, "travel"].filter(Boolean);
-    return `https://source.unsplash.com/featured/800x500/?${encodeURIComponent(parts.join(","))}`;
-  }, [d.image_url, d.title, d.city, d.region, d.country, d.start_date, d.end_date]);
-
-  const [imgState, setImgState] = useState<"loading" | "loaded" | "error">("loading");
+  const [imgState, setImgState] = useState<"loading" | "loaded" | "error">(d.image_url ? "loading" : "error");
   const dateSubtitle = seasonLabel(d.start_date);
   const past = isEffectivelyPast(d);
+
+  // Deterministic gradient cover from the trip title (no external CDN, no 404s).
+  const cover = useMemo(() => {
+    const seed = (d.title + d.region).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+    const hue = seed % 360;
+    const initial = (d.city || d.title).trim().charAt(0).toUpperCase() || "?";
+    return {
+      bg: `linear-gradient(135deg, hsl(${hue} 70% 35%) 0%, hsl(${(hue + 40) % 360} 65% 22%) 60%, hsl(${(hue + 80) % 360} 60% 18%) 100%)`,
+      initial,
+    };
+  }, [d.title, d.region, d.city]);
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-soft)] transition hover:border-primary/40">
       <Link to="/trips/$id" params={{ id: d.id }} className="block">
         <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-          {imgState === "loading" && <Skeleton className="absolute inset-0 size-full rounded-none" />}
-          {imgState !== "error" && (
+          {d.image_url && imgState === "loading" && <Skeleton className="absolute inset-0 size-full rounded-none" />}
+          {d.image_url && imgState !== "error" && (
             <img
-              src={imageSrc}
+              src={d.image_url}
               alt={`${d.title} preview`}
               className={`size-full object-cover transition group-hover:scale-105 ${imgState === "loaded" ? "opacity-100" : "opacity-0"}`}
               loading="lazy"
@@ -209,11 +212,14 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
               onError={() => setImgState("error")}
             />
           )}
-          {imgState === "error" && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/15 via-accent/10 to-muted text-center">
-              <ImageOff className="size-7 text-muted-foreground" aria-hidden />
-              <p className="font-display text-base text-foreground/80">{d.title}</p>
-              <p className="text-xs text-muted-foreground">No preview image yet</p>
+          {(!d.image_url || imgState === "error") && (
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center"
+              style={{ background: cover.bg }}
+              aria-hidden
+            >
+              <span className="font-display text-6xl font-bold text-white/90 drop-shadow-sm">{cover.initial}</span>
+              <p className="px-4 font-display text-base text-white/85">{d.title}</p>
             </div>
           )}
           <div className="absolute left-3 top-3 rounded-full bg-background/80 px-2.5 py-1 text-xs backdrop-blur">
