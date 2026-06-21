@@ -14,6 +14,7 @@ import { PageHero } from "@/components/page-hero";
 import { toast } from "sonner";
 import { geocodeDestination } from "@/lib/geocode.functions";
 import { closeExpiredTrips } from "@/lib/trips-maintenance.functions";
+import { PitchTripDialog } from "@/components/pitch-trip-dialog";
 
 export const Route = createFileRoute("/_authenticated/trips/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(tripsQueryOptions),
