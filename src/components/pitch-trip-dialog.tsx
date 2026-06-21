@@ -61,11 +61,22 @@ export function PitchTripDialog() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [uploading, setUploading] = useState(false);
+  const [step, setStep] = useState<"form" | "verify">("form");
+  const [candidates, setCandidates] = useState<GeocodeCandidate[]>([]);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const search = useServerFn(geocodeSearch);
 
   const update = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
   const toggleArr = (k: "vibes" | "audience", v: string) =>
     setForm((f) => ({ ...f, [k]: f[k].includes(v) ? f[k].filter((x) => x !== v) : [...f[k], v] }));
+
+  function resetAll() {
+    setForm(EMPTY);
+    setStep("form");
+    setCandidates([]);
+    setSelectedIdx(null);
+  }
 
   async function handleUpload(file: File) {
     if (!file.type.startsWith("image/")) {
@@ -86,7 +97,6 @@ export function PitchTripDialog() {
         cacheControl: "31536000", upsert: false,
       });
       if (up.error) throw up.error;
-      // private bucket → mint long-lived signed URL (10 years)
       const signed = await supabase.storage.from("destination-covers").createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
       if (signed.error) throw signed.error;
       update("image_url", signed.data.signedUrl);
@@ -97,20 +107,48 @@ export function PitchTripDialog() {
     }
   }
 
+  const lookup = useMutation({
+    mutationFn: async () => {
+      if (!form.title.trim()) throw new Error("Destination name is required");
+      if (!form.country.trim()) throw new Error("Country is required");
+      if (!form.description.trim()) throw new Error("Tell the crew why you should go");
+      const parts = [form.title.trim(), form.city.trim(), form.country.trim()].filter(Boolean);
+      const query = Array.from(new Set(parts)).join(", ");
+      const res = await search({ data: { query } });
+      if (!res.candidates.length) {
+        throw new Error("We couldn't find that place. Double-check the spelling and try again.");
+      }
+      return res.candidates;
+    },
+    onSuccess: (cands) => {
+      setCandidates(cands);
+      setSelectedIdx(0);
+      setStep("verify");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Lookup failed"),
+  });
+
   const create = useMutation({
     mutationFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Not signed in");
-      if (!form.title.trim()) throw new Error("Destination name is required");
-      if (!form.country.trim()) throw new Error("Country is required");
-      if (!form.description.trim()) throw new Error("Tell the crew why you should go");
+      if (selectedIdx == null) throw new Error("Pick the correct location to continue");
+      const chosen = candidates[selectedIdx];
+      if (!chosen) throw new Error("Pick the correct location to continue");
 
       const reasons = form.reasons.map((r) => r.trim()).filter(Boolean);
+      // Verified values from Mapbox win over typed values so the saved
+      // destination always matches the chosen coordinates.
+      const city = chosen.city || form.city.trim() || null;
+      const country = chosen.country || form.country.trim() || null;
+      const region = chosen.region || form.city.trim() || form.country.trim() || "—";
       const payload = {
         title: form.title.trim(),
-        country: form.country.trim() || null,
-        city: form.city.trim() || null,
-        region: form.city.trim() || form.country.trim() || "—",
+        country,
+        city,
+        region,
+        latitude: chosen.latitude,
+        longitude: chosen.longitude,
         description: form.description.trim() || null,
         image_url: form.image_url || null,
         vibes: form.vibes.length ? form.vibes : null,
@@ -123,19 +161,18 @@ export function PitchTripDialog() {
         downsides: form.downsides.trim() || null,
         user_id: u.user.id,
       };
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("destinations")
         .insert(payload as never)
         .select("id")
         .single();
       if (error) throw error;
-      try { await geocodeDestination({ data: { destinationId: (data as { id: string }).id } }); } catch {}
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trips"] });
       toast.success("Pitched to the crew!");
       setOpen(false);
-      setForm(EMPTY);
+      resetAll();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
