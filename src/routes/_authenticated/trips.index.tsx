@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, useMutation, useQueryClient, queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,8 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ArrowUp, ImageOff, MapPin, MessageCircle, Plus, Sparkles, Star } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
-import { InstallAppButton } from "@/components/install-app-button";
 import { toast } from "sonner";
+import { geocodeDestination } from "@/lib/geocode.functions";
+import { closeExpiredTrips } from "@/lib/trips-maintenance.functions";
 
 export const Route = createFileRoute("/_authenticated/trips/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(tripsQueryOptions),
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_authenticated/trips/")({
 
 type DestRow = {
   id: string; user_id: string; title: string; region: string; country: string | null;
+  city: string | null;
   description: string | null; image_url: string | null; best_months: string | null; created_at: string;
   is_past: boolean; start_date: string | null; end_date: string | null;
 };
@@ -64,12 +66,36 @@ const tripsQueryOptions = queryOptions({
   staleTime: 30_000,
 });
 
+function seasonLabel(iso: string | null): string {
+  if (!iso) return "";
+  const m = new Date(iso).getUTCMonth();
+  const names = ["winter", "winter", "spring", "spring", "spring", "early summer", "summer", "late summer", "early autumn", "autumn", "late autumn", "winter"];
+  const monthName = new Date(iso).toLocaleString(undefined, { month: "short" });
+  return `${monthName} · ${names[m]}`;
+}
+
+function isEffectivelyPast(d: DestRow): boolean {
+  if (d.is_past) return true;
+  if (!d.end_date) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return d.end_date < today;
+}
+
 function TripsPage() {
   const { data } = useSuspenseQuery(tripsQueryOptions);
-
+  const qc = useQueryClient();
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
 
-  const filtered = (data ?? []).filter((d) => (tab === "past" ? d.is_past : !d.is_past));
+  // Opportunistic auto-close expired trips, then refresh.
+  useEffect(() => {
+    let cancelled = false;
+    closeExpiredTrips()
+      .then((r) => { if (!cancelled && r?.closed) qc.invalidateQueries({ queryKey: ["trips"] }); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [qc]);
+
+  const filtered = (data ?? []).filter((d) => (tab === "past" ? isEffectivelyPast(d) : !isEffectivelyPast(d)));
 
   return (
     <div className="space-y-8">
@@ -95,18 +121,17 @@ function TripsPage() {
             </button>
           ))}
         </div>
-        <InstallAppButton />
       </div>
 
       <div className="grid gap-5 md:grid-cols-2">
         {filtered.length === 0 && (
           <div className="col-span-full rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center backdrop-blur">
             <p className="font-display text-2xl">
-              {tab === "past" ? "No past trips yet." : "Were there people planning a tribe trip in your bathroom?"}
+              {tab === "past" ? "No past trips yet." : "Your crew's next move starts here."}
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
               {tab === "past"
-                ? "Mark a trip as past from its detail page after the trip wraps."
+                ? "Trips auto-close 1 day after their end date."
                 : "Get them out of the group chat and into the plan — pitch the first destination."}
             </p>
           </div>
@@ -139,19 +164,15 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
 
   const imageSrc = useMemo(() => {
     if (d.image_url) return d.image_url;
-    // Strip generic trip words from title to surface the actual place name
-    const place = d.title.replace(/\b(trip|week|weekend|circuit|tour|getaway|vacation|holiday|adventure|crew|squad)\b/gi, "").trim();
-    const season = (() => {
-      const iso = d.start_date || d.end_date;
-      if (!iso) return d.best_months || "";
-      const m = new Date(iso).getUTCMonth();
-      return ["winter", "winter", "spring", "spring", "spring", "summer", "summer", "summer", "autumn", "autumn", "autumn", "winter"][m];
-    })();
+    const place = d.city || d.title.replace(/\b(trip|week|weekend|circuit|tour|getaway|vacation|holiday|adventure|crew|squad)\b/gi, "").trim();
+    const season = seasonLabel(d.start_date || d.end_date).split(" · ")[1] || "";
     const parts = [place, d.region, d.country, season, "travel"].filter(Boolean);
     return `https://source.unsplash.com/featured/800x500/?${encodeURIComponent(parts.join(","))}`;
-  }, [d.image_url, d.title, d.region, d.country, d.start_date, d.end_date, d.best_months]);
+  }, [d.image_url, d.title, d.city, d.region, d.country, d.start_date, d.end_date]);
 
   const [imgState, setImgState] = useState<"loading" | "loaded" | "error">("loading");
+  const dateSubtitle = seasonLabel(d.start_date);
+  const past = isEffectivelyPast(d);
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-soft)] transition hover:border-primary/40">
@@ -176,9 +197,9 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
             </div>
           )}
           <div className="absolute left-3 top-3 rounded-full bg-background/80 px-2.5 py-1 text-xs backdrop-blur">
-            <MapPin className="mr-1 inline size-3 text-primary" />{d.region}
+            <MapPin className="mr-1 inline size-3 text-primary" />{d.city ? `${d.city}, ${d.region}` : d.region}
           </div>
-          {d.is_past && (
+          {past && (
             <div className="absolute right-3 top-3 rounded-full bg-accent/90 px-2.5 py-1 text-xs font-medium text-accent-foreground backdrop-blur">
               Past trip
             </div>
@@ -188,11 +209,11 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <Link to="/trips/$id" params={{ id: d.id }} className="font-display text-xl hover:text-primary">{d.title}</Link>
-          {d.is_past ? (
+          {past ? (
             <Link
               to="/trips/$id"
               params={{ id: d.id }}
-              className="flex shrink-0 items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-sm hover:border-primary/50"
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm hover:border-primary/50"
             >
               <Star className="size-4 text-primary" /> Rate
             </Link>
@@ -200,14 +221,20 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
             <button
               onClick={() => vote.mutate()}
               disabled={vote.isPending}
-              className={`flex shrink-0 flex-col items-center rounded-xl border px-3 py-1.5 text-sm transition ${d.voted ? "border-primary bg-primary/15 text-primary" : "border-border hover:border-primary/50"}`}
+              aria-pressed={d.voted}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition ${d.voted ? "border-primary bg-primary/15 text-primary" : "border-border hover:border-primary/50"}`}
             >
-              <ArrowUp className="size-4" />
-              <span className="font-medium tabular-nums">{d.votes}</span>
+              <ArrowUp className={`size-4 ${d.voted ? "fill-primary" : ""}`} />
+              <span>{d.voted ? "Upvoted" : "Upvote"}</span>
+              <span className="tabular-nums text-muted-foreground">· {d.votes}</span>
             </button>
           )}
         </div>
-        {d.country && <p className="mt-0.5 text-xs text-muted-foreground">{d.country}{d.best_months ? ` · ${d.best_months}` : ""}</p>}
+        {(d.country || dateSubtitle) && (
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {d.country}{d.country && dateSubtitle ? " · " : ""}{dateSubtitle}
+          </p>
+        )}
         {d.description && <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{d.description}</p>}
         <Link to="/trips/$id" params={{ id: d.id }} className="mt-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
           <MessageCircle className="size-3.5" /> {d.comments} in chatter
@@ -220,20 +247,44 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
 function NewTripDialog() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ title: "", region: "", country: "", description: "", image_url: "", best_months: "" });
+  const [form, setForm] = useState({
+    title: "", city: "", region: "", country: "",
+    description: "", image_url: "",
+    start_date: "", end_date: "",
+  });
 
   const create = useMutation({
     mutationFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Not signed in");
-      const { error } = await supabase.from("destinations").insert({ ...form, user_id: u.user.id });
+      if (form.start_date && form.end_date && form.end_date < form.start_date) {
+        throw new Error("End date can't be before start date");
+      }
+      const payload = {
+        title: form.title,
+        region: form.region,
+        country: form.country || null,
+        city: form.city || null,
+        description: form.description || null,
+        image_url: form.image_url || null,
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
+        user_id: u.user.id,
+      };
+      const { data, error } = await supabase
+        .from("destinations")
+        .insert(payload as never)
+        .select("id")
+        .single();
       if (error) throw error;
+      // Best-effort geocode; do not block UX on failure.
+      try { await geocodeDestination({ data: { destinationId: (data as { id: string }).id } }); } catch {}
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trips"] });
       toast.success("Destination pitched!");
       setOpen(false);
-      setForm({ title: "", region: "", country: "", description: "", image_url: "", best_months: "" });
+      setForm({ title: "", city: "", region: "", country: "", description: "", image_url: "", start_date: "", end_date: "" });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
@@ -247,12 +298,22 @@ function NewTripDialog() {
         <DialogHeader><DialogTitle className="font-display text-2xl">Pitch a destination</DialogTitle></DialogHeader>
         <form onSubmit={(e) => { e.preventDefault(); create.mutate(); }} className="space-y-3">
           <div><Label>Title</Label><Input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Mykonos circuit week" /></div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label>Region</Label><Input required value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} placeholder="Europe" /></div>
+          <div className="grid grid-cols-3 gap-3">
+            <div><Label>City</Label><Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Mykonos" /></div>
+            <div><Label>Region</Label><Input required value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} placeholder="Cyclades" /></div>
             <div><Label>Country</Label><Input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="Greece" /></div>
           </div>
-          <div><Label>Best months</Label><Input value={form.best_months} onChange={(e) => setForm({ ...form, best_months: e.target.value })} placeholder="Aug" /></div>
-          <div><Label>Image URL</Label><Input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://..." /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Start date</Label>
+              <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+            </div>
+            <div>
+              <Label>End date</Label>
+              <Input type="date" value={form.end_date} min={form.start_date || undefined} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+            </div>
+          </div>
+          <div><Label>Image URL <span className="text-muted-foreground">(optional)</span></Label><Input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://..." /></div>
           <div><Label>Why it slaps</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} /></div>
           <Button type="submit" disabled={create.isPending} className="w-full">{create.isPending ? "Pitching..." : "Pitch it"}</Button>
         </form>
