@@ -51,10 +51,11 @@ function Landing() {
         <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/30 px-3 py-1 text-xs text-muted-foreground backdrop-blur">
           <Sparkles className="size-3.5 text-accent" /> For you and your crew
         </p>
-        <h1 className="font-display text-5xl leading-[1.05] md:text-7xl">
+        <h1 className="font-display text-5xl leading-[1.05] md:text-7xl [font-variant-ligatures:none]">
           Get your tribe out of the text thread and{" "}
           <em className="text-primary not-italic">off to the next adventure</em>.
         </h1>
+
         <p className="mt-6 max-w-xl text-lg text-muted-foreground">
           Plan whatever trip you want — pitch destinations, upvote favorites,
           chatter about logistics, and surface regional pride, circuit, and
