@@ -3,13 +3,23 @@ import { useSuspenseQuery, useMutation, useQueryClient, queryOptions } from "@ta
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useMemo, useState } from "react";
 
-
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowUp, MapPin, MessageCircle, Search, Sparkles, Star } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowUp, Download, FileDown, LogOut, MapPin, MessageCircle, Search, Sparkles, Star, Trash2 } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
 import { toast } from "sonner";
 import { closeExpiredTrips } from "@/lib/trips-maintenance.functions";
 import { PitchTripDialog } from "@/components/pitch-trip-dialog";
+import { useBulkSelection } from "@/hooks/use-bulk-selection";
+import { BulkActionBar } from "@/components/bulk-action-bar";
+import { BulkConfirmDialog } from "@/components/bulk-confirm-dialog";
+import { useMe } from "@/hooks/use-me";
+import { exportTripsPdf } from "@/lib/exports/trip-pdf";
+import { exportTripsIcs } from "@/lib/exports/trip-ics";
+import { track } from "@/lib/analytics";
+
+// CalendarDown isn't exported by lucide; we use Download / FileDown / Calendar below.
+// (kept imports tidy below)
 
 export const Route = createFileRoute("/_authenticated/trips/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(tripsQueryOptions),
@@ -78,11 +88,17 @@ function isEffectivelyPast(d: DestRow): boolean {
   return d.end_date < today;
 }
 
+type Trip = Awaited<ReturnType<typeof fetchTrips>>[number];
+
 function TripsPage() {
   const { data } = useSuspenseQuery(tripsQueryOptions);
+  const me = useMe().data;
   const qc = useQueryClient();
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
   const [query, setQuery] = useState("");
+  const sel = useBulkSelection<string>();
+  const [confirmKind, setConfirmKind] = useState<null | "delete" | "leave">(null);
+  const [working, setWorking] = useState(false);
 
   // Opportunistic auto-close expired trips, then refresh.
   useEffect(() => {
@@ -92,6 +108,9 @@ function TripsPage() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [qc]);
+
+  // Clear selection when switching tabs.
+  useEffect(() => { sel.clear(); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const q = query.trim().toLowerCase();
   const filtered = (data ?? [])
@@ -103,8 +122,103 @@ function TripsPage() {
       return hay.includes(q);
     });
 
+  const orderedIds = useMemo(() => filtered.map((d) => d.id), [filtered]);
+  const tripById = useMemo(() => new Map(filtered.map((d) => [d.id, d])), [filtered]);
+  const selectedTrips: Trip[] = sel.ids.map((id) => tripById.get(id)).filter(Boolean) as Trip[];
+  const myId = me?.id;
+
+  const partition = (kind: "delete" | "leave") => {
+    const willApply: { id: string; label: string }[] = [];
+    const skipped: { id: string; label: string; reason: string }[] = [];
+    for (const t of selectedTrips) {
+      const isOwner = !!myId && t.user_id === myId;
+      const label = t.title;
+      if (kind === "delete") {
+        if (isOwner) willApply.push({ id: t.id, label });
+        else skipped.push({ id: t.id, label, reason: "you're not the owner — use Leave" });
+      } else {
+        if (!isOwner) willApply.push({ id: t.id, label });
+        else skipped.push({ id: t.id, label, reason: "you own this trip — use Delete" });
+      }
+    }
+    return { willApply, skipped };
+  };
+
+  const runDelete = async () => {
+    const { willApply } = partition("delete");
+    setWorking(true);
+    try {
+      const results = await Promise.allSettled(
+        willApply.map((w) => supabase.from("destinations").delete().eq("id", w.id)),
+      );
+      const failed = results.filter((r) => r.status === "rejected" || (r.value as { error?: unknown }).error).length;
+      const ok = results.length - failed;
+      if (ok) toast.success(`Deleted ${ok} trip${ok === 1 ? "" : "s"}`);
+      if (failed) toast.error(`${failed} failed to delete`);
+      track("bulk_delete", { surface: "trips", count: ok });
+      sel.clear();
+      qc.invalidateQueries({ queryKey: ["trips"] });
+    } finally {
+      setWorking(false);
+      setConfirmKind(null);
+    }
+  };
+
+  const runLeave = async () => {
+    const { willApply } = partition("leave");
+    if (!myId) return;
+    setWorking(true);
+    try {
+      const results = await Promise.allSettled(
+        willApply.map((w) =>
+          supabase.from("trip_members").delete().eq("destination_id", w.id).eq("user_id", myId),
+        ),
+      );
+      const failed = results.filter((r) => r.status === "rejected" || (r.value as { error?: unknown }).error).length;
+      const ok = results.length - failed;
+      if (ok) toast.success(`Left ${ok} trip${ok === 1 ? "" : "s"}`);
+      if (failed) toast.error(`${failed} failed`);
+      track("bulk_leave", { surface: "trips", count: ok });
+      sel.clear();
+      qc.invalidateQueries({ queryKey: ["trips"] });
+    } finally {
+      setWorking(false);
+      setConfirmKind(null);
+    }
+  };
+
+  const runExportPdf = async () => {
+    if (selectedTrips.length === 0) return;
+    setWorking(true);
+    try {
+      await exportTripsPdf(selectedTrips);
+      track("bulk_export", { format: "pdf", count: selectedTrips.length });
+      toast.success(`Exported ${selectedTrips.length} trip${selectedTrips.length === 1 ? "" : "s"} to PDF`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "PDF export failed");
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const runExportIcs = async () => {
+    if (selectedTrips.length === 0) return;
+    setWorking(true);
+    try {
+      await exportTripsIcs(selectedTrips);
+      track("bulk_export", { format: "ics", count: selectedTrips.length });
+      toast.success(`Exported ${selectedTrips.length} trip${selectedTrips.length === 1 ? "" : "s"} to calendar`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Calendar export failed");
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const allVisibleSelected = orderedIds.length > 0 && orderedIds.every((id) => sel.isSelected(id));
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-24">
       <PageHero
         crumbs={[{ label: "Trips" }]}
         eyebrow="Your crew's wanderlust"
@@ -157,14 +271,73 @@ function TripsPage() {
           </div>
         )}
 
-        {filtered.map((d) => <TripCard key={d.id} d={d} />)}
+        {filtered.map((d) => (
+          <TripCard
+            key={d.id}
+            d={d}
+            selected={sel.isSelected(d.id)}
+            anySelected={sel.count > 0}
+            onSelect={(shift) => (shift ? sel.toggleRange(d.id, orderedIds) : sel.toggle(d.id))}
+          />
+        ))}
       </div>
+
+      <BulkActionBar
+        count={sel.count}
+        noun="trip"
+        onClear={sel.clear}
+        leading={
+          orderedIds.length > sel.count && (
+            <button
+              type="button"
+              onClick={() => sel.selectAll(orderedIds)}
+              className="rounded-full px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              {allVisibleSelected ? "" : `Select all ${orderedIds.length}`}
+            </button>
+          )
+        }
+        actions={[
+          { label: "Export PDF", icon: FileDown, onClick: runExportPdf, pending: working },
+          { label: "Export calendar", icon: Download, onClick: runExportIcs, pending: working },
+          { label: "Leave", icon: LogOut, onClick: () => setConfirmKind("leave"), pending: working },
+          { label: "Delete", icon: Trash2, onClick: () => setConfirmKind("delete"), destructive: true, pending: working },
+        ]}
+      />
+
+      {confirmKind && (
+        <BulkConfirmDialog
+          open
+          onOpenChange={(v) => !v && setConfirmKind(null)}
+          title={confirmKind === "delete" ? "Delete selected trips?" : "Leave selected trips?"}
+          description={
+            confirmKind === "delete"
+              ? "Deleting a trip removes its costs, stays, flights and chatter for everyone. This cannot be undone."
+              : "You'll be removed as a member. The trip stays for everyone else."
+          }
+          willApply={partition(confirmKind).willApply}
+          skipped={partition(confirmKind).skipped}
+          destructive
+          confirmLabel={confirmKind === "delete" ? "Delete" : "Leave"}
+          onConfirm={confirmKind === "delete" ? runDelete : runLeave}
+        />
+      )}
     </div>
   );
 }
 
 
-function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) {
+function TripCard({
+  d,
+  selected,
+  anySelected,
+  onSelect,
+}: {
+  d: Trip;
+  selected: boolean;
+  anySelected: boolean;
+  onSelect: (shiftKey: boolean) => void;
+}) {
   const qc = useQueryClient();
   const vote = useMutation({
     mutationFn: async () => {
@@ -202,8 +375,32 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
     };
   }, [d.title, d.region, d.city]);
 
+  const handleCheckbox = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onSelect(e.shiftKey);
+  };
+
   return (
-    <article className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-soft)] transition hover:border-primary/40">
+    <article
+      className={`group relative overflow-hidden rounded-2xl border bg-card shadow-[var(--shadow-soft)] transition ${
+        selected ? "border-primary ring-2 ring-primary/40" : "border-border/60 hover:border-primary/40"
+      }`}
+    >
+      {/* Selection checkbox — always visible once anything is selected, otherwise on hover */}
+      <button
+        type="button"
+        onClick={handleCheckbox}
+        aria-pressed={selected}
+        aria-label={selected ? `Deselect ${d.title}` : `Select ${d.title}`}
+        title="Shift-click to select a range"
+        className={`absolute left-3 top-3 z-20 grid size-7 place-items-center rounded-full border bg-background/90 backdrop-blur transition ${
+          selected || anySelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+        } ${selected ? "border-primary text-primary" : "border-border/70 text-muted-foreground hover:text-foreground"}`}
+      >
+        <Checkbox checked={selected} className="pointer-events-none size-4" />
+      </button>
+
       <Link to="/trips/$id" params={{ id: d.id }} className="block">
         <div className="relative aspect-[16/10] overflow-hidden bg-muted">
           {d.image_url && imgState === "loading" && <Skeleton className="absolute inset-0 size-full rounded-none" />}
@@ -227,7 +424,7 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
               <p className="px-4 font-display text-base text-white/85">{d.title}</p>
             </div>
           )}
-          <div className="absolute left-3 top-3 rounded-full bg-background/80 px-2.5 py-1 text-xs backdrop-blur">
+          <div className="absolute left-12 top-3 rounded-full bg-background/80 px-2.5 py-1 text-xs backdrop-blur">
             <MapPin className="mr-1 inline size-3 text-primary" />{d.city ? `${d.city}, ${d.region}` : d.region}
           </div>
           {past && (
@@ -283,4 +480,3 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
     </article>
   );
 }
-
