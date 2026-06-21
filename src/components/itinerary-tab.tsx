@@ -304,7 +304,17 @@ export function ItineraryTab({
           Nothing on the timeline yet. Add flights, stays, tickets, costs, or attach events.
         </div>
       ) : hasDayView && view === "days" ? (
-        <DayView days={days} byDay={byDay.map} undated={byDay.undated} outside={byDay.outside} />
+        <DayView
+          days={days}
+          byDay={byDay.map}
+          undated={byDay.undated}
+          outside={byDay.outside}
+          onReorder={(dk, ordered) => {
+            saveOrder.mutate(
+              ordered.map((id, i) => ({ item_key: id, day_key: dk, sort_order: i })),
+            );
+          }}
+        />
       ) : (
         <ListView items={items} />
       )}
