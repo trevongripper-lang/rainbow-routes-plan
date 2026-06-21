@@ -5,10 +5,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy, Link as LinkIcon, Mail, UserPlus, Check } from "lucide-react";
+import { Copy, Link as LinkIcon, Mail, UserPlus, Check, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-export function InviteModal({ destinationId }: { destinationId: string }) {
+export function InviteModal({ destinationId, isOwner = false }: { destinationId: string; isOwner?: boolean }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -123,8 +123,29 @@ export function InviteModal({ destinationId }: { destinationId: string }) {
                   <div className="grid size-7 place-items-center rounded-full bg-primary/20 text-xs font-medium text-primary">
                     {(m.profile?.display_name ?? "?").slice(0, 1).toUpperCase()}
                   </div>
-                  <span className="truncate">{m.profile?.display_name ?? "Member"}</span>
+                  <span className="flex-1 truncate">{m.profile?.display_name ?? "Member"}</span>
                   {m.role === "owner" && <span className="rounded-full bg-accent/30 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-accent-foreground">Owner</span>}
+                  {isOwner && m.role !== "owner" && (
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`Remove ${m.profile?.display_name ?? "this member"} from the trip?`)) return;
+                        const { error } = await supabase
+                          .from("trip_members")
+                          .delete()
+                          .eq("destination_id", destinationId)
+                          .eq("user_id", m.user_id);
+                        if (error) toast.error(error.message);
+                        else {
+                          toast.success("Removed");
+                          qc.invalidateQueries({ queryKey: ["trip-members", destinationId] });
+                        }
+                      }}
+                      aria-label="Remove member"
+                      className="rounded-full p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
