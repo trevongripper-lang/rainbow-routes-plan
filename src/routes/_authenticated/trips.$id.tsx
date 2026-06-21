@@ -304,7 +304,7 @@ function TripDetail() {
                 me={me}
               />
             </TabsContent>
-            <TabsContent value="flights" className="mt-6"><FlightsTab destinationId={id} me={me} /></TabsContent>
+            <TabsContent value="flights" className="mt-6"><FlightsTab destinationId={id} me={me} startDate={(dest as { start_date?: string | null }).start_date ?? null} endDate={dest.end_date} /></TabsContent>
             <TabsContent value="stays" className="mt-6"><StaysTab destinationId={id} me={me} title={dest.title} country={dest.country} /></TabsContent>
             <TabsContent value="tickets" className="mt-6">
               <div className="space-y-6">
