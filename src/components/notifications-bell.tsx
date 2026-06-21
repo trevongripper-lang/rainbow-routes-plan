@@ -23,6 +23,7 @@ const KIND_LABEL: Record<string, string> = {
   member_joined: "new member",
   event_added: "new event",
   trip_closed: "trip closed — rate it",
+  settlement_recorded: "settlement recorded",
 };
 
 export function NotificationsBell() {
