@@ -90,42 +90,81 @@ export function PlanningProgress({ destinationId, me, startDate, endDate, headco
 
 
   return (
+    <PlanningProgressView
+      isLoading={isLoading}
+      items={items}
+      doneCount={doneCount}
+      pct={pct}
+      remaining={remaining}
+    />
+  );
+}
+
+export type PlanningProgressViewProps = {
+  isLoading: boolean;
+  items: ReturnType<typeof computePlanningItems>;
+  doneCount: number;
+  pct: number;
+  remaining: ReturnType<typeof pendingPlanningItems>;
+};
+
+export function PlanningProgressView({ isLoading, items, doneCount, pct, remaining }: PlanningProgressViewProps) {
+  const summary = isLoading
+    ? "Planning progress: loading"
+    : remaining.length === 0
+    ? `Planning progress: complete, ${doneCount} of ${items.length} done`
+    : `Planning progress: ${doneCount} of ${items.length} done, ${remaining.length} pending — ${remaining
+        .map((r) => `${r.label} ${r.hint.toLowerCase()}`)
+        .join(", ")}`;
+
+  return (
     <TooltipProvider delayDuration={150}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <section
-            className="rounded-2xl border border-border/60 bg-card p-4 md:p-5 cursor-help"
-            aria-label="Planning progress"
+          <button
+            type="button"
+            aria-label={summary}
+            className="block w-full rounded-2xl border border-border/60 bg-card p-4 text-left md:p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="text-sm font-medium text-muted-foreground">Planning progress</h2>
-              <span className="text-xs tabular-nums text-muted-foreground">
+              <span className="text-xs tabular-nums text-muted-foreground" aria-hidden="true">
                 {isLoading ? "…" : `${doneCount} / ${items.length} · ${pct}%`}
               </span>
             </div>
-            <Progress value={isLoading ? 0 : pct} className="mt-3 h-2" />
-          </section>
+            <Progress
+              value={isLoading ? 0 : pct}
+              aria-label="Planning progress"
+              aria-valuetext={isLoading ? "Loading" : `${pct} percent complete`}
+              className="mt-3 h-2"
+            />
+          </button>
         </TooltipTrigger>
         <TooltipContent side="bottom" align="start" className="max-w-xs p-3">
           {isLoading ? (
             <p className="text-xs text-muted-foreground">Loading…</p>
           ) : remaining.length === 0 ? (
             <div className="flex items-center gap-2 text-xs">
-              <CheckCircle2 className="size-4 text-primary" />
+              <CheckCircle2 className="size-4 text-primary" aria-hidden="true" />
               <span>Everything's planned. Nice work.</span>
             </div>
           ) : (
             <div className="space-y-1.5">
-              <p className="text-xs font-medium">Still to do</p>
-              <ul className="space-y-1">
+              <p className="text-xs font-medium" id="planning-progress-pending-heading">
+                Still to do
+              </p>
+              <ul className="space-y-1" aria-labelledby="planning-progress-pending-heading">
                 {remaining.map((i) => {
                   const Icon = i.status === "partial" ? AlertCircle : Circle;
                   const color = i.status === "partial" ? "text-amber-500" : "text-muted-foreground";
                   return (
                     <li key={i.key} className="flex items-center gap-2 text-xs">
-                      <Icon className={`size-3.5 ${color}`} />
+                      <Icon className={`size-3.5 ${color}`} aria-hidden="true" />
                       <span className="font-medium">{i.label}</span>
-                      <span className="text-muted-foreground">· {i.hint}</span>
+                      <span className="text-muted-foreground">
+                        <span aria-hidden="true">· </span>
+                        {i.hint}
+                      </span>
                     </li>
                   );
                 })}
@@ -137,3 +176,4 @@ export function PlanningProgress({ destinationId, me, startDate, endDate, headco
     </TooltipProvider>
   );
 }
+
