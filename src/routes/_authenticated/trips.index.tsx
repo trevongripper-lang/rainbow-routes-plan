@@ -137,21 +137,44 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
     onError: (e) => toast.error(e instanceof Error ? e.message : "Vote failed"),
   });
 
+  const imageSrc = useMemo(() => {
+    if (d.image_url) return d.image_url;
+    // Strip generic trip words from title to surface the actual place name
+    const place = d.title.replace(/\b(trip|week|weekend|circuit|tour|getaway|vacation|holiday|adventure|crew|squad)\b/gi, "").trim();
+    const season = (() => {
+      const iso = d.start_date || d.end_date;
+      if (!iso) return d.best_months || "";
+      const m = new Date(iso).getUTCMonth();
+      return ["winter", "winter", "spring", "spring", "spring", "summer", "summer", "summer", "autumn", "autumn", "autumn", "winter"][m];
+    })();
+    const parts = [place, d.region, d.country, season, "travel"].filter(Boolean);
+    return `https://source.unsplash.com/featured/800x500/?${encodeURIComponent(parts.join(","))}`;
+  }, [d.image_url, d.title, d.region, d.country, d.start_date, d.end_date, d.best_months]);
+
+  const [imgState, setImgState] = useState<"loading" | "loaded" | "error">("loading");
+
   return (
     <article className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-soft)] transition hover:border-primary/40">
       <Link to="/trips/$id" params={{ id: d.id }} className="block">
         <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-          <img
-            src={d.image_url || `https://source.unsplash.com/featured/800x500/?${encodeURIComponent([d.title, d.region, d.country].filter(Boolean).join(","))},travel`}
-            alt={d.title}
-            className="size-full object-cover transition group-hover:scale-105"
-            loading="lazy"
-            onError={(e) => {
-              const img = e.currentTarget;
-              img.onerror = null;
-              img.src = `https://picsum.photos/seed/${encodeURIComponent(d.id)}/800/500`;
-            }}
-          />
+          {imgState === "loading" && <Skeleton className="absolute inset-0 size-full rounded-none" />}
+          {imgState !== "error" && (
+            <img
+              src={imageSrc}
+              alt={`${d.title} preview`}
+              className={`size-full object-cover transition group-hover:scale-105 ${imgState === "loaded" ? "opacity-100" : "opacity-0"}`}
+              loading="lazy"
+              onLoad={() => setImgState("loaded")}
+              onError={() => setImgState("error")}
+            />
+          )}
+          {imgState === "error" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/15 via-accent/10 to-muted text-center">
+              <ImageOff className="size-7 text-muted-foreground" aria-hidden />
+              <p className="font-display text-base text-foreground/80">{d.title}</p>
+              <p className="text-xs text-muted-foreground">No preview image yet</p>
+            </div>
+          )}
           <div className="absolute left-3 top-3 rounded-full bg-background/80 px-2.5 py-1 text-xs backdrop-blur">
             <MapPin className="mr-1 inline size-3 text-primary" />{d.region}
           </div>
