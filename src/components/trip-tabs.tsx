@@ -977,28 +977,81 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
 
       <ul className="space-y-2">
         {costs.length === 0 && <li className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No costs logged yet.</li>}
-        {costs.map((c) => (
-          <li key={c.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-card p-3 text-sm">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-background/60 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">{c.category}</span>
-                <span className="font-medium">{c.label}</span>
-                <span className={`text-[10px] ${c.is_shared ? "text-primary" : "text-muted-foreground"}`}>
-                  {c.is_shared ? "shared" : "per-person"}
-                </span>
-                <span className="text-[10px] text-muted-foreground">· paid by {(c.paid_by ?? c.user_id) === me ? "you" : nameOf(c.paid_by ?? c.user_id)}</span>
+        {costs.map((c) => {
+          const checked = bulk.isSelected(c.id);
+          return (
+            <li
+              key={c.id}
+              className={`flex items-center justify-between rounded-xl border p-3 text-sm transition ${checked ? "border-primary/60 bg-primary/5" : "border-border/60 bg-card"}`}
+            >
+              <div className="flex min-w-0 items-start gap-3">
+                <Checkbox
+                  checked={checked}
+                  onClick={(e) => {
+                    if ((e as unknown as MouseEvent).shiftKey) {
+                      bulk.toggleRange(c.id, orderedIds);
+                    } else {
+                      bulk.toggle(c.id);
+                    }
+                  }}
+                  onCheckedChange={() => { /* handled by onClick for shift support */ }}
+                  aria-label={`Select ${c.label}`}
+                  className="mt-0.5"
+                />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-background/60 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">{c.category}</span>
+                    <span className="font-medium">{c.label}</span>
+                    <span className={`text-[10px] ${c.is_shared ? "text-primary" : "text-muted-foreground"}`}>
+                      {c.is_shared ? "shared" : "per-person"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">· paid by {(c.paid_by ?? c.user_id) === me ? "you" : nameOf(c.paid_by ?? c.user_id)}</span>
+                  </div>
+                  {c.note && <p className="mt-0.5 text-xs text-muted-foreground">{c.note}</p>}
+                </div>
               </div>
-              {c.note && <p className="mt-0.5 text-xs text-muted-foreground">{c.note}</p>}
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="font-medium tabular-nums">{fmt(c.amount_cents, c.currency)}</span>
-              {c.user_id === me && (
-                <button onClick={() => del.mutate(c.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
-              )}
-            </div>
-          </li>
-        ))}
+              <div className="flex items-center gap-3">
+                <span className="font-medium tabular-nums">{fmt(c.amount_cents, c.currency)}</span>
+                {(c.user_id === me || isOwner) && (
+                  <button onClick={() => del.mutate(c.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
+
+      <BulkActionBar
+        count={bulk.count}
+        noun="cost"
+        onClear={bulk.clear}
+        actions={[
+          { label: "Mark settled", icon: Check, onClick: () => setConfirmSettle(true), disabled: settlePlan.willApply.length === 0 },
+          { label: "Delete", icon: Trash2, destructive: true, onClick: () => setConfirmDelete(true), disabled: deletePlan.willApply.length === 0 },
+        ]}
+      />
+
+      <BulkConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete selected costs?"
+        description="This permanently removes the costs."
+        willApply={deletePlan.willApply}
+        skipped={deletePlan.skipped}
+        confirmLabel={bulkDelete.isPending ? "Deleting…" : "Delete"}
+        destructive
+        onConfirm={() => bulkDelete.mutate()}
+      />
+      <BulkConfirmDialog
+        open={confirmSettle}
+        onOpenChange={setConfirmSettle}
+        title="Mark these as settled?"
+        description="Records a settlement entry from you to each payer for your share."
+        willApply={settlePlan.willApply.map((w) => ({ id: w.id, label: w.label }))}
+        skipped={settlePlan.skipped}
+        confirmLabel={bulkSettle.isPending ? "Saving…" : "Mark settled"}
+        onConfirm={() => bulkSettle.mutate()}
+      />
     </div>
   );
 }
