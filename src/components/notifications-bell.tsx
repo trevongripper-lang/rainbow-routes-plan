@@ -26,6 +26,17 @@ const KIND_LABEL: Record<string, string> = {
   settlement_recorded: "settlement recorded",
 };
 
+const KIND_TAB: Record<string, string> = {
+  cost_added: "costs",
+  settlement_recorded: "costs",
+  chatter_message: "overview",
+  chatter_reply: "overview",
+  chatter_mention: "overview",
+  member_joined: "overview",
+  event_added: "itinerary",
+  trip_closed: "ratings",
+};
+
 export function NotificationsBell() {
   const qc = useQueryClient();
 
