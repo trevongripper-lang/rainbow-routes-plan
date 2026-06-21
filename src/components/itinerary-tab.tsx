@@ -1,12 +1,25 @@
-import { useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plane, BedDouble, Ticket, Wallet, Sparkles, CalendarDays, MapPin, ExternalLink, List, LayoutGrid, GripVertical } from "lucide-react";
+import { Plane, BedDouble, Ticket, Wallet, Sparkles, CalendarDays, MapPin, ExternalLink, List, LayoutGrid, GripVertical, Trash2, CalendarClock } from "lucide-react";
 import { addDays, differenceInCalendarDays, format, parseISO, isValid } from "date-fns";
 import { TripEventsStrip } from "@/components/trip-events-strip";
 import { track } from "@/lib/analytics";
+import { useBulkSelection } from "@/hooks/use-bulk-selection";
+import { BulkActionBar } from "@/components/bulk-action-bar";
+import { BulkConfirmDialog } from "@/components/bulk-confirm-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { toast } from "sonner";
 
 type OrderRow = { item_key: string; day_key: string; sort_order: number };
+
+type SelectionCtxValue = {
+  isSelected: (id: string) => boolean;
+  toggle: (id: string, shift: boolean) => void;
+  enabled: boolean;
+};
+const SelectionCtx = createContext<SelectionCtxValue | null>(null);
 
 function norm(s: string | null | undefined) {
   return (s ?? "").trim().toLowerCase();
@@ -272,53 +285,217 @@ export function ItineraryTab({
 
   const hasDayView = days.length > 0;
 
+  // ----- Bulk selection -----
+  const bulk = useBulkSelection<string>();
+  const orderedItemIds = useMemo(() => items.map((i) => i.id), [items]);
+  const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [movePopoverOpen, setMovePopoverOpen] = useState(false);
+
+  const selectionCtx: SelectionCtxValue = useMemo(() => ({
+    enabled: true,
+    isSelected: (id: string) => bulk.isSelected(id),
+    toggle: (id: string, shift: boolean) => {
+      if (shift) bulk.toggleRange(id, orderedItemIds);
+      else bulk.toggle(id);
+    },
+  }), [bulk, orderedItemIds]);
+
+  const deletePlan = useMemo(() => {
+    const willApply: { id: string; label: string }[] = [];
+    for (const id of bulk.ids) {
+      const it = itemById.get(id);
+      if (!it) continue;
+      const verb = it.kind === "event" ? "Detach" : "Delete";
+      willApply.push({ id, label: `${verb}: ${it.title}` });
+    }
+    return { willApply, skipped: [] as { id: string; label: string; reason: string }[] };
+  }, [bulk.ids, itemById]);
+
+  const bulkDelete = useMutation({
+    mutationFn: async () => {
+      const groups: Record<string, string[]> = { f: [], s: [], t: [], c: [], e: [] };
+      for (const id of bulk.ids) {
+        const prefix = id.charAt(0);
+        const rawId = id.slice(2);
+        if (groups[prefix]) groups[prefix].push(rawId);
+      }
+      const byKind: Record<string, number> = {};
+      const ops: PromiseLike<{ error: unknown }>[] = [];
+      if (groups.f.length) { byKind.flight = groups.f.length; ops.push(supabase.from("trip_flights").delete().in("id", groups.f)); }
+      if (groups.s.length) { byKind.stay = groups.s.length; ops.push(supabase.from("trip_stays").delete().in("id", groups.s)); }
+      if (groups.t.length) { byKind.ticket = groups.t.length; ops.push(supabase.from("trip_tickets").delete().in("id", groups.t)); }
+      if (groups.c.length) { byKind.cost = groups.c.length; ops.push(supabase.from("trip_costs").delete().in("id", groups.c)); }
+      if (groups.e.length) {
+        byKind.event = groups.e.length;
+        ops.push(supabase.from("trip_events").delete().eq("destination_id", destinationId).in("event_id", groups.e));
+      }
+      const results = await Promise.all(ops);
+      for (const r of results) {
+        if (r?.error) throw r.error;
+      }
+      const total = bulk.ids.length;
+      track("bulk_delete", { surface: "itinerary", count: total, by_kind: byKind }, destinationId);
+      return total;
+    },
+    onSuccess: (n) => {
+      setConfirmDelete(false);
+      bulk.clear();
+      for (const k of ["flights", "stays", "tickets", "costs", "trip-events-full", "itinerary-order"]) {
+        qc.invalidateQueries({ queryKey: [k, destinationId] });
+      }
+      toast.success(`Removed ${n} item${n === 1 ? "" : "s"}`);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to remove"),
+  });
+
+  const bulkMoveToDay = useMutation({
+    mutationFn: async (targetDayKey: string) => {
+      const ids = bulk.ids;
+      if (ids.length === 0) return 0;
+      const existing = new Map<string, number>();
+      for (const r of orderRows) {
+        if (r.day_key === targetDayKey) existing.set(r.item_key, r.sort_order);
+      }
+      let next = Math.max(-1, ...Array.from(existing.values())) + 1;
+      const rows = ids.map((id) => ({
+        destination_id: destinationId,
+        item_key: id,
+        day_key: targetDayKey,
+        sort_order: next++,
+      }));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from("trip_itinerary_order" as any) as any).upsert(
+        rows,
+        { onConflict: "destination_id,item_key" },
+      );
+      if (error) throw error;
+      track("bulk_move_day", { count: rows.length }, destinationId);
+      return rows.length;
+    },
+    onSuccess: (n) => {
+      setMovePopoverOpen(false);
+      bulk.clear();
+      qc.invalidateQueries({ queryKey: ["itinerary-order", destinationId] });
+      toast.success(`Moved ${n} item${n === 1 ? "" : "s"}`);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to move"),
+  });
+
   return (
-    <div className="space-y-6">
-      <section className="rounded-2xl border border-border/60 bg-card p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <CalendarDays className="size-5 text-primary" />
-            <h2 className="font-display text-2xl">Itinerary</h2>
+    <SelectionCtx.Provider value={selectionCtx}>
+      <div className="space-y-6">
+        <section className="rounded-2xl border border-border/60 bg-card p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="size-5 text-primary" />
+              <h2 className="font-display text-2xl">Itinerary</h2>
+            </div>
+            {hasDayView && (
+              <div className="flex items-center gap-1 rounded-full border border-border/60 bg-background/40 p-0.5 text-xs">
+                <button onClick={() => setView("days")} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${view === "days" ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}>
+                  <LayoutGrid className="size-3.5" /> Days
+                </button>
+                <button onClick={() => setView("list")} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${view === "list" ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}>
+                  <List className="size-3.5" /> List
+                </button>
+              </div>
+            )}
           </div>
-          {hasDayView && (
-            <div className="flex items-center gap-1 rounded-full border border-border/60 bg-background/40 p-0.5 text-xs">
-              <button onClick={() => setView("days")} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${view === "days" ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}>
-                <LayoutGrid className="size-3.5" /> Days
-              </button>
-              <button onClick={() => setView("list")} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${view === "list" ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}>
-                <List className="size-3.5" /> List
+          <p className="mt-1 text-sm text-muted-foreground">
+            {hasDayView ? "Day-by-day plan." : "Everything attached to this trip."}
+            {range ? <span className="ml-2 text-primary">{range}</span> : null}
+          </p>
+        </section>
+
+        <TripEventsStrip destinationId={destinationId} me={me} region={region} country={country} startDate={startDate} endDate={endDate} variant="full" />
+
+        {items.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+            Nothing on the timeline yet. Add flights, stays, tickets, costs, or attach events.
+          </div>
+        ) : hasDayView && view === "days" ? (
+          <DayView
+            days={days}
+            byDay={byDay.map}
+            undated={byDay.undated}
+            outside={byDay.outside}
+            onReorder={(dk, ordered) => {
+              saveOrder.mutate(
+                ordered.map((id, i) => ({ item_key: id, day_key: dk, sort_order: i })),
+              );
+            }}
+          />
+        ) : (
+          <ListView items={items} />
+        )}
+
+        <BulkActionBar
+          count={bulk.count}
+          noun="item"
+          onClear={bulk.clear}
+          actions={[]}
+          leading={
+            <div className="flex flex-wrap items-center gap-1.5">
+              {hasDayView && (
+                <Popover open={movePopoverOpen} onOpenChange={setMovePopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-sm transition hover:border-primary/50 hover:text-primary"
+                    >
+                      <CalendarClock className="size-4" />
+                      Move to day…
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="center" className="w-56 p-1">
+                    <ul className="max-h-72 overflow-auto">
+                      {days.map((d, idx) => {
+                        const k = dayKey(d);
+                        return (
+                          <li key={k}>
+                            <button
+                              type="button"
+                              onClick={() => bulkMoveToDay.mutate(k)}
+                              disabled={bulkMoveToDay.isPending}
+                              className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted disabled:opacity-50"
+                            >
+                              <span>Day {idx + 1}</span>
+                              <span className="text-xs text-muted-foreground">{format(d, "EEE, MMM d")}</span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </PopoverContent>
+                </Popover>
+              )}
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                disabled={deletePlan.willApply.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-full border border-destructive/40 px-3 py-1.5 text-sm text-destructive transition hover:bg-destructive/10 disabled:opacity-50"
+              >
+                <Trash2 className="size-4" />
+                Delete
               </button>
             </div>
-          )}
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {hasDayView ? "Day-by-day plan." : "Everything attached to this trip."}
-          {range ? <span className="ml-2 text-primary">{range}</span> : null}
-        </p>
-      </section>
-
-      <TripEventsStrip destinationId={destinationId} me={me} region={region} country={country} startDate={startDate} endDate={endDate} variant="full" />
-
-      {items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          Nothing on the timeline yet. Add flights, stays, tickets, costs, or attach events.
-        </div>
-      ) : hasDayView && view === "days" ? (
-        <DayView
-          days={days}
-          byDay={byDay.map}
-          undated={byDay.undated}
-          outside={byDay.outside}
-          onReorder={(dk, ordered) => {
-            saveOrder.mutate(
-              ordered.map((id, i) => ({ item_key: id, day_key: dk, sort_order: i })),
-            );
-          }}
+          }
         />
-      ) : (
-        <ListView items={items} />
-      )}
-    </div>
+
+        <BulkConfirmDialog
+          open={confirmDelete}
+          onOpenChange={setConfirmDelete}
+          title="Remove selected items?"
+          description="Flights, stays, tickets and costs are deleted. Events are detached from this trip."
+          willApply={deletePlan.willApply}
+          skipped={deletePlan.skipped}
+          confirmLabel={bulkDelete.isPending ? "Removing…" : "Remove"}
+          destructive
+          onConfirm={() => bulkDelete.mutate()}
+        />
+      </div>
+    </SelectionCtx.Provider>
   );
 }
 
@@ -485,6 +662,8 @@ function ListView({ items }: { items: Item[] }) {
 
 function ItemRow({ it, dayKey: dk, draggable = false }: { it: Item; dayKey?: string; draggable?: boolean }) {
   const { Icon, label, tone } = kindMeta[it.kind];
+  const sel = useContext(SelectionCtx);
+  const checked = sel?.isSelected(it.id) ?? false;
   let bandLabel: string | null = null;
   if (it.kind === "stay" && dk && it.date && it.endDate) {
     if (dk === format(it.date, "yyyy-MM-dd")) bandLabel = "Check-in";
@@ -492,7 +671,19 @@ function ItemRow({ it, dayKey: dk, draggable = false }: { it: Item; dayKey?: str
     else bandLabel = "Staying";
   }
   const content = (
-    <div className={`flex items-start gap-3 rounded-xl border p-3 text-sm ${it.matched ? "border-primary/60 bg-primary/10" : "border-border/60 bg-card"}`}>
+    <div className={`flex items-start gap-3 rounded-xl border p-3 text-sm transition ${checked ? "border-primary/60 bg-primary/10" : it.matched ? "border-primary/60 bg-primary/10" : "border-border/60 bg-card"}`}>
+      {sel?.enabled && (
+        <Checkbox
+          checked={checked}
+          onClick={(e) => {
+            e.stopPropagation();
+            sel.toggle(it.id, (e as unknown as MouseEvent).shiftKey);
+          }}
+          onCheckedChange={() => { /* handled by onClick */ }}
+          aria-label={`Select ${it.title}`}
+          className="mt-0.5"
+        />
+      )}
       {draggable && (
         <GripVertical
           className="mt-0.5 size-4 shrink-0 cursor-grab text-muted-foreground/60 active:cursor-grabbing"

@@ -12,6 +12,10 @@ import { toast } from "sonner";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Pie, PieChart, Cell, BarChart, Bar, XAxis, YAxis } from "recharts";
 import { differenceInCalendarDays, format, parseISO, isValid } from "date-fns";
+import { useBulkSelection } from "@/hooks/use-bulk-selection";
+import { BulkActionBar } from "@/components/bulk-action-bar";
+import { BulkConfirmDialog } from "@/components/bulk-confirm-dialog";
+import { track } from "@/lib/analytics";
 
 function fmtCents(cents: number, cur: string) {
   return `${(cents / 100).toFixed(2)} ${cur}`;
@@ -488,6 +492,104 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     onSuccess: () => qc.invalidateQueries({ queryKey: ["costs", destinationId] }),
   });
 
+  // ----- Bulk selection (costs) -----
+  const bulk = useBulkSelection<string>();
+  const orderedIds = useMemo(() => costs.map((c) => c.id), [costs]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmSettle, setConfirmSettle] = useState(false);
+
+  const deletePlan = useMemo(() => {
+    const willApply: { id: string; label: string }[] = [];
+    const skipped: { id: string; label: string; reason: string }[] = [];
+    for (const id of bulk.ids) {
+      const c = costs.find((x) => x.id === id);
+      if (!c) continue;
+      if (c.user_id === me || isOwner) {
+        willApply.push({ id, label: `${c.label} · ${fmtCents(c.amount_cents, c.currency)}` });
+      } else {
+        skipped.push({ id, label: c.label, reason: "Not yours" });
+      }
+    }
+    return { willApply, skipped };
+  }, [bulk.ids, costs, me, isOwner]);
+
+  const settlePlan = useMemo(() => {
+    const willApply: { id: string; label: string; from: string; to: string; cents: number; currency: string }[] = [];
+    const skipped: { id: string; label: string; reason: string }[] = [];
+    for (const id of bulk.ids) {
+      const c = costs.find((x) => x.id === id);
+      if (!c) continue;
+      if (!c.is_shared) {
+        skipped.push({ id, label: c.label, reason: "Per-person cost (nothing to settle)" });
+        continue;
+      }
+      const payer = (c.paid_by ?? c.user_id) as string;
+      if (payer === me) {
+        skipped.push({ id, label: c.label, reason: "You paid this one" });
+        continue;
+      }
+      const splitIds: string[] = Array.isArray((c as { split_member_ids?: string[] }).split_member_ids) && (c as { split_member_ids?: string[] }).split_member_ids!.length > 0
+        ? (c as { split_member_ids: string[] }).split_member_ids
+        : memberIds;
+      if (!splitIds.includes(me)) {
+        skipped.push({ id, label: c.label, reason: "You're not in the split" });
+        continue;
+      }
+      const share = Math.round(c.amount_cents / Math.max(1, splitIds.length));
+      willApply.push({
+        id,
+        label: `${c.label} → pay ${nameOf(payer)} ${fmtCents(share, c.currency)}`,
+        from: me, to: payer, cents: share, currency: c.currency,
+      });
+    }
+    return { willApply, skipped };
+  }, [bulk.ids, costs, me, memberIds, nameOf]);
+
+  const bulkDelete = useMutation({
+    mutationFn: async () => {
+      const ids = deletePlan.willApply.map((w) => w.id);
+      if (ids.length === 0) return 0;
+      const { error } = await supabase.from("trip_costs").delete().in("id", ids);
+      if (error) throw error;
+      track("bulk_delete", { surface: "costs", count: ids.length }, destinationId);
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      setConfirmDelete(false);
+      bulk.clear();
+      qc.invalidateQueries({ queryKey: ["costs", destinationId] });
+      qc.invalidateQueries({ queryKey: ["settlements", destinationId] });
+      toast.success(`Deleted ${n} cost${n === 1 ? "" : "s"}`);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to delete"),
+  });
+
+  const bulkSettle = useMutation({
+    mutationFn: async () => {
+      const rows = settlePlan.willApply.map((w) => ({
+        destination_id: destinationId,
+        from_user: w.from,
+        to_user: w.to,
+        amount_cents: w.cents,
+        currency: w.currency,
+        note: null,
+        created_by: me,
+      }));
+      if (rows.length === 0) return 0;
+      const { error } = await supabase.from("trip_settlements").insert(rows);
+      if (error) throw error;
+      track("bulk_settle", { count: rows.length }, destinationId);
+      return rows.length;
+    },
+    onSuccess: (n) => {
+      setConfirmSettle(false);
+      bulk.clear();
+      qc.invalidateQueries({ queryKey: ["settlements", destinationId] });
+      toast.success(`Recorded ${n} settlement${n === 1 ? "" : "s"}`);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to settle"),
+  });
+
   // ---- Settlements: persisted "marked as paid" records ----
   const { data: settlements = [] } = useQuery({
     queryKey: ["settlements", destinationId],
@@ -875,28 +977,81 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
 
       <ul className="space-y-2">
         {costs.length === 0 && <li className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No costs logged yet.</li>}
-        {costs.map((c) => (
-          <li key={c.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-card p-3 text-sm">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-background/60 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">{c.category}</span>
-                <span className="font-medium">{c.label}</span>
-                <span className={`text-[10px] ${c.is_shared ? "text-primary" : "text-muted-foreground"}`}>
-                  {c.is_shared ? "shared" : "per-person"}
-                </span>
-                <span className="text-[10px] text-muted-foreground">· paid by {(c.paid_by ?? c.user_id) === me ? "you" : nameOf(c.paid_by ?? c.user_id)}</span>
+        {costs.map((c) => {
+          const checked = bulk.isSelected(c.id);
+          return (
+            <li
+              key={c.id}
+              className={`flex items-center justify-between rounded-xl border p-3 text-sm transition ${checked ? "border-primary/60 bg-primary/5" : "border-border/60 bg-card"}`}
+            >
+              <div className="flex min-w-0 items-start gap-3">
+                <Checkbox
+                  checked={checked}
+                  onClick={(e) => {
+                    if ((e as unknown as MouseEvent).shiftKey) {
+                      bulk.toggleRange(c.id, orderedIds);
+                    } else {
+                      bulk.toggle(c.id);
+                    }
+                  }}
+                  onCheckedChange={() => { /* handled by onClick for shift support */ }}
+                  aria-label={`Select ${c.label}`}
+                  className="mt-0.5"
+                />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-background/60 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">{c.category}</span>
+                    <span className="font-medium">{c.label}</span>
+                    <span className={`text-[10px] ${c.is_shared ? "text-primary" : "text-muted-foreground"}`}>
+                      {c.is_shared ? "shared" : "per-person"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">· paid by {(c.paid_by ?? c.user_id) === me ? "you" : nameOf(c.paid_by ?? c.user_id)}</span>
+                  </div>
+                  {c.note && <p className="mt-0.5 text-xs text-muted-foreground">{c.note}</p>}
+                </div>
               </div>
-              {c.note && <p className="mt-0.5 text-xs text-muted-foreground">{c.note}</p>}
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="font-medium tabular-nums">{fmt(c.amount_cents, c.currency)}</span>
-              {c.user_id === me && (
-                <button onClick={() => del.mutate(c.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
-              )}
-            </div>
-          </li>
-        ))}
+              <div className="flex items-center gap-3">
+                <span className="font-medium tabular-nums">{fmt(c.amount_cents, c.currency)}</span>
+                {(c.user_id === me || isOwner) && (
+                  <button onClick={() => del.mutate(c.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
+
+      <BulkActionBar
+        count={bulk.count}
+        noun="cost"
+        onClear={bulk.clear}
+        actions={[
+          { label: "Mark settled", icon: Check, onClick: () => setConfirmSettle(true), disabled: settlePlan.willApply.length === 0 },
+          { label: "Delete", icon: Trash2, destructive: true, onClick: () => setConfirmDelete(true), disabled: deletePlan.willApply.length === 0 },
+        ]}
+      />
+
+      <BulkConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete selected costs?"
+        description="This permanently removes the costs."
+        willApply={deletePlan.willApply}
+        skipped={deletePlan.skipped}
+        confirmLabel={bulkDelete.isPending ? "Deleting…" : "Delete"}
+        destructive
+        onConfirm={() => bulkDelete.mutate()}
+      />
+      <BulkConfirmDialog
+        open={confirmSettle}
+        onOpenChange={setConfirmSettle}
+        title="Mark these as settled?"
+        description="Records a settlement entry from you to each payer for your share."
+        willApply={settlePlan.willApply.map((w) => ({ id: w.id, label: w.label }))}
+        skipped={settlePlan.skipped}
+        confirmLabel={bulkSettle.isPending ? "Saving…" : "Mark settled"}
+        onConfirm={() => bulkSettle.mutate()}
+      />
     </div>
   );
 }
