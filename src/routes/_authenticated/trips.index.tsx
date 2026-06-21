@@ -232,10 +232,19 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
             </button>
           )}
         </div>
-        {(d.country || dateSubtitle) && (
+        {(d.country || dateSubtitle || d.best_time || d.trip_length) && (
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {d.country}{d.country && dateSubtitle ? " · " : ""}{dateSubtitle}
+            {[d.country, dateSubtitle || d.best_time, d.trip_length].filter(Boolean).join(" · ")}
+            {d.budget ? ` · ${d.budget}` : ""}
           </p>
+        )}
+        {d.vibes && d.vibes.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {d.vibes.slice(0, 3).map((v) => (
+              <span key={v} className="rounded-full bg-muted px-2 py-0.5 text-[11px] capitalize text-muted-foreground">{v}</span>
+            ))}
+            {d.vibes.length > 3 && <span className="text-[11px] text-muted-foreground">+{d.vibes.length - 3}</span>}
+          </div>
         )}
         {d.description && <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{d.description}</p>}
         <Link to="/trips/$id" params={{ id: d.id }} className="mt-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
@@ -246,80 +255,3 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
   );
 }
 
-function NewTripDialog() {
-  const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    title: "", city: "", region: "", country: "",
-    description: "", image_url: "",
-    start_date: "", end_date: "",
-  });
-
-  const create = useMutation({
-    mutationFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Not signed in");
-      if (form.start_date && form.end_date && form.end_date < form.start_date) {
-        throw new Error("End date can't be before start date");
-      }
-      const payload = {
-        title: form.title,
-        region: form.region,
-        country: form.country || null,
-        city: form.city || null,
-        description: form.description || null,
-        image_url: form.image_url || null,
-        start_date: form.start_date || null,
-        end_date: form.end_date || null,
-        user_id: u.user.id,
-      };
-      const { data, error } = await supabase
-        .from("destinations")
-        .insert(payload as never)
-        .select("id")
-        .single();
-      if (error) throw error;
-      // Best-effort geocode; do not block UX on failure.
-      try { await geocodeDestination({ data: { destinationId: (data as { id: string }).id } }); } catch {}
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["trips"] });
-      toast.success("Destination pitched!");
-      setOpen(false);
-      setForm({ title: "", city: "", region: "", country: "", description: "", image_url: "", start_date: "", end_date: "" });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
-  });
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="shrink-0"><Plus className="size-4" /> Pitch a trip</Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader><DialogTitle className="font-display text-2xl">Pitch a destination</DialogTitle></DialogHeader>
-        <form onSubmit={(e) => { e.preventDefault(); create.mutate(); }} className="space-y-3">
-          <div><Label>Title</Label><Input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Mykonos circuit week" /></div>
-          <div className="grid grid-cols-3 gap-3">
-            <div><Label>City</Label><Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Mykonos" /></div>
-            <div><Label>Region</Label><Input required value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} placeholder="Cyclades" /></div>
-            <div><Label>Country</Label><Input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="Greece" /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Start date</Label>
-              <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
-            </div>
-            <div>
-              <Label>End date</Label>
-              <Input type="date" value={form.end_date} min={form.start_date || undefined} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
-            </div>
-          </div>
-          <div><Label>Image URL <span className="text-muted-foreground">(optional)</span></Label><Input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://..." /></div>
-          <div><Label>Why it slaps</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} /></div>
-          <Button type="submit" disabled={create.isPending} className="w-full">{create.isPending ? "Pitching..." : "Pitch it"}</Button>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
