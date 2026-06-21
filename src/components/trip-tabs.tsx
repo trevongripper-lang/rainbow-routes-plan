@@ -6,10 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { BedDouble, ExternalLink, Ticket, Wallet, Trash2, Plus, Users, ArrowRightLeft, Lock } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BedDouble, ExternalLink, Ticket, Wallet, Trash2, Plus, Users, ArrowRightLeft, Lock, MapPin, CalendarDays, Check } from "lucide-react";
 import { toast } from "sonner";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Pie, PieChart, Cell, BarChart, Bar, XAxis, YAxis } from "recharts";
+import { differenceInCalendarDays, format, parseISO, isValid } from "date-fns";
+
+function fmtCents(cents: number, cur: string) {
+  return `${(cents / 100).toFixed(2)} ${cur}`;
+}
+function parseDate(s: string | null | undefined) {
+  if (!s) return null;
+  const d = parseISO(s);
+  return isValid(d) ? d : null;
+}
 
 /* -------------------------- WHERE TO STAY -------------------------- */
 
