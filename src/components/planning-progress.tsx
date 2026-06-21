@@ -124,11 +124,11 @@ export function PlanningProgressView({ isLoading, items, doneCount, pct, remaini
           <button
             type="button"
             aria-label={summary}
-            className="block w-full rounded-2xl border border-border/60 bg-card p-4 text-left md:p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="block w-full rounded-xl border border-border/60 bg-card px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <div className="flex items-baseline justify-between gap-3">
-              <h2 className="text-sm font-medium text-muted-foreground">Planning progress</h2>
-              <span className="text-xs tabular-nums text-muted-foreground" aria-hidden="true">
+              <h2 className="text-xs font-medium text-foreground">Planning progress</h2>
+              <span className="text-[11px] tabular-nums text-muted-foreground" aria-hidden="true">
                 {isLoading ? "…" : `${doneCount} / ${items.length} · ${pct}%`}
               </span>
             </div>
@@ -136,9 +136,10 @@ export function PlanningProgressView({ isLoading, items, doneCount, pct, remaini
               value={isLoading ? 0 : pct}
               aria-label="Planning progress"
               aria-valuetext={isLoading ? "Loading" : `${pct} percent complete`}
-              className="mt-3 h-2"
+              className="mt-1.5 h-1"
             />
           </button>
+
         </TooltipTrigger>
         <TooltipContent side="bottom" align="start" className="max-w-xs border-green-900/30 bg-green-950 p-3 text-green-50 shadow-lg">
           {isLoading ? (
