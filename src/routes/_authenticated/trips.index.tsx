@@ -32,6 +32,7 @@ type DestRow = {
   city: string | null;
   description: string | null; image_url: string | null; best_months: string | null; created_at: string;
   is_past: boolean; start_date: string | null; end_date: string | null;
+  vibes: string[] | null; budget: string | null; best_time: string | null; trip_length: string | null;
 };
 
 async function fetchTrips() {
@@ -107,7 +108,7 @@ function TripsPage() {
         title="Where to"
         highlight="next?"
         description="Pitch a destination, upvote favorites, plot the move — together."
-        actions={<NewTripDialog />}
+        actions={<PitchTripDialog />}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
