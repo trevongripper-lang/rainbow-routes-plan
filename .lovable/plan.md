@@ -1,94 +1,59 @@
-# Per-trip pricing — final spec
 
-## Model
+## 1. Pricing consistency (sidebar + landing)
+- `src/routes/_authenticated.tsx` `ProUpsell`: replace "Unlimited crew · $9/mo" with the real model — "Free up to 5 · pay once per bigger trip" linking to `/pricing`; and a second variant "Organizer Plus · $35/yr" for power users. No "$9/mo" anywhere.
+- `src/routes/index.tsx` landing: surface the free-tier line beside the hero CTA and link to `/pricing`. No new pricing copy invented — mirror the PDF.
 
-**Free tier stays:** trips with ≤5 members are always free, no unlock needed.
+## 2. Pitch-a-destination form (geocode on save, dates, drop best_months)
+Migration: add `city text` to `public.destinations` (nullable). Keep `best_months` column for back-compat, stop writing/displaying it.
 
-**Paid tier (organizer pays once):**
+`NewTripDialog` in `src/routes/_authenticated/trips.index.tsx`:
+- Fields: Title, City, Region, Country, Start date, End date, Image URL (optional), Why it slaps.
+- Remove "Best months".
+- After insert, call `geocodeDestination({ data: { destinationId }})` (existing server fn) — update it to prefer `city, region, country` for the Mapbox query.
+- Card subtitle: replace `· best_months` with a date-derived season label (e.g. "Aug · late summer") computed from `start_date`.
 
-| Trip size (members) | Price |
-|---|---|
-| 6–10 | **$4.99** |
-| 11–20 | **$9.99** |
-| 21+   | **$19.99** |
+## 3. Attendees list + remove member (owner)
+RLS already allows owner DELETE on `trip_members`; no migration needed.
 
-- Charged to the **organizer** (trip owner) only. Guests never pay to RSVP or join.
-- Unlock is per-trip and permanent. Adding more members later that pushes a trip into a higher tier triggers a **top-up charge** equal to the price difference.
-- Subscription model (`profiles.is_pro`, `/pricing`) is **retired**. Repurpose `is_pro` as a legacy flag that grandfathers existing subscribers to unlimited unlocks; remove the Pro upsell UI.
+Two surfaces:
+- `InviteModal` "Current crew" list: add a trash icon next to each non-owner row when viewer is owner → confirm → `delete from trip_members`.
+- New `AttendeesCard` rendered in the trip header section of `trips.$id.tsx` (avatar stack + count, click opens the same modal). Solves "what does it look like when others are on the trip".
 
-## Credits
+## 4. Auto-flip past trips by `end_date`
+- DB already has `auto_close_trips()` SECURITY DEFINER fn. Call it opportunistically from the trips list loader via a tiny server fn `closeExpiredTrips` (auth-gated) — best-effort, swallow errors.
+- Trip detail: rename the manual `Archive` button to **"Override: mark as past now"** / **"Override: reopen"** under a small "Trip status" disclosure. Add helper text: "Trips auto-close 1 day after end date."
+- Trips index `Upcoming/Past` tab: also treat `end_date < today` as past in the client filter so the UI is immediately correct even before the cron-equivalent runs.
 
-**Loyalty:** every **8 paid unlocks** grants the user **2 free unlock credits** (25% effective discount for power organizers). Counter resets every 8.
+## 5. Install-App banner (dismissible, remembered)
+- Remove `<InstallAppButton />` from the toolbar in `trips.index.tsx`.
+- New `InstallAppBanner`: thin top-of-page card shown only when `beforeinstallprompt` fires AND localStorage `install-banner:dismissed !== "true"`. Has Install + Dismiss buttons; dismiss writes `"true"` (the "remember my choice").
+- Mount once in `_authenticated.tsx` above `<Outlet />`.
 
-**Referral:** when a new user signs up via an invite link, they get **3 free organizer credits** — **only if the inviter has paid for ≥1 trip** at the moment of signup. One bonus per inviter→invitee pair.
+## 6. Slim trip-detail header on non-Overview tabs
+- `trips.$id.tsx` header currently shows a 16:8 image on every tab. Change to: full image only when `activeTab === "overview"`; on other tabs render a compact banner (h-20, image as background with gradient overlay, title + region + dates inline + Invite/Unlock pills). Same data, ~1/5 the height.
 
-**Credit usage:** auto-applied at checkout in cheapest-first order. Credits cover any tier (a credit on a $19.99 trip = $19.99 saved). User sees "1 free credit will be used — $0 due" before confirming.
+## 7. De-duplicate trip-section nav (sidebar only)
+- Remove the `<TabsList>` mobile row in `trips.$id.tsx` (lines 253–261). Keep `<TabsContent>` panels. Navigation happens solely through the sidebar sub-items (which already drive `?tab=`).
+- On mobile, the sidebar is the off-canvas drawer — already accessible via the `SidebarTrigger` in the header, so users still have one nav surface.
 
-## Anti-abuse
+## 8. Rename "Mine" → "Profile"
+- `src/routes/_authenticated.tsx` navItems: label `"Profile"`.
+- `src/routes/_authenticated/me.tsx`: `crumbs={[{ label: "Profile" }]}`.
 
-1. **Referral credits require a paying sponsor.** No paid trips by inviter → no credit. Prevents free-account chains from compounding.
-2. **One referral bonus per (inviter, invitee) pair.** Enforced by unique constraint on the credit_events ledger.
-3. **Credits are non-transferable, non-refundable.** Tied to `user_id`.
-4. **Device/email fingerprinting:** out of scope for v1; rely on the "inviter must have paid" gate.
-5. **Top-up rule** blocks the "create as 5-person free trip, then add 50 members" exploit.
+## 9. Vote button affordance
+- Replace stacked arrow+count with a pill: `▲ Upvote · 12` (active state: filled). Wider tap target, reads as a button, count is clearly secondary. Apply on both trips index card and trip-detail header.
 
-## Schema (single migration)
+## 10. Copy / microcopy
+- Landing: "Sign in" → **"Get started"** (`src/routes/index.tsx` line 44).
+- Empty state in `trips.index.tsx`: replace "Were there people planning a tribe trip in your bathroom?" with **"Your crew's next move starts here."** + existing subline.
+- Chatter header (`src/components/chatter.tsx` line 79): keep "Trip tips, flight finds, club intel. Discuss it all!" as the visible copy; move "Type @ to mention." into a tooltip on an `Info` icon next to it.
 
-New columns on `destinations`:
-- `unlock_status text` — `'free' | 'paid' | 'credited'`, default `'free'`
-- `unlock_tier text NULL` — `'tier1' | 'tier2' | 'tier3'`
-- `unlocked_at timestamptz NULL`
-- `unlocked_by uuid NULL` (FK profiles)
-- `paid_amount_cents int NOT NULL DEFAULT 0`
+## Technical notes (skim-friendly)
 
-New columns on `profiles`:
-- `paid_trip_count int NOT NULL DEFAULT 0` (denormalized)
-- `referred_by uuid NULL` (FK profiles, set at signup via invite token)
+- **Files touched**: `src/routes/_authenticated.tsx`, `src/routes/_authenticated/trips.index.tsx`, `src/routes/_authenticated/trips.$id.tsx`, `src/routes/_authenticated/me.tsx`, `src/routes/index.tsx`, `src/components/invite-modal.tsx`, `src/components/chatter.tsx`, `src/lib/geocode.functions.ts`. New: `src/components/install-app-banner.tsx`, `src/components/attendees-card.tsx`, `src/lib/trips-maintenance.functions.ts`.
+- **Migration**: `ALTER TABLE public.destinations ADD COLUMN city text;` (no GRANT changes; column inherits table grants).
+- **Server fns**: extend `geocodeDestination` to read `city`; add `closeExpiredTrips` wrapping `auto_close_trips()` RPC (auth required).
+- **No removal** of `best_months` column or `InstallAppButton` component (component repurposed inside the banner).
+- **Out of scope** for this pass (would balloon credits): full onboarding sequence, /events vs trip-events reconciliation, rebuilding `TripEventsStrip` filters, header back-button, route-level Suspense fallback.
 
-New tables:
-- `user_credits(id, user_id, source 'loyalty'|'referral', remaining int, earned_at)` — RLS: owner read.
-- `credit_events(id, user_id, kind 'earned_loyalty'|'earned_referral'|'spent', amount int, destination_id NULL, related_user_id NULL, created_at)` — append-only ledger. **Unique (kind='earned_referral', user_id, related_user_id)** to enforce one-per-pair.
-
-Triggers / functions (security definer):
-- `required_unlock_tier(member_count int)` → returns tier + cents.
-- `unlock_destination(_dest, _use_credit bool)` → validates owner, computes tier, spends credit or records paid amount, sets unlock fields, bumps `paid_trip_count`, fires loyalty grant every 8.
-- `topup_destination(_dest)` → called when member count crosses a tier boundary.
-- `grant_referral_credits(_invitee, _inviter)` → only fires if inviter `paid_trip_count >= 1`; unique constraint blocks duplicates.
-- Modify `redeem_trip_invite`: also call referral grant on first acceptance from a new user.
-- Modify `check_headcount_cap`: free if `unlock_status != 'free'`, otherwise enforce 5-person cap (drop the `is_pro` branch).
-
-## Server functions
-
-`src/lib/unlock.functions.ts`:
-- `quoteUnlock({ destinationId })` → returns `{ tier, priceCents, creditsAvailable, dueCents }`.
-- `unlockTripWithCredit({ destinationId })` → applies credit, no Paddle call.
-- `createUnlockCheckout({ destinationId })` → returns Paddle checkout URL with `destinationId` + `tier` in metadata.
-
-`src/routes/api/public/paddle-webhook.ts`: on `transaction.completed`, call `unlock_destination` for the matching destination, mark `paid`, store `paid_amount_cents`.
-
-## UI
-
-1. **Trip detail page:** when adding the 6th member (or member count would push into a new tier), show **Unlock dialog**:
-   - "This trip needs unlocking — 6 people → $4.99"
-   - Shows credits available; auto-applies them
-   - "Pay $4.99" → Paddle checkout, OR "Use 1 free credit"
-2. **Invite acceptance:** if trip not unlocked and accepting would push to ≥6, block with "Organizer needs to unlock this trip first" (notify organizer).
-3. **`/me` page:** "Your credits" panel — loyalty progress bar (`X / 8 paid trips → next 2 free`), referral credits remaining.
-4. **`/pricing` page:** replace subscription cards with the tier table + credit rules.
-5. **Remove:** Pro upsell badges, "Upgrade to Pro" CTAs, headcount-cap error messaging tied to `is_pro`.
-
-## Implementation order
-
-1. Migration (schema + functions + triggers + retire is_pro headcount logic).
-2. Paddle: `recommend_payment_provider` → `enable_paddle_payments` → create 3 one-time products via `batch_create_product`.
-3. Server fns: `unlock.functions.ts` + webhook route.
-4. UI: unlock dialog, credits panel on `/me`, rewrite `/pricing`.
-5. Backfill: existing trips with ≤5 members stay `free`; existing trips with >5 members get auto-`credited` (grandfathered) so nothing breaks.
-
-## Not in this pass
-- Refunds via Paddle portal (manual for now).
-- Per-tier currency localization.
-- Annual "organizer" subscription bundle.
-- Anti-abuse fingerprinting beyond the paying-sponsor gate.
-
-Approve and I'll execute top-to-bottom.
+Want me to proceed?

@@ -100,6 +100,7 @@ export type Database = {
       destinations: {
         Row: {
           best_months: string | null
+          city: string | null
           country: string | null
           created_at: string
           description: string | null
@@ -122,6 +123,7 @@ export type Database = {
         }
         Insert: {
           best_months?: string | null
+          city?: string | null
           country?: string | null
           created_at?: string
           description?: string | null
@@ -144,6 +146,7 @@ export type Database = {
         }
         Update: {
           best_months?: string | null
+          city?: string | null
           country?: string | null
           created_at?: string
           description?: string | null
