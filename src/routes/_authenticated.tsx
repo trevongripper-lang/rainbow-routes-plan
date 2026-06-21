@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight, List, Plane, Sparkles, Settings as SettingsIcon, type LucideIcon } from "lucide-react";
 import { NotificationsBell } from "@/components/notifications-bell";
+import { InstallAppBanner } from "@/components/install-app-banner";
 import { useMe } from "@/hooks/use-me";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -54,7 +55,7 @@ function AppShell() {
   const navItems = [
     { to: "/events", label: "Events", icon: CalendarDays },
     { to: "/map", label: "Map", icon: MapIcon },
-    { to: "/me", label: "Mine", icon: User2 },
+    { to: "/me", label: "Profile", icon: User2 },
     { to: "/settings", label: "Settings", icon: SettingsIcon },
   ] as const;
 
@@ -111,6 +112,7 @@ function AppShell() {
           </div>
         </header>
 
+        <InstallAppBanner />
         <main className="flex-1 px-4 py-8 md:px-8 md:py-12">
           <div className="mx-auto w-full max-w-6xl">
             <Outlet />
@@ -277,6 +279,13 @@ function AppSidebar({
 
 function ProUpsell() {
   const { data: me } = useMe();
+  if ((me as { plus_status?: string } | null)?.plus_status === "active") {
+    return (
+      <Link to="/me" className="mx-1 flex items-center gap-2 rounded-xl border border-amber-400/50 bg-amber-500/10 px-3 py-2 text-xs text-sidebar-foreground">
+        <Sparkles className="size-3.5 text-amber-400" /> Organizer Plus
+      </Link>
+    );
+  }
   if (me?.is_pro) {
     return (
       <Link to="/me" className="mx-1 flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-3 py-2 text-xs text-sidebar-foreground">
@@ -290,9 +299,9 @@ function ProUpsell() {
       className="mx-1 flex flex-col gap-1 rounded-xl border border-border/60 bg-sidebar-accent/40 px-3 py-2.5 text-xs text-sidebar-foreground transition hover:border-primary/40 hover:bg-sidebar-accent/70"
     >
       <span className="inline-flex items-center gap-1.5 font-medium">
-        <Sparkles className="size-3.5 text-accent" /> Go Pro
+        <Sparkles className="size-3.5 text-accent" /> Pricing
       </span>
-      <span className="text-sidebar-foreground/70">Unlimited crew · $9/mo</span>
+      <span className="text-sidebar-foreground/70">Free up to 5 · pay once per bigger trip</span>
     </Link>
   );
 }
