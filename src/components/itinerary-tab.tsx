@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Plane, BedDouble, Ticket, Wallet, Sparkles, CalendarDays, MapPin, ExternalLink, List, LayoutGrid, GripVertical, Trash2, CalendarClock } from "lucide-react";
@@ -13,6 +13,13 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { toast } from "sonner";
 
 type OrderRow = { item_key: string; day_key: string; sort_order: number };
+
+type SelectionCtxValue = {
+  isSelected: (id: string) => boolean;
+  toggle: (id: string, shift: boolean) => void;
+  enabled: boolean;
+};
+const SelectionCtx = createContext<SelectionCtxValue | null>(null);
 
 function norm(s: string | null | undefined) {
   return (s ?? "").trim().toLowerCase();
