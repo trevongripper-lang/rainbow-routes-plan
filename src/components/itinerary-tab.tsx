@@ -1,9 +1,12 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plane, BedDouble, Ticket, Wallet, Sparkles, CalendarDays, MapPin, ExternalLink, List, LayoutGrid } from "lucide-react";
+import { Plane, BedDouble, Ticket, Wallet, Sparkles, CalendarDays, MapPin, ExternalLink, List, LayoutGrid, GripVertical } from "lucide-react";
 import { addDays, differenceInCalendarDays, format, parseISO, isValid } from "date-fns";
 import { TripEventsStrip } from "@/components/trip-events-strip";
+import { track } from "@/lib/analytics";
+
+type OrderRow = { item_key: string; day_key: string; sort_order: number };
 
 function norm(s: string | null | undefined) {
   return (s ?? "").trim().toLowerCase();
