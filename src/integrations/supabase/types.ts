@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_events: {
+        Row: {
+          created_at: string
+          destination_id: string | null
+          event: string
+          id: string
+          props: Json
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          destination_id?: string | null
+          event: string
+          id?: string
+          props?: Json
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          destination_id?: string | null
+          event?: string
+          id?: string
+          props?: Json
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_events_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           body: string
@@ -640,6 +675,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "trip_invites_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_itinerary_order: {
+        Row: {
+          day_key: string
+          destination_id: string
+          item_key: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          day_key: string
+          destination_id: string
+          item_key: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          day_key?: string
+          destination_id?: string
+          item_key?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_itinerary_order_destination_id_fkey"
             columns: ["destination_id"]
             isOneToOne: false
             referencedRelation: "destinations"
