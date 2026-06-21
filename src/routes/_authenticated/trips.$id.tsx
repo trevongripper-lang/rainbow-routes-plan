@@ -164,6 +164,18 @@ function TripDetail() {
     <div className="space-y-8">
       <Breadcrumbs items={[{ label: "Trips", to: "/trips" }, { label: dest.title }]} />
 
+      {me && (
+        <PlanningProgress
+          destinationId={id}
+          me={me}
+          startDate={(dest as { start_date?: string | null }).start_date ?? null}
+          endDate={dest.end_date}
+          headcountFallback={dest.headcount ?? 2}
+          defaultCurrency={(dest as { default_currency?: string | null }).default_currency ?? "USD"}
+        />
+      )}
+
+
       {isOverview ? (
         <header className="overflow-hidden rounded-3xl border border-border/60 bg-card">
           {dest.image_url ? (
