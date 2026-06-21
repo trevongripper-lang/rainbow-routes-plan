@@ -1,68 +1,63 @@
 
-# Refining the three highest-impact surfaces
+## Bulk management for trips
 
-After reading the current Itinerary, Costs, and Stays code, three concrete problems stand out across all three tabs. They share a root cause: **stays/costs/tickets have no dates**, so the itinerary timeline can't actually sequence the trip, and costs can't be timeboxed. Fixing this unlocks a much more "trip-shaped" experience.
+A reusable selection pattern that turns any list into a multi-select surface with a sticky "bulk action bar" at the bottom. Activated by a checkbox on each row (always visible on hover, persistent once anything is selected). Shift-click extends a range. Esc / "Clear" exits selection mode.
 
----
+### 1. Trips list (`/trips`)
 
-## 1) Stays tab — turn it into a real lodging card
+- Add a checkbox overlay on each `TripCard` (top-right, under the "Past" badge). Selecting any card reveals a fixed bottom bar: `N selected · Delete · Leave · Export PDF · Export calendar · Clear`.
+- Filters & search still work; selection persists across tab switches but is scoped to currently-visible cards (a "Select all visible" appears in the bar).
+- **Delete** — only trips where I'm the owner. Mixed selection shows a confirm dialog listing what'll be deleted vs skipped (non-owner trips show "You'll leave instead"). One confirm, then parallel `destinations.delete()` calls (RLS already restricts to owner). Toast with counts. Owner-cascade already removes members/costs/etc. via FK.
+- **Leave** — trips where I'm a non-owner member. Same mixed-selection handling: owner rows are skipped with a note ("Owners can't leave — delete instead"). Deletes my `trip_members` row.
+- **Export PDF** — generates one PDF per selected trip (or a single combined PDF if >1), containing: cover (title, dates, region), attendees, day-by-day itinerary (respecting `trip_itinerary_order`), costs summary, stays & flights. Uses `pdf-lib` client-side (no server round-trip, no native deps — Worker-safe anyway since we run it in the browser). Downloads as `trips-export-YYYY-MM-DD.pdf`.
+- **Export calendar** — generates a single `.ics` file containing VEVENTs for: trip date range, each itinerary day with items, stays (check-in → check-out), and flights (departure/arrival times). Built with a tiny inline ICS serializer (no dependency). Downloads as `trips-YYYY-MM-DD.ics`. Opens in Apple Calendar / Google Calendar / Outlook.
 
-**Today:** Free-text title + URL + description. No check-in/out dates, no location, no nightly rate, no who's staying where. So stays show as "Undated" in the itinerary and contribute nothing to costs.
+### 2. In-trip tabs (multi-select inside a trip)
 
-**Changes:**
-- Add fields: `check_in` (date), `check_out` (date), `address` (text), `nightly_rate_cents` + `currency`, `confirmation` (text, collapsible), `booked_by` (uuid → trip member).
-- Replace the bare list with a card per stay: thumbnail (auto-fetch OG image from the URL on insert, fall back to a Mapbox static map of the address), nights count, total cost preview, "Booked by @Name" chip.
-- "Add to costs" one-tap action that creates a linked shared cost from `nightly_rate × nights`.
-- Map preview using the existing `MAPBOX_TOKEN`.
-- Default check-in to the trip's `start_date`, check-out to `end_date`.
-- Edit + delete (currently delete only).
+Apply the same selection pattern to the list-style tabs. Owner OR creator of each row can delete (RLS already enforces this); rows the user can't delete are shown disabled in the confirm dialog.
 
-## 2) Costs tab — make the math trustworthy
+- **Costs** (`trip-tabs.tsx` costs section) — checkbox per row, bulk delete, bulk "mark settled" (writes to `trip_settlements` like the existing single-row flow).
+- **Itinerary** (`itinerary-tab.tsx`) — checkbox per item, bulk delete, bulk "move to day…" (popover picks a day key, updates `trip_itinerary_order.day_key`).
+- **Stays** (`trip_stays`) — bulk delete.
+- **Tickets** (`trip_tickets`) — bulk delete.
+- **Flights** (`flights-tab.tsx`) — bulk delete.
+- **Polls** — out of scope for this pass (polls are short-lived and rarely accumulate).
 
-**Today:** Settle-up exists but is brittle. Splits are always equal across `headcount` even if some members aren't on the trip yet, no per-cost split overrides, no category totals, no per-person view, no edit, currencies aren't enforced (first row wins).
+### 3. Shared building blocks
 
-**Changes:**
-- **Split modes per cost:** equal among members (default), equal among selected members, custom shares, or per-person (existing).
-- **Headcount source of truth:** use actual `trip_members` count, not the destinations.headcount field, with a clear warning when they diverge.
-- **Currency lock:** pick once at trip level (store on `destinations.default_currency`), all new costs default to it; show a chip when a cost is in a different currency (no FX conversion yet, just flag).
-- **Per-person summary:** small table showing each member's "paid / owes / net" with avatars; settle-up suggestions stay but get a "Mark settled" toggle that writes to a new `trip_settlements` table.
-- **Categories with totals:** lodging / transport / food / activities / other, with a tiny bar chart of trip spend by category.
-- **Edit + duplicate** on each cost row.
-- **Optional date** on a cost (defaults to today, used by the itinerary).
+- `src/hooks/use-bulk-selection.ts` — generic `useBulkSelection<T>(items, getId)` returning `{ selected, toggle, toggleRange, clear, selectAll, isSelected, count }`. Handles shift-click range.
+- `src/components/bulk-action-bar.tsx` — sticky bottom bar (slides up when count > 0), accepts `actions: { label, icon, onClick, destructive?, disabled?, tooltip? }[]` and a `count`/`onClear`.
+- `src/components/bulk-confirm-dialog.tsx` — confirm dialog that splits the selection into "Will apply to N" vs "Skipped (M)" with reasons.
+- `src/lib/exports/trip-pdf.ts` — `exportTripsPdf(trips)` using `pdf-lib`. Pulls all child data (members, itinerary, costs, stays, flights) in one batched query per table filtered by `destination_id IN (...)`.
+- `src/lib/exports/trip-ics.ts` — `exportTripsIcs(trips)` building an RFC 5545 string. No deps.
+- Analytics: `track("bulk_delete", { surface, count })`, `track("bulk_export", { format, count })`, etc.
 
-## 3) Itinerary tab — make it the daily plan, not a dump
+### 4. Technical notes
 
-**Today:** Lists everything in one chronological feed; stays/costs/tickets all bucket into "Undated" because they have no date fields. Events from `trip_events` show by their own start date, which can be outside the trip window.
+- All deletes go through the existing browser Supabase client — RLS owns the auth check, no new server functions or migrations needed.
+- For export, members/profiles fetch uses `get_public_profiles` RPC (already exists) to render names/avatars in the PDF.
+- `pdf-lib` is browser-safe (no canvas/sharp). Install with `bun add pdf-lib`.
+- Selection state is component-local; not persisted across navigations. Switching the upcoming/past tab clears selection.
+- Empty bulk action bar has no DOM presence — only mounts when `count > 0`, so it doesn't affect layout.
+- Keyboard: `Esc` clears, `Cmd/Ctrl+A` selects all visible when the list is focused, `Delete` triggers the destructive action with confirm.
 
-**Changes (lands after #1 and #2 add dates):**
-- **Day-by-day view** between `start_date` and `end_date`, with an explicit empty day rendering ("Free day — what should we do?") instead of skipping.
-- Stays render as a **multi-day band** spanning check-in → check-out (not a point on one day).
-- Flights render with **departure day + arrival day** (handles overnight legs); add a conflict pill when an event/ticket starts before the flight arrives.
-- **"Outside the trip" section** at the bottom for anything dated before/after the window — currently those silently render as the wrong day.
-- **Per-day quick add** button → opens existing `SmartAdd` pre-filled with that day's date.
-- **"My day" toggle** to filter to items owned by the current member (flights with their `passenger_name`, stays where they're `booked_by`, costs they paid).
-- Keep the existing chronological "list view" behind a toggle.
+### 5. Files
 
----
+**New**
+- `src/hooks/use-bulk-selection.ts`
+- `src/components/bulk-action-bar.tsx`
+- `src/components/bulk-confirm-dialog.tsx`
+- `src/lib/exports/trip-pdf.ts`
+- `src/lib/exports/trip-ics.ts`
 
-## Technical notes
+**Edited**
+- `src/routes/_authenticated/trips.index.tsx` — checkbox overlay on cards, wire bulk bar with delete/leave/export PDF/export ICS.
+- `src/components/trip-tabs.tsx` — multi-select for costs (bulk delete + bulk mark-settled).
+- `src/components/itinerary-tab.tsx` — multi-select with bulk delete + move-to-day.
+- `src/components/flights-tab.tsx` — multi-select bulk delete.
+- Stays & tickets sections (currently inside `trip-tabs.tsx`) — multi-select bulk delete.
 
-- **DB migrations needed:**
-  - `trip_stays`: add `check_in date`, `check_out date`, `address text`, `nightly_rate_cents int`, `currency text`, `confirmation text`, `booked_by uuid`, `image_url text`.
-  - `trip_costs`: add `cost_date date`, `split_mode text` (`equal_all` | `equal_some` | `custom` | `per_person`), `split_member_ids uuid[]`, `split_shares jsonb`.
-  - new `trip_settlements (id, destination_id, from_user, to_user, amount_cents, currency, settled_at)`.
-  - `destinations`: add `default_currency text default 'USD'`.
-  - All with GRANTs + RLS scoped to `is_trip_member`.
-- **Itinerary aggregation** (`src/components/itinerary-tab.tsx`) gets a new `buildDays(start, end, items)` helper; stays expand into a band; flights split into two markers.
-- **Mapbox static map** for stays uses the existing `MAPBOX_TOKEN`; OG image scraping uses a small `createServerFn` to avoid CORS.
-- No changes to flights tab in this pass.
-- No changes to auth, billing, polls, chatter, or invites in this pass.
+**Dependencies**
+- `bun add pdf-lib`
 
-## Out of scope (call out for a later turn)
-
-- FX conversion between currencies on costs.
-- Drag-to-reorder within a day.
-- ICS export of the itinerary.
-- Mobile polish pass across other tabs.
-- Notifications unread state + deep links.
-- Past-trip recap/ratings nudge.
+No database migrations.
