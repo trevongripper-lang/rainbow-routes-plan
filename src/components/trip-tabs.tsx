@@ -492,6 +492,104 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     onSuccess: () => qc.invalidateQueries({ queryKey: ["costs", destinationId] }),
   });
 
+  // ----- Bulk selection (costs) -----
+  const bulk = useBulkSelection<string>();
+  const orderedIds = useMemo(() => costs.map((c) => c.id), [costs]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmSettle, setConfirmSettle] = useState(false);
+
+  const deletePlan = useMemo(() => {
+    const willApply: { id: string; label: string }[] = [];
+    const skipped: { id: string; label: string; reason: string }[] = [];
+    for (const id of bulk.ids) {
+      const c = costs.find((x) => x.id === id);
+      if (!c) continue;
+      if (c.user_id === me || isOwner) {
+        willApply.push({ id, label: `${c.label} · ${fmtCents(c.amount_cents, c.currency)}` });
+      } else {
+        skipped.push({ id, label: c.label, reason: "Not yours" });
+      }
+    }
+    return { willApply, skipped };
+  }, [bulk.ids, costs, me, isOwner]);
+
+  const settlePlan = useMemo(() => {
+    const willApply: { id: string; label: string; from: string; to: string; cents: number; currency: string }[] = [];
+    const skipped: { id: string; label: string; reason: string }[] = [];
+    for (const id of bulk.ids) {
+      const c = costs.find((x) => x.id === id);
+      if (!c) continue;
+      if (!c.is_shared) {
+        skipped.push({ id, label: c.label, reason: "Per-person cost (nothing to settle)" });
+        continue;
+      }
+      const payer = (c.paid_by ?? c.user_id) as string;
+      if (payer === me) {
+        skipped.push({ id, label: c.label, reason: "You paid this one" });
+        continue;
+      }
+      const splitIds: string[] = Array.isArray((c as { split_member_ids?: string[] }).split_member_ids) && (c as { split_member_ids?: string[] }).split_member_ids!.length > 0
+        ? (c as { split_member_ids: string[] }).split_member_ids
+        : memberIds;
+      if (!splitIds.includes(me)) {
+        skipped.push({ id, label: c.label, reason: "You're not in the split" });
+        continue;
+      }
+      const share = Math.round(c.amount_cents / Math.max(1, splitIds.length));
+      willApply.push({
+        id,
+        label: `${c.label} → pay ${nameOf(payer)} ${fmtCents(share, c.currency)}`,
+        from: me, to: payer, cents: share, currency: c.currency,
+      });
+    }
+    return { willApply, skipped };
+  }, [bulk.ids, costs, me, memberIds, nameOf]);
+
+  const bulkDelete = useMutation({
+    mutationFn: async () => {
+      const ids = deletePlan.willApply.map((w) => w.id);
+      if (ids.length === 0) return 0;
+      const { error } = await supabase.from("trip_costs").delete().in("id", ids);
+      if (error) throw error;
+      track("bulk_delete", { surface: "costs", count: ids.length }, destinationId);
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      setConfirmDelete(false);
+      bulk.clear();
+      qc.invalidateQueries({ queryKey: ["costs", destinationId] });
+      qc.invalidateQueries({ queryKey: ["settlements", destinationId] });
+      toast.success(`Deleted ${n} cost${n === 1 ? "" : "s"}`);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to delete"),
+  });
+
+  const bulkSettle = useMutation({
+    mutationFn: async () => {
+      const rows = settlePlan.willApply.map((w) => ({
+        destination_id: destinationId,
+        from_user: w.from,
+        to_user: w.to,
+        amount_cents: w.cents,
+        currency: w.currency,
+        note: null,
+        created_by: me,
+      }));
+      if (rows.length === 0) return 0;
+      const { error } = await supabase.from("trip_settlements").insert(rows);
+      if (error) throw error;
+      track("bulk_settle", { count: rows.length }, destinationId);
+      return rows.length;
+    },
+    onSuccess: (n) => {
+      setConfirmSettle(false);
+      bulk.clear();
+      qc.invalidateQueries({ queryKey: ["settlements", destinationId] });
+      toast.success(`Recorded ${n} settlement${n === 1 ? "" : "s"}`);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to settle"),
+  });
+
   // ---- Settlements: persisted "marked as paid" records ----
   const { data: settlements = [] } = useQuery({
     queryKey: ["settlements", destinationId],
