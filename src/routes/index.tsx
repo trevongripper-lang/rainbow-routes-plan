@@ -100,9 +100,9 @@ function Landing() {
             <img
               src={howItWorksHero}
               alt="Friends planning a trip together"
-              width={480}
-              height={240}
-              className="rounded-2xl border border-border/60 object-cover shadow-[var(--shadow-soft)] lg:w-[26rem]"
+              width={240}
+              height={120}
+              className="rounded-2xl border border-border/60 object-cover shadow-[var(--shadow-soft)] lg:w-[13rem]"
               loading="lazy"
             />
           </div>
