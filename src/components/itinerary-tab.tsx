@@ -327,11 +327,13 @@ function DayView({
   byDay,
   undated,
   outside,
+  onReorder,
 }: {
   days: Date[];
   byDay: Map<string, Item[]>;
   undated: Item[];
   outside: Item[];
+  onReorder: (dayKey: string, orderedItemIds: string[]) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -349,9 +351,7 @@ function DayView({
               {list.length === 0 ? (
                 <p className="mt-1 text-xs italic text-muted-foreground">Free day — what should we do?</p>
               ) : (
-                <ul className="mt-2 space-y-2">
-                  {list.map((it) => <ItemRow key={`${it.id}-${k}`} it={it} dayKey={k} />)}
-                </ul>
+                <DayList items={list} dayKey={k} onReorder={onReorder} />
               )}
             </li>
           );
@@ -367,6 +367,82 @@ function DayView({
         </section>
       )}
     </div>
+  );
+}
+
+function DayList({
+  items,
+  dayKey: dk,
+  onReorder,
+}: {
+  items: Item[];
+  dayKey: string;
+  onReorder: (dayKey: string, orderedItemIds: string[]) => void;
+}) {
+  const [order, setOrder] = useState<string[] | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+
+  const ids = order ?? items.map((i) => i.id);
+  // Resync when upstream items change (only if no active drag).
+  if (!dragId && order && (order.length !== items.length || order.some((id, i) => items[i]?.id !== id))) {
+    // Defer the reset so React doesn't warn about state updates during render.
+    queueMicrotask(() => setOrder(null));
+  }
+  const byId = new Map(items.map((i) => [i.id, i]));
+
+  const move = (from: string, to: string) => {
+    if (from === to) return;
+    const next = [...ids];
+    const fi = next.indexOf(from);
+    const ti = next.indexOf(to);
+    if (fi < 0 || ti < 0) return;
+    next.splice(fi, 1);
+    next.splice(ti, 0, from);
+    setOrder(next);
+  };
+
+  return (
+    <ul className="mt-2 space-y-2">
+      {ids.map((id) => {
+        const it = byId.get(id);
+        if (!it) return null;
+        return (
+          <li
+            key={`${id}-${dk}`}
+            draggable
+            onDragStart={(e) => {
+              setDragId(id);
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", id);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              if (overId !== id) setOverId(id);
+            }}
+            onDragLeave={() => { if (overId === id) setOverId(null); }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const from = e.dataTransfer.getData("text/plain") || dragId;
+              if (from && from !== id) {
+                move(from, id);
+                const next = [...ids];
+                const fi = next.indexOf(from); next.splice(fi, 1);
+                const ti = next.indexOf(id); next.splice(ti, 0, from);
+                onReorder(dk, next);
+              }
+              setDragId(null);
+              setOverId(null);
+            }}
+            onDragEnd={() => { setDragId(null); setOverId(null); }}
+            className={`${dragId === id ? "opacity-50" : ""} ${overId === id && dragId !== id ? "ring-2 ring-primary/40 rounded-xl" : ""}`}
+          >
+            <ItemRow it={it} dayKey={dk} draggable />
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
