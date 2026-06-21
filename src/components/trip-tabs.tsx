@@ -12,6 +12,10 @@ import { toast } from "sonner";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Pie, PieChart, Cell, BarChart, Bar, XAxis, YAxis } from "recharts";
 import { differenceInCalendarDays, format, parseISO, isValid } from "date-fns";
+import { useBulkSelection } from "@/hooks/use-bulk-selection";
+import { BulkActionBar } from "@/components/bulk-action-bar";
+import { BulkConfirmDialog } from "@/components/bulk-confirm-dialog";
+import { track } from "@/lib/analytics";
 
 function fmtCents(cents: number, cur: string) {
   return `${(cents / 100).toFixed(2)} ${cur}`;
