@@ -127,7 +127,21 @@ function TripsPage() {
             </button>
           ))}
         </div>
+        <div className="relative w-full max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search trips, places, vibes…"
+            aria-label="Search trips"
+            className="w-full rounded-full border border-border/60 bg-card/60 py-1.5 pl-9 pr-3 text-sm backdrop-blur outline-none placeholder:text-muted-foreground/70 focus:border-primary/50"
+          />
+        </div>
       </div>
+      {q && (
+        <p className="text-xs text-muted-foreground">{filtered.length} match{filtered.length === 1 ? "" : "es"} for "{query}"</p>
+      )}
 
       <div className="grid gap-5 md:grid-cols-2">
         {filtered.length === 0 && (
