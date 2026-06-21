@@ -2,12 +2,13 @@ import { useEffect, useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { netForUser, type CostRow, type SettlementRow } from "@/lib/trip-balances";
+import { computePlanningItems, pendingPlanningItems } from "@/lib/planning-progress";
 import { track } from "@/lib/analytics";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CheckCircle2, Circle, AlertCircle } from "lucide-react";
 
-type Status = "done" | "partial" | "todo";
+
 
 type Props = {
   destinationId: string;
