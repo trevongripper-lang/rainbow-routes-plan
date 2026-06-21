@@ -445,17 +445,38 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't update group size"),
   });
 
-  const [form, setForm] = useState({ category: CATEGORIES[0] as string, label: "", amount: "", currency: "USD", is_shared: true, note: "", paid_by: me });
+  const today = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = useState({
+    category: CATEGORIES[0] as string,
+    label: "",
+    amount: "",
+    currency: defaultCurrency,
+    is_shared: true,
+    note: "",
+    paid_by: me,
+    cost_date: today,
+    split_mode: "equal_all" as "equal_all" | "equal_some" | "per_person",
+    split_member_ids: [] as string[],
+  });
+
   const add = useMutation({
     mutationFn: async () => {
       if (!form.label.trim() || !form.amount) throw new Error("Label & amount required");
       const cents = Math.round(parseFloat(form.amount) * 100);
       if (!Number.isFinite(cents) || cents < 0) throw new Error("Invalid amount");
+      const is_shared = form.split_mode !== "per_person";
+      const split_ids = form.split_mode === "equal_some" ? form.split_member_ids : null;
+      if (form.split_mode === "equal_some" && (!split_ids || split_ids.length === 0)) {
+        throw new Error("Pick at least one person to split with");
+      }
       const { error } = await supabase.from("trip_costs").insert({
         destination_id: destinationId, user_id: me, category: form.category,
         label: form.label.trim(), amount_cents: cents, currency: form.currency,
-        is_shared: form.is_shared, note: form.note.trim() || null,
+        is_shared, note: form.note.trim() || null,
         paid_by: form.paid_by || me,
+        cost_date: form.cost_date || null,
+        split_mode: form.split_mode,
+        split_member_ids: split_ids,
       });
       if (error) throw error;
     },
@@ -471,7 +492,7 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     const n = Math.max(1, headcount);
     const byCat = new Map<string, { shared: number; perPerson: number; currency: string }>();
     let totalPerPerson = 0;
-    const currency = costs[0]?.currency ?? "USD";
+    const currency = costs[0]?.currency ?? defaultCurrency;
     for (const c of costs) {
       const k = c.category;
       const entry = byCat.get(k) ?? { shared: 0, perPerson: 0, currency: c.currency };
@@ -485,26 +506,34 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
       return { category: cat, sharedCents: v.shared, perPersonCents: v.perPerson, perPersonShareCents: pp, currency: v.currency };
     });
     return { rows, totalPerPerson, currency };
-  }, [costs, headcount]);
+  }, [costs, headcount, defaultCurrency]);
 
   // ---- Settle-up: who paid vs who owes ----
   const settle = useMemo(() => {
     const n = Math.max(1, headcount);
-    const currency = costs.find((c) => c.is_shared)?.currency ?? costs[0]?.currency ?? "USD";
-    // Each member's paid total for shared costs
+    const currency = costs.find((c) => c.is_shared)?.currency ?? costs[0]?.currency ?? defaultCurrency;
+    // Sum what each member paid AND each member's owed share
     const paid = new Map<string, number>();
+    const owed = new Map<string, number>();
     let totalShared = 0;
     for (const c of costs) {
       if (!c.is_shared) continue;
       const payer = c.paid_by ?? c.user_id;
       paid.set(payer, (paid.get(payer) ?? 0) + c.amount_cents);
       totalShared += c.amount_cents;
+      // Determine who shares this cost
+      const splitIds: string[] = Array.isArray((c as { split_member_ids?: string[] }).split_member_ids) && (c as { split_member_ids?: string[] }).split_member_ids!.length > 0
+        ? (c as { split_member_ids: string[] }).split_member_ids
+        : memberIds;
+      const share = c.amount_cents / Math.max(1, splitIds.length);
+      for (const uid of splitIds) {
+        owed.set(uid, (owed.get(uid) ?? 0) + share);
+      }
     }
     const fairShare = totalShared / n;
+    const known = Array.from(new Set([...memberIds, ...paid.keys(), ...owed.keys()]));
     // Net = paid - owed (positive = is owed; negative = owes)
-    const known = Array.from(new Set([...memberIds, ...paid.keys()]));
-    const net = known.map((id) => ({ id, net: (paid.get(id) ?? 0) - fairShare }));
-    // Greedy minimal transfers between known members
+    const net = known.map((id) => ({ id, net: (paid.get(id) ?? 0) - (owed.get(id) ?? 0) }));
     const creditors = net.filter((x) => x.net > 1).sort((a, b) => b.net - a.net).map((x) => ({ ...x }));
     const debtors = net.filter((x) => x.net < -1).sort((a, b) => a.net - b.net).map((x) => ({ ...x }));
     const transfers: { from: string; to: string; cents: number }[] = [];
@@ -518,7 +547,7 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
       if (Math.abs(creditors[j].net) < 1) j++;
     }
     return { fairShare, totalShared, transfers, currency, knownPayers: paid.size };
-  }, [costs, headcount, memberIds]);
+  }, [costs, headcount, memberIds, defaultCurrency]);
 
   const fmt = (cents: number, cur: string) => `${(cents / 100).toFixed(2)} ${cur}`;
 
