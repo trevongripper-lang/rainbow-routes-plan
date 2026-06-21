@@ -191,7 +191,19 @@ export function PitchTripDialog() {
           <p className="text-sm text-muted-foreground">Convince the crew — make it sound impossible to say no.</p>
         </DialogHeader>
 
+        {step === "verify" ? (
+          <VerifyStep
+            candidates={candidates}
+            selectedIdx={selectedIdx}
+            onSelect={setSelectedIdx}
+            onBack={() => setStep("form")}
+            onConfirm={() => create.mutate()}
+            confirming={create.isPending}
+            typed={{ title: form.title, city: form.city, country: form.country }}
+          />
+        ) : (
         <div className="grid max-h-[calc(92vh-5rem)] grid-cols-1 overflow-hidden md:grid-cols-[1.4fr_1fr]">
+
           {/* Form column */}
           <form
             onSubmit={(e) => { e.preventDefault(); create.mutate(); }}
