@@ -305,14 +305,14 @@ function TripDetail() {
               />
             </TabsContent>
             <TabsContent value="flights" className="mt-6"><FlightsTab destinationId={id} me={me} startDate={(dest as { start_date?: string | null }).start_date ?? null} endDate={dest.end_date} /></TabsContent>
-            <TabsContent value="stays" className="mt-6"><StaysTab destinationId={id} me={me} title={dest.title} country={dest.country} /></TabsContent>
+            <TabsContent value="stays" className="mt-6"><StaysTab destinationId={id} me={me} title={dest.title} country={dest.country} startDate={(dest as { start_date?: string | null }).start_date ?? null} endDate={dest.end_date} /></TabsContent>
             <TabsContent value="tickets" className="mt-6">
               <div className="space-y-6">
                 <TripEventsStrip destinationId={id} me={me} region={dest.region} country={dest.country} startDate={(dest as { start_date?: string | null }).start_date ?? null} endDate={dest.end_date} />
                 <TicketsTab destinationId={id} me={me} />
               </div>
             </TabsContent>
-            <TabsContent value="costs" className="mt-6"><CostsTab destinationId={id} me={me} headcount={dest.headcount ?? 2} isOwner={isOwner} /></TabsContent>
+            <TabsContent value="costs" className="mt-6"><CostsTab destinationId={id} me={me} headcount={dest.headcount ?? 2} isOwner={isOwner} defaultCurrency={(dest as { default_currency?: string | null }).default_currency ?? "USD"} /></TabsContent>
           </>
         )}
 
