@@ -1,14 +1,15 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ImageOff, MapPin, Plus, Upload, X, Check, Sparkles } from "lucide-react";
+import { ImageOff, MapPin, Plus, Upload, X, Check, Sparkles, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { geocodeDestination } from "@/lib/geocode.functions";
+import { geocodeSearch, type GeocodeCandidate } from "@/lib/geocode.functions";
 
 const VIBES = [
   { id: "beach", label: "Beach Escape", emoji: "🌴" },
