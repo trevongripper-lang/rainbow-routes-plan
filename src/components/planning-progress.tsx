@@ -140,7 +140,7 @@ export function PlanningProgressView({ isLoading, items, doneCount, pct, remaini
             />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="bottom" align="start" className="max-w-xs p-3">
+        <TooltipContent side="bottom" align="start" className="max-w-xs border-green-900/30 bg-green-950 p-3 text-green-50 shadow-lg">
           {isLoading ? (
             <p className="text-xs text-muted-foreground">Loading…</p>
           ) : remaining.length === 0 ? (
