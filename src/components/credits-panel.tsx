@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyCredits } from "@/lib/unlock.functions";
-import { Sparkles, Gift, Award } from "lucide-react";
+import { Sparkles, Award } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { PromoCodeRedeem } from "@/components/promo-code-redeem";
 
@@ -9,7 +9,7 @@ export function CreditsPanel() {
   const fn = useServerFn(getMyCredits);
   const { data } = useQuery({ queryKey: ["my-credits"], queryFn: () => fn({ data: {} as never }) });
   if (!data) return null;
-  const { total, loyaltyRemaining, referralRemaining, paidTripCount, loyaltyProgress, loyaltyTarget } = data;
+  const { total, loyaltyRemaining, paidTripCount, loyaltyProgress, loyaltyTarget } = data;
   const pct = Math.round((loyaltyProgress / loyaltyTarget) * 100);
 
   return (
@@ -19,7 +19,7 @@ export function CreditsPanel() {
         <Link to="/pricing" className="text-xs text-muted-foreground hover:text-primary">How credits work →</Link>
       </div>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-3">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
           <div className="flex items-center gap-2 text-primary"><Sparkles className="size-4" /><span className="text-xs uppercase tracking-wide">Available</span></div>
           <p className="mt-1 font-display text-3xl">{total}</p>
@@ -29,11 +29,6 @@ export function CreditsPanel() {
           <div className="flex items-center gap-2 text-muted-foreground"><Award className="size-4" /><span className="text-xs uppercase tracking-wide">Loyalty</span></div>
           <p className="mt-1 font-display text-3xl">{loyaltyRemaining}</p>
           <p className="text-xs text-muted-foreground">from paid trips</p>
-        </div>
-        <div className="rounded-xl border border-border/60 p-4">
-          <div className="flex items-center gap-2 text-muted-foreground"><Gift className="size-4" /><span className="text-xs uppercase tracking-wide">Referral</span></div>
-          <p className="mt-1 font-display text-3xl">{referralRemaining}</p>
-          <p className="text-xs text-muted-foreground">from invites</p>
         </div>
       </div>
 

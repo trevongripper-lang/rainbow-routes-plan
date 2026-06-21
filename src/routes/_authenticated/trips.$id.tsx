@@ -21,6 +21,7 @@ import { PollsPanel } from "@/components/polls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AttendeesCard } from "@/components/attendees-card";
+import { PlanningProgress } from "@/components/planning-progress";
 
 async function fetchTrip(id: string) {
   // 2 round-trips instead of 5: one combined destinations+votes+comments query,
@@ -287,6 +288,14 @@ function TripDetail() {
         <TabsContent value="overview" className="mt-6">
           {me ? (
             <div className="space-y-6">
+              <PlanningProgress
+                destinationId={id}
+                me={me}
+                startDate={(dest as { start_date?: string | null }).start_date ?? null}
+                endDate={dest.end_date}
+                headcountFallback={dest.headcount ?? 2}
+                defaultCurrency={(dest as { default_currency?: string | null }).default_currency ?? "USD"}
+              />
               <SmartAdd destinationId={id} me={me} />
               <PollsPanel destinationId={id} me={me} />
               <TripEventsStrip destinationId={id} me={me} region={dest.region} country={dest.country} startDate={(dest as { start_date?: string | null }).start_date ?? null} endDate={dest.end_date} />
