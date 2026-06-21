@@ -1,14 +1,15 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ImageOff, MapPin, Plus, Upload, X, Check, Sparkles } from "lucide-react";
+import { ImageOff, MapPin, Plus, Upload, X, Check, Sparkles, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { geocodeDestination } from "@/lib/geocode.functions";
+import { geocodeSearch, type GeocodeCandidate } from "@/lib/geocode.functions";
 
 const VIBES = [
   { id: "beach", label: "Beach Escape", emoji: "🌴" },
@@ -60,11 +61,22 @@ export function PitchTripDialog() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [uploading, setUploading] = useState(false);
+  const [step, setStep] = useState<"form" | "verify">("form");
+  const [candidates, setCandidates] = useState<GeocodeCandidate[]>([]);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const search = useServerFn(geocodeSearch);
 
   const update = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
   const toggleArr = (k: "vibes" | "audience", v: string) =>
     setForm((f) => ({ ...f, [k]: f[k].includes(v) ? f[k].filter((x) => x !== v) : [...f[k], v] }));
+
+  function resetAll() {
+    setForm(EMPTY);
+    setStep("form");
+    setCandidates([]);
+    setSelectedIdx(null);
+  }
 
   async function handleUpload(file: File) {
     if (!file.type.startsWith("image/")) {
@@ -85,7 +97,6 @@ export function PitchTripDialog() {
         cacheControl: "31536000", upsert: false,
       });
       if (up.error) throw up.error;
-      // private bucket → mint long-lived signed URL (10 years)
       const signed = await supabase.storage.from("destination-covers").createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
       if (signed.error) throw signed.error;
       update("image_url", signed.data.signedUrl);
@@ -96,20 +107,48 @@ export function PitchTripDialog() {
     }
   }
 
+  const lookup = useMutation({
+    mutationFn: async () => {
+      if (!form.title.trim()) throw new Error("Destination name is required");
+      if (!form.country.trim()) throw new Error("Country is required");
+      if (!form.description.trim()) throw new Error("Tell the crew why you should go");
+      const parts = [form.title.trim(), form.city.trim(), form.country.trim()].filter(Boolean);
+      const query = Array.from(new Set(parts)).join(", ");
+      const res = await search({ data: { query } });
+      if (!res.candidates.length) {
+        throw new Error("We couldn't find that place. Double-check the spelling and try again.");
+      }
+      return res.candidates;
+    },
+    onSuccess: (cands) => {
+      setCandidates(cands);
+      setSelectedIdx(0);
+      setStep("verify");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Lookup failed"),
+  });
+
   const create = useMutation({
     mutationFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Not signed in");
-      if (!form.title.trim()) throw new Error("Destination name is required");
-      if (!form.country.trim()) throw new Error("Country is required");
-      if (!form.description.trim()) throw new Error("Tell the crew why you should go");
+      if (selectedIdx == null) throw new Error("Pick the correct location to continue");
+      const chosen = candidates[selectedIdx];
+      if (!chosen) throw new Error("Pick the correct location to continue");
 
       const reasons = form.reasons.map((r) => r.trim()).filter(Boolean);
+      // Verified values from Mapbox win over typed values so the saved
+      // destination always matches the chosen coordinates.
+      const city = chosen.city || form.city.trim() || null;
+      const country = chosen.country || form.country.trim() || null;
+      const region = chosen.region || form.city.trim() || form.country.trim() || "—";
       const payload = {
         title: form.title.trim(),
-        country: form.country.trim() || null,
-        city: form.city.trim() || null,
-        region: form.city.trim() || form.country.trim() || "—",
+        country,
+        city,
+        region,
+        latitude: chosen.latitude,
+        longitude: chosen.longitude,
         description: form.description.trim() || null,
         image_url: form.image_url || null,
         vibes: form.vibes.length ? form.vibes : null,
@@ -122,19 +161,18 @@ export function PitchTripDialog() {
         downsides: form.downsides.trim() || null,
         user_id: u.user.id,
       };
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("destinations")
         .insert(payload as never)
         .select("id")
         .single();
       if (error) throw error;
-      try { await geocodeDestination({ data: { destinationId: (data as { id: string }).id } }); } catch {}
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trips"] });
       toast.success("Pitched to the crew!");
       setOpen(false);
-      setForm(EMPTY);
+      resetAll();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
@@ -153,10 +191,23 @@ export function PitchTripDialog() {
           <p className="text-sm text-muted-foreground">Convince the crew — make it sound impossible to say no.</p>
         </DialogHeader>
 
+        {step === "verify" ? (
+          <VerifyStep
+            candidates={candidates}
+            selectedIdx={selectedIdx}
+            onSelect={setSelectedIdx}
+            onBack={() => setStep("form")}
+            onConfirm={() => create.mutate()}
+            confirming={create.isPending}
+            typed={{ title: form.title, city: form.city, country: form.country }}
+          />
+        ) : (
         <div className="grid max-h-[calc(92vh-5rem)] grid-cols-1 overflow-hidden md:grid-cols-[1.4fr_1fr]">
+
           {/* Form column */}
           <form
-            onSubmit={(e) => { e.preventDefault(); create.mutate(); }}
+            onSubmit={(e) => { e.preventDefault(); lookup.mutate(); }}
+
             className="space-y-6 overflow-y-auto px-6 py-5"
           >
             {/* Destination */}
@@ -317,8 +368,8 @@ export function PitchTripDialog() {
               />
             </Section>
 
-            <Button type="submit" disabled={create.isPending} className="w-full" size="lg">
-              {create.isPending ? "Pitching..." : "Pitch it to the crew"}
+            <Button type="submit" disabled={lookup.isPending} className="w-full" size="lg">
+              {lookup.isPending ? "Looking up location..." : "Next: verify location"}
             </Button>
           </form>
 
@@ -330,10 +381,94 @@ export function PitchTripDialog() {
             </div>
           </aside>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );
 }
+
+function VerifyStep({
+  candidates,
+  selectedIdx,
+  onSelect,
+  onBack,
+  onConfirm,
+  confirming,
+  typed,
+}: {
+  candidates: GeocodeCandidate[];
+  selectedIdx: number | null;
+  onSelect: (i: number) => void;
+  onBack: () => void;
+  onConfirm: () => void;
+  confirming: boolean;
+  typed: { title: string; city: string; country: string };
+}) {
+  const typedQuery = [typed.title, typed.city, typed.country].filter((s) => s.trim()).join(", ");
+  return (
+    <div className="flex max-h-[calc(92vh-5rem)] flex-col overflow-hidden">
+      <div className="space-y-1 border-b border-border/60 px-6 py-4">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">Step 2 of 2</p>
+        <h3 className="font-display text-xl">Verify the location</h3>
+        <p className="text-sm text-muted-foreground">
+          You typed <span className="text-foreground">"{typedQuery}"</span>. Pick the location that matches so the
+          map, events, and timezone all line up.
+        </p>
+      </div>
+      <ul className="flex-1 space-y-2 overflow-y-auto px-6 py-4">
+        {candidates.map((c, i) => {
+          const active = selectedIdx === i;
+          return (
+            <li key={`${c.latitude},${c.longitude},${i}`}>
+              <button
+                type="button"
+                onClick={() => onSelect(i)}
+                aria-pressed={active}
+                className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition ${
+                  active
+                    ? "border-primary bg-primary/10"
+                    : "border-border bg-card hover:border-primary/40"
+                }`}
+              >
+                <span
+                  className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border ${
+                    active ? "border-primary bg-primary text-primary-foreground" : "border-border"
+                  }`}
+                  aria-hidden
+                >
+                  {active && <Check className="size-3" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 text-sm font-medium">
+                    <MapPin className="size-3.5 text-primary" />
+                    <span className="truncate">{c.place_name}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                    {c.city && <span>City: {c.city}</span>}
+                    {c.region && <span>Region: {c.region}</span>}
+                    {c.country && <span>Country: {c.country}</span>}
+                    <span className="opacity-70">
+                      {c.latitude.toFixed(3)}, {c.longitude.toFixed(3)}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="flex flex-col-reverse gap-2 border-t border-border/60 px-6 py-4 sm:flex-row sm:justify-between">
+        <Button type="button" variant="ghost" onClick={onBack} disabled={confirming}>
+          <ArrowLeft className="size-4" /> Back to edit
+        </Button>
+        <Button type="button" onClick={onConfirm} disabled={confirming || selectedIdx == null} size="lg">
+          {confirming ? <><Loader2 className="size-4 animate-spin" /> Pitching...</> : "Confirm & pitch to crew"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
