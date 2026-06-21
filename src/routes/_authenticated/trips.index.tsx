@@ -1,14 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, useMutation, useQueryClient, queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowUp, MapPin, MessageCircle, Plus, Sparkles, Star } from "lucide-react";
+import { ArrowUp, ImageOff, MapPin, MessageCircle, Plus, Sparkles, Star } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
 import { InstallAppButton } from "@/components/install-app-button";
 import { toast } from "sonner";
