@@ -206,7 +206,8 @@ export function PitchTripDialog() {
 
           {/* Form column */}
           <form
-            onSubmit={(e) => { e.preventDefault(); create.mutate(); }}
+            onSubmit={(e) => { e.preventDefault(); lookup.mutate(); }}
+
             className="space-y-6 overflow-y-auto px-6 py-5"
           >
             {/* Destination */}
