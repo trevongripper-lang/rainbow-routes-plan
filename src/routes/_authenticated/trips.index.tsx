@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowUp, CalendarDown, Download, FileDown, LogOut, MapPin, MessageCircle, Search, Sparkles, Star, Trash2 } from "lucide-react";
+import { ArrowUp, Download, FileDown, LogOut, MapPin, MessageCircle, Search, Sparkles, Star, Trash2 } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
 import { toast } from "sonner";
 import { closeExpiredTrips } from "@/lib/trips-maintenance.functions";
