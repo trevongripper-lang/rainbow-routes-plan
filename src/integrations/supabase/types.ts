@@ -99,11 +99,15 @@ export type Database = {
       }
       destinations: {
         Row: {
+          audience: string[] | null
           best_months: string | null
+          best_time: string | null
+          budget: string | null
           city: string | null
           country: string | null
           created_at: string
           description: string | null
+          downsides: string | null
           end_date: string | null
           headcount: number
           id: string
@@ -112,21 +116,29 @@ export type Database = {
           latitude: number | null
           longitude: number | null
           paid_amount_cents: number
+          reasons: string[] | null
           region: string
+          special_note: string | null
           start_date: string | null
           title: string
+          trip_length: string | null
           unlock_status: string
           unlock_tier: string | null
           unlocked_at: string | null
           unlocked_by: string | null
           user_id: string
+          vibes: string[] | null
         }
         Insert: {
+          audience?: string[] | null
           best_months?: string | null
+          best_time?: string | null
+          budget?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
           description?: string | null
+          downsides?: string | null
           end_date?: string | null
           headcount?: number
           id?: string
@@ -135,21 +147,29 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           paid_amount_cents?: number
+          reasons?: string[] | null
           region: string
+          special_note?: string | null
           start_date?: string | null
           title: string
+          trip_length?: string | null
           unlock_status?: string
           unlock_tier?: string | null
           unlocked_at?: string | null
           unlocked_by?: string | null
           user_id: string
+          vibes?: string[] | null
         }
         Update: {
+          audience?: string[] | null
           best_months?: string | null
+          best_time?: string | null
+          budget?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
           description?: string | null
+          downsides?: string | null
           end_date?: string | null
           headcount?: number
           id?: string
@@ -158,14 +178,18 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           paid_amount_cents?: number
+          reasons?: string[] | null
           region?: string
+          special_note?: string | null
           start_date?: string | null
           title?: string
+          trip_length?: string | null
           unlock_status?: string
           unlock_tier?: string | null
           unlocked_at?: string | null
           unlocked_by?: string | null
           user_id?: string
+          vibes?: string[] | null
         }
         Relationships: []
       }
