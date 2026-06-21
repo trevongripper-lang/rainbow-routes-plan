@@ -4,15 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowUp, ImageOff, MapPin, MessageCircle, Plus, Sparkles, Star } from "lucide-react";
+import { ArrowUp, ImageOff, MapPin, MessageCircle, Sparkles, Star } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
 import { toast } from "sonner";
-import { geocodeDestination } from "@/lib/geocode.functions";
 import { closeExpiredTrips } from "@/lib/trips-maintenance.functions";
 import { PitchTripDialog } from "@/components/pitch-trip-dialog";
 
