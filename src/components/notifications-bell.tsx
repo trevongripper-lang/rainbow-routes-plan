@@ -106,6 +106,19 @@ export function NotificationsBell() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
+  const markAllRead = useMutation({
+    mutationFn: async () => {
+      if (!meId) return;
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("user_id", meId)
+        .is("read_at", null);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
   // Group by trip
   type Group = {
     destinationId: string;
