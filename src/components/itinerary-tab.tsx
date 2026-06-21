@@ -321,7 +321,7 @@ export function ItineraryTab({
         if (groups[prefix]) groups[prefix].push(rawId);
       }
       const byKind: Record<string, number> = {};
-      const ops: Promise<unknown>[] = [];
+      const ops: PromiseLike<{ error: unknown }>[] = [];
       if (groups.f.length) { byKind.flight = groups.f.length; ops.push(supabase.from("trip_flights").delete().in("id", groups.f)); }
       if (groups.s.length) { byKind.stay = groups.s.length; ops.push(supabase.from("trip_stays").delete().in("id", groups.s)); }
       if (groups.t.length) { byKind.ticket = groups.t.length; ops.push(supabase.from("trip_tickets").delete().in("id", groups.t)); }
@@ -332,9 +332,7 @@ export function ItineraryTab({
       }
       const results = await Promise.all(ops);
       for (const r of results) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const err = (r as any)?.error;
-        if (err) throw err;
+        if (r?.error) throw r.error;
       }
       const total = bulk.ids.length;
       track("bulk_delete", { surface: "itinerary", count: total, by_kind: byKind }, destinationId);
