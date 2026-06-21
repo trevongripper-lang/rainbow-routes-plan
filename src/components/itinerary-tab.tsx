@@ -249,8 +249,19 @@ export function ItineraryTab({
       const k = dayKey(it.date);
       (map.get(k) ?? map.set(k, []).get(k)!).push(it);
     }
+
+    // Apply saved per-day ordering (stable fallback to insertion order).
+    for (const [k, list] of map) {
+      list.sort((a, b) => {
+        const ao = orderMap.get(a.id);
+        const bo = orderMap.get(b.id);
+        const av = ao && ao.day_key === k ? ao.sort_order : Number.POSITIVE_INFINITY;
+        const bv = bo && bo.day_key === k ? bo.sort_order : Number.POSITIVE_INFINITY;
+        return av - bv;
+      });
+    }
     return { map, outside, undated };
-  }, [items, tripStart, tripEnd]);
+  }, [items, tripStart, tripEnd, orderMap]);
 
   const range =
     startDate && endDate
