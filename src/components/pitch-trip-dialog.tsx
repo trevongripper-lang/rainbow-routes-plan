@@ -368,8 +368,8 @@ export function PitchTripDialog() {
               />
             </Section>
 
-            <Button type="submit" disabled={create.isPending} className="w-full" size="lg">
-              {create.isPending ? "Pitching..." : "Pitch it to the crew"}
+            <Button type="submit" disabled={lookup.isPending} className="w-full" size="lg">
+              {lookup.isPending ? "Looking up location..." : "Next: verify location"}
             </Button>
           </form>
 
@@ -381,10 +381,94 @@ export function PitchTripDialog() {
             </div>
           </aside>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );
 }
+
+function VerifyStep({
+  candidates,
+  selectedIdx,
+  onSelect,
+  onBack,
+  onConfirm,
+  confirming,
+  typed,
+}: {
+  candidates: GeocodeCandidate[];
+  selectedIdx: number | null;
+  onSelect: (i: number) => void;
+  onBack: () => void;
+  onConfirm: () => void;
+  confirming: boolean;
+  typed: { title: string; city: string; country: string };
+}) {
+  const typedQuery = [typed.title, typed.city, typed.country].filter((s) => s.trim()).join(", ");
+  return (
+    <div className="flex max-h-[calc(92vh-5rem)] flex-col overflow-hidden">
+      <div className="space-y-1 border-b border-border/60 px-6 py-4">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">Step 2 of 2</p>
+        <h3 className="font-display text-xl">Verify the location</h3>
+        <p className="text-sm text-muted-foreground">
+          You typed <span className="text-foreground">"{typedQuery}"</span>. Pick the location that matches so the
+          map, events, and timezone all line up.
+        </p>
+      </div>
+      <ul className="flex-1 space-y-2 overflow-y-auto px-6 py-4">
+        {candidates.map((c, i) => {
+          const active = selectedIdx === i;
+          return (
+            <li key={`${c.latitude},${c.longitude},${i}`}>
+              <button
+                type="button"
+                onClick={() => onSelect(i)}
+                aria-pressed={active}
+                className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition ${
+                  active
+                    ? "border-primary bg-primary/10"
+                    : "border-border bg-card hover:border-primary/40"
+                }`}
+              >
+                <span
+                  className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border ${
+                    active ? "border-primary bg-primary text-primary-foreground" : "border-border"
+                  }`}
+                  aria-hidden
+                >
+                  {active && <Check className="size-3" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 text-sm font-medium">
+                    <MapPin className="size-3.5 text-primary" />
+                    <span className="truncate">{c.place_name}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                    {c.city && <span>City: {c.city}</span>}
+                    {c.region && <span>Region: {c.region}</span>}
+                    {c.country && <span>Country: {c.country}</span>}
+                    <span className="opacity-70">
+                      {c.latitude.toFixed(3)}, {c.longitude.toFixed(3)}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="flex flex-col-reverse gap-2 border-t border-border/60 px-6 py-4 sm:flex-row sm:justify-between">
+        <Button type="button" variant="ghost" onClick={onBack} disabled={confirming}>
+          <ArrowLeft className="size-4" /> Back to edit
+        </Button>
+        <Button type="button" onClick={onConfirm} disabled={confirming || selectedIdx == null} size="lg">
+          {confirming ? <><Loader2 className="size-4 animate-spin" /> Pitching...</> : "Confirm & pitch to crew"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
