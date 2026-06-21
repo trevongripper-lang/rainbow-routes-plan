@@ -3,7 +3,7 @@ import { useSuspenseQuery, useMutation, useQueryClient, queryOptions } from "@ta
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowUp, ImageOff, MapPin, MessageCircle, Sparkles, Star } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
