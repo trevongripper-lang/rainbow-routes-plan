@@ -1,63 +1,111 @@
 
-## Bulk management for trips
+## Part 1 — Bulk edit for Costs and Itinerary
 
-A reusable selection pattern that turns any list into a multi-select surface with a sticky "bulk action bar" at the bottom. Activated by a checkbox on each row (always visible on hover, persistent once anything is selected). Shift-click extends a range. Esc / "Clear" exits selection mode.
+Reuses the existing `useBulkSelection`, `BulkActionBar`, and `BulkConfirmDialog` building blocks already in the codebase (built for the trips list).
 
-### 1. Trips list (`/trips`)
+### Costs tab (`CostsTab` in `src/components/trip-tabs.tsx`)
 
-- Add a checkbox overlay on each `TripCard` (top-right, under the "Past" badge). Selecting any card reveals a fixed bottom bar: `N selected · Delete · Leave · Export PDF · Export calendar · Clear`.
-- Filters & search still work; selection persists across tab switches but is scoped to currently-visible cards (a "Select all visible" appears in the bar).
-- **Delete** — only trips where I'm the owner. Mixed selection shows a confirm dialog listing what'll be deleted vs skipped (non-owner trips show "You'll leave instead"). One confirm, then parallel `destinations.delete()` calls (RLS already restricts to owner). Toast with counts. Owner-cascade already removes members/costs/etc. via FK.
-- **Leave** — trips where I'm a non-owner member. Same mixed-selection handling: owner rows are skipped with a note ("Owners can't leave — delete instead"). Deletes my `trip_members` row.
-- **Export PDF** — generates one PDF per selected trip (or a single combined PDF if >1), containing: cover (title, dates, region), attendees, day-by-day itinerary (respecting `trip_itinerary_order`), costs summary, stays & flights. Uses `pdf-lib` client-side (no server round-trip, no native deps — Worker-safe anyway since we run it in the browser). Downloads as `trips-export-YYYY-MM-DD.pdf`.
-- **Export calendar** — generates a single `.ics` file containing VEVENTs for: trip date range, each itinerary day with items, stays (check-in → check-out), and flights (departure/arrival times). Built with a tiny inline ICS serializer (no dependency). Downloads as `trips-YYYY-MM-DD.ics`. Opens in Apple Calendar / Google Calendar / Outlook.
+- Add a checkbox to each cost row (hover-visible, pinned once anything is selected). Shift-click extends a range over the currently-rendered list.
+- Bulk action bar shows: `N selected · Mark settled · Delete · Clear`.
+- **Bulk delete** — runs `trip_costs.delete().in("id", ids)`. RLS already restricts deletes to cost creator or trip owner. Confirm dialog splits the selection into "Will delete (N)" vs "Skipped (M) — not yours" using `me`/`isOwner`.
+- **Bulk mark settled** — for each selected cost where I'm the payer or owe a share, insert a `trip_settlements` row mirroring the existing single-row "settle up" flow. Rows that don't apply to me are listed as skipped.
+- Invalidates `["costs", destinationId]` and `["settlements", destinationId]` on success. Toast with counts. Analytics: `track("bulk_delete", { surface: "costs", count })`, `track("bulk_settle", { count })`.
 
-### 2. In-trip tabs (multi-select inside a trip)
+### Itinerary tab (`ItineraryTab` in `src/components/itinerary-tab.tsx`)
 
-Apply the same selection pattern to the list-style tabs. Owner OR creator of each row can delete (RLS already enforces this); rows the user can't delete are shown disabled in the confirm dialog.
+The list is aggregated from 5 source tables (`trip_flights`, `trip_stays`, `trip_tickets`, `trip_costs`, `trip_events`) plus a `trip_itinerary_order` overlay. Item IDs already carry a kind prefix (`f-`, `s-`, `t-`, `c-`, `e-`) which makes routing safe.
 
-- **Costs** (`trip-tabs.tsx` costs section) — checkbox per row, bulk delete, bulk "mark settled" (writes to `trip_settlements` like the existing single-row flow).
-- **Itinerary** (`itinerary-tab.tsx`) — checkbox per item, bulk delete, bulk "move to day…" (popover picks a day key, updates `trip_itinerary_order.day_key`).
-- **Stays** (`trip_stays`) — bulk delete.
-- **Tickets** (`trip_tickets`) — bulk delete.
-- **Flights** (`flights-tab.tsx`) — bulk delete.
-- **Polls** — out of scope for this pass (polls are short-lived and rarely accumulate).
+- Add a checkbox to each item card in both Days and List views.
+- Bulk action bar: `N selected · Move to day… · Delete · Clear`.
+- **Bulk delete** — group selected IDs by kind and issue one `delete().in("id", ids)` per source table:
+  - `f-*` → `trip_flights`
+  - `s-*` → `trip_stays`
+  - `t-*` → `trip_tickets`
+  - `c-*` → `trip_costs`
+  - `e-*` → `trip_events` (detach, not delete the underlying event)
+  Confirm dialog lists what will be removed grouped by kind. Events show "Detach from trip" wording.
+- **Bulk move to day** — popover lists every day in the trip window. Upserts `trip_itinerary_order` rows `{ destination_id, item_key: <id>, day_key, sort_order }` for each selected item, appending to the end of the chosen day. Skips items the day picker can't anchor (no-op for tickets with no date and no existing order row — they stay where they were).
+- Invalidates all 5 source queries + `["itinerary-order", destinationId]`. Analytics: `track("bulk_delete", { surface: "itinerary", count, by_kind })`, `track("bulk_move_day", { count })`.
 
-### 3. Shared building blocks
-
-- `src/hooks/use-bulk-selection.ts` — generic `useBulkSelection<T>(items, getId)` returning `{ selected, toggle, toggleRange, clear, selectAll, isSelected, count }`. Handles shift-click range.
-- `src/components/bulk-action-bar.tsx` — sticky bottom bar (slides up when count > 0), accepts `actions: { label, icon, onClick, destructive?, disabled?, tooltip? }[]` and a `count`/`onClear`.
-- `src/components/bulk-confirm-dialog.tsx` — confirm dialog that splits the selection into "Will apply to N" vs "Skipped (M)" with reasons.
-- `src/lib/exports/trip-pdf.ts` — `exportTripsPdf(trips)` using `pdf-lib`. Pulls all child data (members, itinerary, costs, stays, flights) in one batched query per table filtered by `destination_id IN (...)`.
-- `src/lib/exports/trip-ics.ts` — `exportTripsIcs(trips)` building an RFC 5545 string. No deps.
-- Analytics: `track("bulk_delete", { surface, count })`, `track("bulk_export", { format, count })`, etc.
-
-### 4. Technical notes
-
-- All deletes go through the existing browser Supabase client — RLS owns the auth check, no new server functions or migrations needed.
-- For export, members/profiles fetch uses `get_public_profiles` RPC (already exists) to render names/avatars in the PDF.
-- `pdf-lib` is browser-safe (no canvas/sharp). Install with `bun add pdf-lib`.
-- Selection state is component-local; not persisted across navigations. Switching the upcoming/past tab clears selection.
-- Empty bulk action bar has no DOM presence — only mounts when `count > 0`, so it doesn't affect layout.
-- Keyboard: `Esc` clears, `Cmd/Ctrl+A` selects all visible when the list is focused, `Delete` triggers the destructive action with confirm.
-
-### 5. Files
+### Files
 
 **New**
-- `src/hooks/use-bulk-selection.ts`
-- `src/components/bulk-action-bar.tsx`
-- `src/components/bulk-confirm-dialog.tsx`
-- `src/lib/exports/trip-pdf.ts`
-- `src/lib/exports/trip-ics.ts`
+- `src/components/itinerary-bulk-bar.tsx` — thin wrapper that injects the "Move to day…" popover into the shared `BulkActionBar`.
 
 **Edited**
-- `src/routes/_authenticated/trips.index.tsx` — checkbox overlay on cards, wire bulk bar with delete/leave/export PDF/export ICS.
-- `src/components/trip-tabs.tsx` — multi-select for costs (bulk delete + bulk mark-settled).
-- `src/components/itinerary-tab.tsx` — multi-select with bulk delete + move-to-day.
-- `src/components/flights-tab.tsx` — multi-select bulk delete.
-- Stays & tickets sections (currently inside `trip-tabs.tsx`) — multi-select bulk delete.
+- `src/components/trip-tabs.tsx` — wire selection + bulk bar into `CostsTab`.
+- `src/components/itinerary-tab.tsx` — wire selection + bulk bar, route bulk delete by kind prefix, implement bulk-move-to-day.
 
-**Dependencies**
-- `bun add pdf-lib`
+No schema changes, no new server functions, no migrations. RLS already governs all of it.
 
-No database migrations.
+---
+
+## Part 2 — Tribe scope today
+
+### In scope (already built or actively maintained)
+
+**Trips & membership**
+- Create / edit / delete trips; cover image; dates with order check; region/country/city; description.
+- Headcount cap (free = 5) with per-tier unlock pricing (Paddle, sandbox).
+- Invite via shareable token link; preview before accepting; redeem flow.
+- Trip members list with roles (owner / member); leave trip; owner can't leave (must delete).
+- Auto-close trips a day past end date.
+
+**In-trip planning**
+- Costs ledger with categories, currency, payer, shares; per-row settle-up writes to `trip_settlements`.
+- Stays (hotels/Airbnb-style) with check-in/out and URL.
+- Flights (with optional aviationstack lookup) and airport combobox.
+- Tickets/attractions.
+- Itinerary view (Days + List) with drag-to-reorder and cross-day moves, persisted in `trip_itinerary_order`.
+- Polls (single trip-scoped polls + votes).
+- Chatter (comments + replies + @mentions + notifications fanout).
+- Trip ratings (post-trip feedback, aggregated).
+- Events catalogue + auto-matching to a trip by region/country/coords and date window; attach/detach events.
+- Smart-add (LLM parses pasted text into a stay/flight/ticket/cost).
+
+**Bulk actions** (this pass)
+- Trips list: bulk delete, bulk leave, bulk export PDF, bulk export ICS.
+- Costs: bulk delete, bulk mark settled.
+- Itinerary: bulk delete (routes per source table), bulk move-to-day.
+
+**Account & monetization**
+- Email/password + Google OAuth (via Lovable broker).
+- Profiles, avatars, display names.
+- Credits system: referral grants, loyalty (every 8 paid trips), promo codes with rate-limited redemption.
+- Paddle checkout for per-trip unlocks (tier1/2/3); webhook at `/api/public/paddle-webhook`.
+- Pricing page; per-trip unlock UI.
+
+**Admin / ops**
+- Admin role gate via `has_role`.
+- Console: promo codes, webhook test, analytics (last 30 days).
+- Notifications bell + realtime fanout for comments, mentions, member joins, cost added, settlement recorded, trip closed.
+- Trip events map (Mapbox).
+- RLS smoke tests, rate limiting helper, install-app banner.
+
+### Out of scope today
+
+- **In-app payments / money movement.** Settlements are an IOU ledger; Tribe does not collect or disburse funds.
+- **Subscriptions.** Pricing is strictly per-trip; no recurring plans.
+- **Native mobile apps.** Web/PWA only.
+- **Multi-trip "tribes" or persistent groups.** Membership is per-trip; no group/org concept that survives across trips.
+- **Direct messaging.** Chatter is trip-scoped only; no DMs or private threads.
+- **Calendar two-way sync.** Export to ICS is one-shot; no live Google/Apple/Outlook write-back.
+- **Booking integrations.** No live hotel/flight/ticket purchase — links and metadata only.
+- **AI trip generation / itinerary suggestion.** Smart-add parses what you paste; it does not propose plans.
+- **Public/discoverable trips.** All trips are private to invited members; no marketplace or feed.
+- **Bulk actions on Stays, Tickets, Flights, Polls.** Deferred — single-row actions only.
+- **Corporate/enterprise features.** Tracked in `mem://features/enterprise-edition` for a future build.
+- **Per-user notification preferences, email digests, push notifications.** In-app bell only.
+- **File/photo attachments on chatter, stays, tickets, costs.** Text + URLs only.
+- **Multi-language / localization.** English only; currencies are per-row but UI is not translated.
+- **Trip templates / duplication.** No "clone this trip" or starter templates.
+
+---
+
+## Technical notes
+
+- All bulk mutations go through the browser Supabase client; RLS owns auth. No new server functions.
+- Selection state is component-local and clears on tab switch.
+- For itinerary bulk delete of events, we delete from `trip_events` (the join), never from `events`.
+- `trip_itinerary_order` is upsert with `onConflict: "destination_id,item_key"` — same shape already used by drag-reorder.
+- Confirm dialog reuses the existing `willApply` / `skipped` split with a per-kind reason string.
