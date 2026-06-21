@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_authenticated/trips/")({
 type DestRow = {
   id: string; user_id: string; title: string; region: string; country: string | null;
   description: string | null; image_url: string | null; best_months: string | null; created_at: string;
-  is_past: boolean;
+  is_past: boolean; start_date: string | null; end_date: string | null;
 };
 
 async function fetchTrips() {
