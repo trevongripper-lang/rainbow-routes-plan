@@ -24,6 +24,7 @@ import { Route as ApiPublicPaddleWebhookRouteImport } from './routes/api/public/
 import { Route as AuthenticatedTripsIdRouteImport } from './routes/_authenticated/trips.$id'
 import { Route as AuthenticatedConsoleWebhookTestRouteImport } from './routes/_authenticated/console.webhook-test'
 import { Route as AuthenticatedConsolePromoCodesRouteImport } from './routes/_authenticated/console.promo-codes'
+import { Route as AuthenticatedConsoleEventsRouteImport } from './routes/_authenticated/console.events'
 import { Route as AuthenticatedConsoleAnalyticsRouteImport } from './routes/_authenticated/console.analytics'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -102,6 +103,12 @@ const AuthenticatedConsolePromoCodesRoute =
     path: '/console/promo-codes',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedConsoleEventsRoute =
+  AuthenticatedConsoleEventsRouteImport.update({
+    id: '/console/events',
+    path: '/console/events',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedConsoleAnalyticsRoute =
   AuthenticatedConsoleAnalyticsRouteImport.update({
     id: '/console/analytics',
@@ -120,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/join/$token': typeof JoinTokenRoute
   '/console/analytics': typeof AuthenticatedConsoleAnalyticsRoute
+  '/console/events': typeof AuthenticatedConsoleEventsRoute
   '/console/promo-codes': typeof AuthenticatedConsolePromoCodesRoute
   '/console/webhook-test': typeof AuthenticatedConsoleWebhookTestRoute
   '/trips/$id': typeof AuthenticatedTripsIdRoute
@@ -137,6 +145,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/join/$token': typeof JoinTokenRoute
   '/console/analytics': typeof AuthenticatedConsoleAnalyticsRoute
+  '/console/events': typeof AuthenticatedConsoleEventsRoute
   '/console/promo-codes': typeof AuthenticatedConsolePromoCodesRoute
   '/console/webhook-test': typeof AuthenticatedConsoleWebhookTestRoute
   '/trips/$id': typeof AuthenticatedTripsIdRoute
@@ -156,6 +165,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/join/$token': typeof JoinTokenRoute
   '/_authenticated/console/analytics': typeof AuthenticatedConsoleAnalyticsRoute
+  '/_authenticated/console/events': typeof AuthenticatedConsoleEventsRoute
   '/_authenticated/console/promo-codes': typeof AuthenticatedConsolePromoCodesRoute
   '/_authenticated/console/webhook-test': typeof AuthenticatedConsoleWebhookTestRoute
   '/_authenticated/trips/$id': typeof AuthenticatedTripsIdRoute
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/join/$token'
     | '/console/analytics'
+    | '/console/events'
     | '/console/promo-codes'
     | '/console/webhook-test'
     | '/trips/$id'
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/join/$token'
     | '/console/analytics'
+    | '/console/events'
     | '/console/promo-codes'
     | '/console/webhook-test'
     | '/trips/$id'
@@ -210,6 +222,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/join/$token'
     | '/_authenticated/console/analytics'
+    | '/_authenticated/console/events'
     | '/_authenticated/console/promo-codes'
     | '/_authenticated/console/webhook-test'
     | '/_authenticated/trips/$id'
@@ -334,6 +347,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConsolePromoCodesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/console/events': {
+      id: '/_authenticated/console/events'
+      path: '/console/events'
+      fullPath: '/console/events'
+      preLoaderRoute: typeof AuthenticatedConsoleEventsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/console/analytics': {
       id: '/_authenticated/console/analytics'
       path: '/console/analytics'
@@ -350,6 +370,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMeRoute: typeof AuthenticatedMeRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedConsoleAnalyticsRoute: typeof AuthenticatedConsoleAnalyticsRoute
+  AuthenticatedConsoleEventsRoute: typeof AuthenticatedConsoleEventsRoute
   AuthenticatedConsolePromoCodesRoute: typeof AuthenticatedConsolePromoCodesRoute
   AuthenticatedConsoleWebhookTestRoute: typeof AuthenticatedConsoleWebhookTestRoute
   AuthenticatedTripsIdRoute: typeof AuthenticatedTripsIdRoute
@@ -362,6 +383,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMeRoute: AuthenticatedMeRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedConsoleAnalyticsRoute: AuthenticatedConsoleAnalyticsRoute,
+  AuthenticatedConsoleEventsRoute: AuthenticatedConsoleEventsRoute,
   AuthenticatedConsolePromoCodesRoute: AuthenticatedConsolePromoCodesRoute,
   AuthenticatedConsoleWebhookTestRoute: AuthenticatedConsoleWebhookTestRoute,
   AuthenticatedTripsIdRoute: AuthenticatedTripsIdRoute,
