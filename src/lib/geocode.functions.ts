@@ -19,10 +19,18 @@ export const geocodeDestination = createServerFn({ method: "POST" })
     const token = process.env.MAPBOX_TOKEN;
     if (!token) throw new Error("MAPBOX_TOKEN not configured");
 
-    const query = [dest.city, dest.region, dest.country].filter(Boolean).join(", ") || dest.title;
+    // IMPORTANT: `title` is the actual place name users type (e.g. "Atlanta",
+    // "Mykonos"). `city` is almost always null. Putting region/country alone in
+    // the query causes Mapbox to return the centroid of that region (e.g.
+    // "North America, United States" → Dublin, OH). Always lead with title.
+    const parts = [dest.title, dest.city, dest.region, dest.country]
+      .map((p) => (typeof p === "string" ? p.trim() : ""))
+      .filter((p) => p.length > 0);
+    const query = Array.from(new Set(parts)).join(", ");
+    if (!query) return { ok: false, cached: false, latitude: null, longitude: null };
     const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
       query,
-    )}.json?limit=1&access_token=${token}`;
+    )}.json?limit=1&types=place,region,country,locality&access_token=${token}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Mapbox geocoding failed: ${res.status}`);
     const json = (await res.json()) as { features?: Array<{ center?: [number, number] }> };
