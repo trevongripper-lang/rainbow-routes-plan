@@ -74,24 +74,20 @@ export function PlanningProgress({ destinationId, me, startDate, endDate, headco
     if (!isLoading) track("planning_progress_view", {}, destinationId);
   }, [isLoading, destinationId]);
 
-  const datesDone = !!(startDate && endDate);
-  const staysStatus: Status = stays.length > 0 ? "done" : "todo";
-  const flightsStatus: Status = flightsBooked === 0 ? "todo" : flightsBooked >= memberCount ? "done" : "partial";
-  const ticketsStatus: Status = tickets.length > 0 ? "done" : "todo";
-  const balanceStatus: Status = Math.abs(myNetCents) < 1 ? "done" : "partial";
-
-  const items: Array<{ key: string; label: string; status: Status; hint: string }> = [
-    { key: "destination", label: "Destination", status: "done", hint: "Decided" },
-    { key: "dates", label: "Dates", status: datesDone ? "done" : "todo", hint: datesDone ? "Set" : "Not set" },
-    { key: "stay", label: "Stay", status: staysStatus, hint: stays.length > 0 ? `${stays.length} booked` : "Not booked" },
-    { key: "flights", label: "Flights", status: flightsStatus, hint: `${flightsBooked} / ${memberCount} booked` },
-    { key: "activities", label: "Activities", status: ticketsStatus, hint: tickets.length > 0 ? `${tickets.length} added` : "None yet" },
-    { key: "balances", label: "Balances", status: balanceStatus, hint: balanceStatus === "done" ? "Settled" : "Outstanding" },
-  ];
+  const items = computePlanningItems({
+    startDate,
+    endDate,
+    staysCount: stays.length,
+    flightsBooked,
+    memberCount,
+    ticketsCount: tickets.length,
+    myNetCents,
+  });
 
   const doneCount = items.filter((i) => i.status === "done").length;
   const pct = Math.round((doneCount / items.length) * 100);
-  const remaining = items.filter((i) => i.status !== "done");
+  const remaining = pendingPlanningItems(items);
+
 
   return (
     <TooltipProvider delayDuration={150}>
