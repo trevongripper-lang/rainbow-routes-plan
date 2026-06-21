@@ -92,6 +92,9 @@ function TripDetail() {
   const search = useSearch({ from: "/_authenticated/trips/$id" });
   const tab = (search as Record<string, unknown>)?.tab as string | undefined;
   const activeTab = tab || "overview";
+  useEffect(() => {
+    void import("@/lib/analytics").then(({ track }) => track("trip_tab_view", { tab: activeTab }, id));
+  }, [activeTab, id]);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data } = useSuspenseQuery(tripQueryOptions(id));

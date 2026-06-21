@@ -178,7 +178,12 @@ function TripCard({ d }: { d: Awaited<ReturnType<typeof fetchTrips>>[number] }) 
         if (error) throw error;
       }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["trips"] }),
+    onSuccess: () => {
+      void import("@/lib/analytics").then(({ track }) =>
+        track(d.voted ? "trip_unvote" : "trip_vote", {}, d.id),
+      );
+      qc.invalidateQueries({ queryKey: ["trips"] });
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Vote failed"),
   });
 

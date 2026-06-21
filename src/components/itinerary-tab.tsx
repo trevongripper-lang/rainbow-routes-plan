@@ -1,9 +1,12 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plane, BedDouble, Ticket, Wallet, Sparkles, CalendarDays, MapPin, ExternalLink, List, LayoutGrid } from "lucide-react";
+import { Plane, BedDouble, Ticket, Wallet, Sparkles, CalendarDays, MapPin, ExternalLink, List, LayoutGrid, GripVertical } from "lucide-react";
 import { addDays, differenceInCalendarDays, format, parseISO, isValid } from "date-fns";
 import { TripEventsStrip } from "@/components/trip-events-strip";
+import { track } from "@/lib/analytics";
+
+type OrderRow = { item_key: string; day_key: string; sort_order: number };
 
 function norm(s: string | null | undefined) {
   return (s ?? "").trim().toLowerCase();
@@ -97,6 +100,38 @@ export function ItineraryTab({
 
   const tripStart = parseDay(startDate);
   const tripEnd = parseDay(endDate);
+  const qc = useQueryClient();
+
+  const { data: orderRows = [] } = useQuery({
+    queryKey: ["itinerary-order", destinationId],
+    queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase.from("trip_itinerary_order" as any) as any)
+        .select("item_key, day_key, sort_order")
+        .eq("destination_id", destinationId);
+      return (data ?? []) as OrderRow[];
+    },
+  });
+
+  const saveOrder = useMutation({
+    mutationFn: async (rows: { item_key: string; day_key: string; sort_order: number }[]) => {
+      if (rows.length === 0) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from("trip_itinerary_order" as any) as any).upsert(
+        rows.map((r) => ({ destination_id: destinationId, ...r })),
+        { onConflict: "destination_id,item_key" },
+      );
+      if (error) throw error;
+      track("itinerary_reordered", { count: rows.length }, destinationId);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["itinerary-order", destinationId] }),
+  });
+
+  const orderMap = useMemo(() => {
+    const m = new Map<string, OrderRow>();
+    for (const r of orderRows) m.set(r.item_key, r);
+    return m;
+  }, [orderRows]);
 
   const items: Item[] = useMemo(() => {
     const r = norm(region);
@@ -214,8 +249,19 @@ export function ItineraryTab({
       const k = dayKey(it.date);
       (map.get(k) ?? map.set(k, []).get(k)!).push(it);
     }
+
+    // Apply saved per-day ordering (stable fallback to insertion order).
+    for (const [k, list] of map) {
+      list.sort((a, b) => {
+        const ao = orderMap.get(a.id);
+        const bo = orderMap.get(b.id);
+        const av = ao && ao.day_key === k ? ao.sort_order : Number.POSITIVE_INFINITY;
+        const bv = bo && bo.day_key === k ? bo.sort_order : Number.POSITIVE_INFINITY;
+        return av - bv;
+      });
+    }
     return { map, outside, undated };
-  }, [items, tripStart, tripEnd]);
+  }, [items, tripStart, tripEnd, orderMap]);
 
   const range =
     startDate && endDate
@@ -258,7 +304,17 @@ export function ItineraryTab({
           Nothing on the timeline yet. Add flights, stays, tickets, costs, or attach events.
         </div>
       ) : hasDayView && view === "days" ? (
-        <DayView days={days} byDay={byDay.map} undated={byDay.undated} outside={byDay.outside} />
+        <DayView
+          days={days}
+          byDay={byDay.map}
+          undated={byDay.undated}
+          outside={byDay.outside}
+          onReorder={(dk, ordered) => {
+            saveOrder.mutate(
+              ordered.map((id, i) => ({ item_key: id, day_key: dk, sort_order: i })),
+            );
+          }}
+        />
       ) : (
         <ListView items={items} />
       )}
@@ -271,11 +327,13 @@ function DayView({
   byDay,
   undated,
   outside,
+  onReorder,
 }: {
   days: Date[];
   byDay: Map<string, Item[]>;
   undated: Item[];
   outside: Item[];
+  onReorder: (dayKey: string, orderedItemIds: string[]) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -293,9 +351,7 @@ function DayView({
               {list.length === 0 ? (
                 <p className="mt-1 text-xs italic text-muted-foreground">Free day — what should we do?</p>
               ) : (
-                <ul className="mt-2 space-y-2">
-                  {list.map((it) => <ItemRow key={`${it.id}-${k}`} it={it} dayKey={k} />)}
-                </ul>
+                <DayList items={list} dayKey={k} onReorder={onReorder} />
               )}
             </li>
           );
@@ -311,6 +367,82 @@ function DayView({
         </section>
       )}
     </div>
+  );
+}
+
+function DayList({
+  items,
+  dayKey: dk,
+  onReorder,
+}: {
+  items: Item[];
+  dayKey: string;
+  onReorder: (dayKey: string, orderedItemIds: string[]) => void;
+}) {
+  const [order, setOrder] = useState<string[] | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+
+  const ids = order ?? items.map((i) => i.id);
+  // Resync when upstream items change (only if no active drag).
+  if (!dragId && order && (order.length !== items.length || order.some((id, i) => items[i]?.id !== id))) {
+    // Defer the reset so React doesn't warn about state updates during render.
+    queueMicrotask(() => setOrder(null));
+  }
+  const byId = new Map(items.map((i) => [i.id, i]));
+
+  const move = (from: string, to: string) => {
+    if (from === to) return;
+    const next = [...ids];
+    const fi = next.indexOf(from);
+    const ti = next.indexOf(to);
+    if (fi < 0 || ti < 0) return;
+    next.splice(fi, 1);
+    next.splice(ti, 0, from);
+    setOrder(next);
+  };
+
+  return (
+    <ul className="mt-2 space-y-2">
+      {ids.map((id) => {
+        const it = byId.get(id);
+        if (!it) return null;
+        return (
+          <li
+            key={`${id}-${dk}`}
+            draggable
+            onDragStart={(e) => {
+              setDragId(id);
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", id);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              if (overId !== id) setOverId(id);
+            }}
+            onDragLeave={() => { if (overId === id) setOverId(null); }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const from = e.dataTransfer.getData("text/plain") || dragId;
+              if (from && from !== id) {
+                move(from, id);
+                const next = [...ids];
+                const fi = next.indexOf(from); next.splice(fi, 1);
+                const ti = next.indexOf(id); next.splice(ti, 0, from);
+                onReorder(dk, next);
+              }
+              setDragId(null);
+              setOverId(null);
+            }}
+            onDragEnd={() => { setDragId(null); setOverId(null); }}
+            className={`${dragId === id ? "opacity-50" : ""} ${overId === id && dragId !== id ? "ring-2 ring-primary/40 rounded-xl" : ""}`}
+          >
+            <ItemRow it={it} dayKey={dk} draggable />
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -351,17 +483,22 @@ function ListView({ items }: { items: Item[] }) {
   );
 }
 
-function ItemRow({ it, dayKey: dk }: { it: Item; dayKey?: string }) {
+function ItemRow({ it, dayKey: dk, draggable = false }: { it: Item; dayKey?: string; draggable?: boolean }) {
   const { Icon, label, tone } = kindMeta[it.kind];
-  // Stay band indicator: show whether this is check-in / middle / check-out
   let bandLabel: string | null = null;
   if (it.kind === "stay" && dk && it.date && it.endDate) {
     if (dk === format(it.date, "yyyy-MM-dd")) bandLabel = "Check-in";
     else if (dk === format(it.endDate, "yyyy-MM-dd")) bandLabel = "Check-out";
     else bandLabel = "Staying";
   }
-  return (
-    <li className={`flex items-start gap-3 rounded-xl border p-3 text-sm ${it.matched ? "border-primary/60 bg-primary/10" : "border-border/60 bg-card"}`}>
+  const content = (
+    <div className={`flex items-start gap-3 rounded-xl border p-3 text-sm ${it.matched ? "border-primary/60 bg-primary/10" : "border-border/60 bg-card"}`}>
+      {draggable && (
+        <GripVertical
+          className="mt-0.5 size-4 shrink-0 cursor-grab text-muted-foreground/60 active:cursor-grabbing"
+          aria-hidden
+        />
+      )}
       <Icon className={`mt-0.5 size-4 shrink-0 ${tone}`} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -387,6 +524,9 @@ function ItemRow({ it, dayKey: dk }: { it: Item; dayKey?: string }) {
         )}
         {it.meta && <div className="mt-0.5 text-xs text-muted-foreground">{it.meta}</div>}
       </div>
-    </li>
+    </div>
   );
+  // When draggable, the parent <DayList> already provides the <li> wrapper.
+  if (draggable) return content;
+  return <li>{content}</li>;
 }
