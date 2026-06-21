@@ -48,7 +48,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "theme-color", content: "#0b0b14" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "Tribe Trips" },
       { title: "Tribe Trips — Plan gay vacations with your crew" },
       { name: "description", content: "Pitch destinations, upvote together, chatter about plans, and discover regional queer events." },
       { property: "og:title", content: "Tribe Trips — Plan gay vacations with your crew" },
