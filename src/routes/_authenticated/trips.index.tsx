@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ArrowUp, MapPin, MessageCircle, Plus, Sparkles, Star } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
+import { InstallAppButton } from "@/components/install-app-button";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/trips/")({
@@ -81,16 +82,19 @@ function TripsPage() {
         actions={<NewTripDialog />}
       />
 
-      <div className="inline-flex rounded-full border border-border/60 bg-card/60 p-1 text-sm backdrop-blur">
-        {(["upcoming", "past"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`rounded-full px-4 py-1.5 capitalize transition ${tab === t ? "bg-primary text-primary-foreground shadow-[var(--shadow-soft)]" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            {t} trips
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-full border border-border/60 bg-card/60 p-1 text-sm backdrop-blur">
+          {(["upcoming", "past"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`rounded-full px-4 py-1.5 capitalize transition ${tab === t ? "bg-primary text-primary-foreground shadow-[var(--shadow-soft)]" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {t} trips
+            </button>
+          ))}
+        </div>
+        <InstallAppButton />
       </div>
 
       <div className="grid gap-5 md:grid-cols-2">
