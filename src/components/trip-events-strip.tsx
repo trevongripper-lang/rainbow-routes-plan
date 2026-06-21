@@ -1,13 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { CalendarDays, MapPin, ExternalLink, Sparkles, X, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-
-function norm(s: string | null | undefined) {
-  return (s ?? "").trim().toLowerCase();
-}
+import { geocodeDestination } from "@/lib/geocode.functions";
 
 type EventRow = {
   id: string;
@@ -19,6 +17,9 @@ type EventRow = {
   end_date: string | null;
   url: string | null;
   tags: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  distance_miles: number | null;
 };
 
 export function TripEventsStrip({
@@ -28,7 +29,8 @@ export function TripEventsStrip({
   country,
   startDate = null,
   endDate = null,
-  bufferDays = 3,
+  bufferDays = 30,
+  radiusMiles = 100,
   variant = "compact",
 }: {
   destinationId: string;
@@ -38,16 +40,59 @@ export function TripEventsStrip({
   startDate?: string | null;
   endDate?: string | null;
   bufferDays?: number;
+  radiusMiles?: number;
   variant?: "compact" | "full";
 }) {
   const qc = useQueryClient();
   const [buffer, setBuffer] = useState<number>(bufferDays);
+  const [radius, setRadius] = useState<number>(radiusMiles);
   const [showOutside, setShowOutside] = useState<boolean>(false);
+  const geocode = useServerFn(geocodeDestination);
 
-  const { data: allEvents = [] } = useQuery({
-    queryKey: ["events"],
+  const dateState = useMemo(() => {
+    const hasStart = !!startDate;
+    const hasEnd = !!endDate;
+    if (!hasStart && !hasEnd) return { kind: "none" as const };
+    if (!hasStart || !hasEnd)
+      return { kind: "incomplete" as const, message: `Add a ${!hasStart ? "start" : "end"} date to match events to this trip.` };
+    const s = new Date(startDate as string).getTime();
+    const e = new Date(endDate as string).getTime();
+    if (Number.isNaN(s) || Number.isNaN(e)) return { kind: "invalid" as const, message: "Trip dates aren't valid — fix them to match events." };
+    if (e < s) return { kind: "invalid" as const, message: "Trip end date is before the start date." };
+    return { kind: "ok" as const };
+  }, [startDate, endDate]);
+  const hasDates = dateState.kind === "ok";
+
+  // Lazy backfill of coordinates so distance filtering works
+  useEffect(() => {
+    if (!region && !country) return;
+    let cancelled = false;
+    (async () => {
+      const { data: d } = await supabase
+        .from("destinations")
+        .select("latitude,longitude")
+        .eq("id", destinationId)
+        .maybeSingle();
+      if (cancelled || !d || d.latitude != null) return;
+      try {
+        await geocode({ data: { destinationId } });
+        qc.invalidateQueries({ queryKey: ["match-events", destinationId] });
+      } catch {
+        // swallow — falls back to country/region match
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [destinationId, region, country, geocode, qc]);
+
+  const { data: matches = [] } = useQuery({
+    queryKey: ["match-events", destinationId, radius, buffer, showOutside],
     queryFn: async () => {
-      const { data, error } = await supabase.from("events").select("*").order("start_date", { ascending: true });
+      const { data, error } = await supabase.rpc("match_trip_events", {
+        _dest: destinationId,
+        _radius_miles: radius,
+        _buffer_days: buffer,
+        _include_outside_dates: showOutside,
+      });
       if (error) throw error;
       return (data ?? []) as EventRow[];
     },
@@ -62,49 +107,20 @@ export function TripEventsStrip({
     },
   });
 
-  const attached = useMemo(
-    () => allEvents.filter((e) => attachedIds.includes(e.id)),
-    [allEvents, attachedIds],
+  const { data: attachedRows = [] } = useQuery({
+    enabled: attachedIds.length > 0,
+    queryKey: ["attached-events", destinationId, attachedIds.join(",")],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("events").select("*").in("id", attachedIds);
+      if (error) throw error;
+      return (data ?? []).map((e) => ({ ...e, distance_miles: null } as EventRow));
+    },
+  });
+
+  const suggested = useMemo(
+    () => matches.filter((e) => !attachedIds.includes(e.id)),
+    [matches, attachedIds],
   );
-
-  const dateState = useMemo(() => {
-    const hasStart = !!startDate;
-    const hasEnd = !!endDate;
-    if (!hasStart && !hasEnd) return { kind: "none" as const };
-    if (!hasStart || !hasEnd) {
-      return { kind: "incomplete" as const, message: `Add a ${!hasStart ? "start" : "end"} date to match events to this trip.` };
-    }
-    const s = new Date(startDate as string).getTime();
-    const e = new Date(endDate as string).getTime();
-    if (Number.isNaN(s) || Number.isNaN(e)) {
-      return { kind: "invalid" as const, message: "Trip dates aren't valid — fix them to match events." };
-    }
-    if (e < s) {
-      return { kind: "invalid" as const, message: "Trip end date is before the start date." };
-    }
-    return { kind: "ok" as const, s, e };
-  }, [startDate, endDate]);
-
-  const hasDates = dateState.kind === "ok";
-  const windowMs = useMemo(() => {
-    if (dateState.kind !== "ok") return null;
-    const bufMs = Math.max(0, buffer) * 86400000;
-    return { s: dateState.s - bufMs, e: dateState.e + bufMs + 86399999 };
-  }, [dateState, buffer]);
-
-  const matches = useMemo(() => {
-    const r = norm(region);
-    const c = norm(country);
-    return allEvents.filter((e) => {
-      if (attachedIds.includes(e.id)) return false;
-      const placeOk = (r && norm(e.region) === r) || (c && norm(e.country) === c);
-      if (!placeOk) return false;
-      if (!windowMs || showOutside) return true;
-      const es = new Date(e.start_date).getTime();
-      const ee = e.end_date ? new Date(e.end_date).getTime() + 86399999 : es + 86399999;
-      return ee >= windowMs.s && es <= windowMs.e;
-    });
-  }, [allEvents, attachedIds, region, country, windowMs, showOutside]);
 
   const toggle = useMutation({
     mutationFn: async ({ eventId, attached }: { eventId: string; attached: boolean }) => {
@@ -124,18 +140,33 @@ export function TripEventsStrip({
   });
 
   const dateProblem = dateState.kind === "incomplete" || dateState.kind === "invalid" ? dateState.message : null;
-  if (attached.length === 0 && matches.length === 0 && !hasDates && !dateProblem) return null;
+  if (attachedRows.length === 0 && suggested.length === 0 && !hasDates && !dateProblem) return null;
 
-  const list = variant === "compact" ? [...attached, ...matches.slice(0, 4)] : [...attached, ...matches];
+  const list = variant === "compact"
+    ? [...attachedRows, ...suggested.slice(0, 4)]
+    : [...attachedRows, ...suggested];
 
   return (
     <section className="rounded-2xl border border-border/60 bg-card/60 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-primary" />
           <h3 className="font-display text-base">Events near this trip</h3>
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] text-muted-foreground">
+          <label className="flex items-center gap-1.5">
+            <span>Within</span>
+            <input
+              type="number"
+              min={10}
+              max={1000}
+              step={10}
+              value={radius}
+              onChange={(e) => setRadius(Math.max(10, Math.min(1000, Number(e.target.value) || 100)))}
+              className="w-16 rounded-md border border-border/60 bg-background px-1.5 py-0.5 text-foreground"
+            />
+            <span>mi</span>
+          </label>
           {hasDates && (
             <>
               <label className="flex items-center gap-1.5">
@@ -143,28 +174,26 @@ export function TripEventsStrip({
                 <input
                   type="number"
                   min={0}
-                  max={60}
+                  max={120}
                   value={buffer}
-                  onChange={(e) => setBuffer(Math.max(0, Math.min(60, Number(e.target.value) || 0)))}
+                  onChange={(e) => setBuffer(Math.max(0, Math.min(120, Number(e.target.value) || 0)))}
                   disabled={showOutside}
-                  className="w-12 rounded-md border border-border/60 bg-background px-1.5 py-0.5 text-foreground disabled:opacity-50"
+                  className="w-14 rounded-md border border-border/60 bg-background px-1.5 py-0.5 text-foreground disabled:opacity-50"
                 />
               </label>
               <button
                 type="button"
                 onClick={() => setShowOutside((v) => !v)}
                 className={`rounded-full border px-2 py-0.5 transition ${
-                  showOutside
-                    ? "border-primary/50 bg-primary/15 text-primary"
-                    : "border-border/60 hover:border-primary/40"
+                  showOutside ? "border-primary/50 bg-primary/15 text-primary" : "border-border/60 hover:border-primary/40"
                 }`}
                 aria-pressed={showOutside}
               >
-                {showOutside ? "Showing all dates" : "See events outside my dates"}
+                {showOutside ? "Showing all dates" : "See outside my dates"}
               </button>
             </>
           )}
-          <span>{attached.length} attached · {matches.length} suggested</span>
+          <span className="whitespace-nowrap">{attachedRows.length} attached · {suggested.length} suggested</span>
         </div>
       </div>
       {dateProblem && (
@@ -176,12 +205,12 @@ export function TripEventsStrip({
               : "border-border/60 bg-background/40 text-muted-foreground"
           }`}
         >
-          {dateProblem} Showing location matches only.
+          {dateProblem} Showing nearby matches only.
         </p>
       )}
-      {hasDates && matches.length === 0 && attached.length === 0 && (
+      {hasDates && suggested.length === 0 && attachedRows.length === 0 && (
         <p className="mt-3 text-xs text-muted-foreground">
-          No events overlap this trip's window. Widen the ± buffer or tap "See events outside my dates".
+          No events within {radius} mi and ±{buffer} days. Widen the radius or tap "See outside my dates".
         </p>
       )}
       <ul className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -191,9 +220,7 @@ export function TripEventsStrip({
             <li
               key={e.id}
               className={`group rounded-xl border p-3 text-sm transition ${
-                isAttached
-                  ? "border-primary/60 bg-primary/10"
-                  : "border-border/60 bg-background/40 hover:border-primary/40"
+                isAttached ? "border-primary/60 bg-primary/10" : "border-border/60 bg-background/40 hover:border-primary/40"
               }`}
             >
               <div className="flex items-start justify-between gap-2">
@@ -215,15 +242,12 @@ export function TripEventsStrip({
                     <span className="inline-flex items-center gap-1">
                       <MapPin className="size-3" />
                       {e.city}
+                      {e.distance_miles != null && <span className="opacity-70">· {e.distance_miles} mi</span>}
                     </span>
                     {isAttached ? (
-                      <span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                        Attached
-                      </span>
+                      <span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">Attached</span>
                     ) : (
-                      <span className="rounded-full bg-accent/30 px-1.5 py-0.5 text-[10px] font-medium text-accent-foreground">
-                        Matches trip
-                      </span>
+                      <span className="rounded-full bg-accent/30 px-1.5 py-0.5 text-[10px] font-medium text-accent-foreground">Matches trip</span>
                     )}
                   </div>
                 </div>
