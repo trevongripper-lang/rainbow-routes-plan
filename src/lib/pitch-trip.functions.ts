@@ -65,6 +65,20 @@ export const createPitchTrip = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const payload = { ...data, user_id: context.userId };
 
+    console.log("[createPitchTrip] verified identity before insert:", {
+      userId: context.userId,
+      payload_user_id: payload.user_id,
+      claims: {
+        sub: context.claims?.sub,
+        email: (context.claims as { email?: string })?.email,
+        role: (context.claims as { role?: string })?.role,
+        aud: (context.claims as { aud?: string })?.aud,
+        iss: (context.claims as { iss?: string })?.iss,
+        exp: (context.claims as { exp?: number })?.exp,
+      },
+    });
+
+
     const { data: row, error } = await supabaseAdmin
       .from("destinations")
       .insert(payload as never)
