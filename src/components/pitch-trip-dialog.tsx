@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ImageOff, MapPin, Plus, Upload, X, Check, Sparkles, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { geocodeSearch, type GeocodeCandidate } from "@/lib/geocode.functions";
+import { createPitchTrip } from "@/lib/pitch-trip.functions";
 
 const VIBES = [
   { id: "beach", label: "Beach Escape", emoji: "🌴" },
