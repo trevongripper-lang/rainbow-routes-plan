@@ -27,6 +27,24 @@ function AuthPage() {
   const secsLeft = cooldown ? Math.max(0, Math.ceil((cooldown.until - Date.now()) / 1000)) : 0;
   const blocked = secsLeft > 0;
 
+  // If a session already exists (e.g. user returned from OAuth redirect, or
+  // signed in in another tab), bounce off /auth immediately. Also react to
+  // SIGNED_IN events triggered after setSession() — iOS Safari can race the
+  // navigate() call in handleGoogle().
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled && data.session) navigate({ to: "/trips", replace: true });
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) navigate({ to: "/trips", replace: true });
+    });
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
+
   async function guard(scope: "login" | "reset" | "signup", emailVal: string): Promise<boolean> {
     const r = await rlCheck({ data: { scope, email: emailVal } });
     if (!r.allowed) {
