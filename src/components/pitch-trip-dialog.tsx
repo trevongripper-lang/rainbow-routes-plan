@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ImageOff, MapPin, Plus, Upload, X, Check, Sparkles, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { geocodeSearch, type GeocodeCandidate } from "@/lib/geocode.functions";
+import { createPitchTrip } from "@/lib/pitch-trip.functions";
 
 const VIBES = [
   { id: "beach", label: "Beach Escape", emoji: "🌴" },
@@ -66,6 +67,7 @@ export function PitchTripDialog() {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const search = useServerFn(geocodeSearch);
+  const pitch = useServerFn(createPitchTrip);
 
   const update = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
   const toggleArr = (k: "vibes" | "audience", v: string) =>
@@ -131,9 +133,8 @@ export function PitchTripDialog() {
   const create = useMutation({
     mutationFn: async () => {
       // ---- Preflight: session ----
-      const { data: u, error: uerr } = await supabase.auth.getUser();
-      if (uerr) throw new Error(`Your session expired. Sign in again and retry. (${uerr.message})`);
-      if (!u.user) throw new Error("You need to be signed in to pitch a trip.");
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session) throw new Error("You need to be signed in to pitch a trip.");
 
       // ---- Preflight: verified location ----
       if (selectedIdx == null) throw new Error("Pick the correct location to continue");
@@ -149,55 +150,35 @@ export function PitchTripDialog() {
       const title = form.title.trim();
       const city = chosen.city || form.city.trim() || null;
       const country = chosen.country || form.country.trim() || null;
-      const region = chosen.region || form.city.trim() || form.country.trim() || "—";
+      const region = chosen.region || form.city.trim() || form.country.trim() || "";
 
       // ---- Preflight: required fields (matches NOT NULL columns) ----
       if (!title) throw new Error("Destination name is required.");
-      if (!region || region === "—") throw new Error("Region/city/country is required.");
+      if (!region) throw new Error("Region, city, or country is required.");
 
-      // ---- Preflight: writability probe (catches RLS/role/session-token issues
-      // BEFORE we attempt the real insert, so the error message is actionable) ----
-      const probe = await supabase
-        .from("destinations")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", u.user.id)
-        .limit(1);
-      if (probe.error) {
-        throw new Error(
-          `Can't reach your trips right now (${probe.error.code ?? "?"}: ${probe.error.message}). ` +
-            "This usually means your session expired — sign out and back in.",
-        );
-      }
-
-      const payload = {
-        title,
-        country,
-        city,
-        region,
-        latitude: chosen.latitude,
-        longitude: chosen.longitude,
-        description: form.description.trim() || null,
-        image_url: form.image_url || null,
-        vibes: form.vibes.length ? form.vibes : null,
-        special_note: form.special_note.trim() || null,
-        best_time: form.best_time || null,
-        trip_length: form.trip_length || null,
-        budget: form.budget || null,
-        reasons: reasons.length ? reasons : null,
-        audience: form.audience.length ? form.audience : null,
-        downsides: form.downsides.trim() || null,
-        user_id: u.user.id,
-      };
-      const { error } = await supabase
-        .from("destinations")
-        .insert(payload as never)
-        .select("id")
-        .single();
-      if (error) {
-        // Surface Postgres hints/details for RLS + check-constraint failures
-        const detail = [error.message, error.details, error.hint].filter(Boolean).join(" — ");
-        throw new Error(detail || "Failed to create trip");
-      }
+      // Route through the authenticated server function so user_id always
+      // matches auth.uid() server-side (eliminates RLS NULL-uid failures
+      // when the browser bearer is stale or missing).
+      await pitch({
+        data: {
+          title,
+          country,
+          city,
+          region,
+          latitude: chosen.latitude,
+          longitude: chosen.longitude,
+          description: form.description.trim() || null,
+          image_url: form.image_url || null,
+          vibes: form.vibes.length ? form.vibes : null,
+          special_note: form.special_note.trim() || null,
+          best_time: form.best_time || null,
+          trip_length: form.trip_length || null,
+          budget: form.budget || null,
+          reasons: reasons.length ? reasons : null,
+          audience: form.audience.length ? form.audience : null,
+          downsides: form.downsides.trim() || null,
+        },
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trips"] });
