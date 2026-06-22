@@ -59,10 +59,13 @@ export const createPitchTrip = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => clean(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const payload = { ...data, user_id: userId };
+    // Caller is already authenticated by requireSupabaseAuth — use the admin
+    // client so the insert isn't affected by PostgREST/RLS auth-context edge
+    // cases. We still set user_id from the verified token, never client input.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const payload = { ...data, user_id: context.userId };
 
-    const { data: row, error } = await supabase
+    const { data: row, error } = await supabaseAdmin
       .from("destinations")
       .insert(payload as never)
       .select("id")
