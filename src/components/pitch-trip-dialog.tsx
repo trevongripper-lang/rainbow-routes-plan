@@ -130,20 +130,47 @@ export function PitchTripDialog() {
 
   const create = useMutation({
     mutationFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Not signed in");
+      // ---- Preflight: session ----
+      const { data: u, error: uerr } = await supabase.auth.getUser();
+      if (uerr) throw new Error(`Your session expired. Sign in again and retry. (${uerr.message})`);
+      if (!u.user) throw new Error("You need to be signed in to pitch a trip.");
+
+      // ---- Preflight: verified location ----
       if (selectedIdx == null) throw new Error("Pick the correct location to continue");
       const chosen = candidates[selectedIdx];
       if (!chosen) throw new Error("Pick the correct location to continue");
+      if (typeof chosen.latitude !== "number" || typeof chosen.longitude !== "number") {
+        throw new Error("Selected location is missing coordinates. Pick a different match.");
+      }
 
       const reasons = form.reasons.map((r) => r.trim()).filter(Boolean);
       // Verified values from Mapbox win over typed values so the saved
       // destination always matches the chosen coordinates.
+      const title = form.title.trim();
       const city = chosen.city || form.city.trim() || null;
       const country = chosen.country || form.country.trim() || null;
       const region = chosen.region || form.city.trim() || form.country.trim() || "—";
+
+      // ---- Preflight: required fields (matches NOT NULL columns) ----
+      if (!title) throw new Error("Destination name is required.");
+      if (!region || region === "—") throw new Error("Region/city/country is required.");
+
+      // ---- Preflight: writability probe (catches RLS/role/session-token issues
+      // BEFORE we attempt the real insert, so the error message is actionable) ----
+      const probe = await supabase
+        .from("destinations")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", u.user.id)
+        .limit(1);
+      if (probe.error) {
+        throw new Error(
+          `Can't reach your trips right now (${probe.error.code ?? "?"}: ${probe.error.message}). ` +
+            "This usually means your session expired — sign out and back in.",
+        );
+      }
+
       const payload = {
-        title: form.title.trim(),
+        title,
         country,
         city,
         region,
@@ -166,7 +193,11 @@ export function PitchTripDialog() {
         .insert(payload as never)
         .select("id")
         .single();
-      if (error) throw error;
+      if (error) {
+        // Surface Postgres hints/details for RLS + check-constraint failures
+        const detail = [error.message, error.details, error.hint].filter(Boolean).join(" — ");
+        throw new Error(detail || "Failed to create trip");
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trips"] });
