@@ -245,9 +245,24 @@ async function handleSubscriptionActive(
     typeof d.next_billed_at === "string" ? d.next_billed_at : null;
 
   if (!custom.userId) {
-    return "sub-active:no-user-mapping";
+    throw new Error("subscription event missing custom_data.userId");
   }
-  await admin
+  // If this Paddle customer is already bound to a different user, refuse to
+  // re-assign Plus — defends against an attacker passing a victim's userId in
+  // custom_data, or vice versa.
+  if (customerId) {
+    const { data: existing } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("paddle_customer_id", customerId)
+      .maybeSingle();
+    if (existing && existing.id !== custom.userId) {
+      throw new Error(
+        `paddle_customer_id ${customerId} already bound to a different user`,
+      );
+    }
+  }
+  const { data: updated, error: upErr } = await admin
     .from("profiles")
     .update({
       plus_status: "active",
@@ -255,7 +270,12 @@ async function handleSubscriptionActive(
       paddle_customer_id: customerId ?? undefined,
       paddle_subscription_id: subscriptionId ?? undefined,
     })
-    .eq("id", custom.userId);
+    .eq("id", custom.userId)
+    .select("id");
+  if (upErr) throw new Error(`profiles update: ${upErr.message}`);
+  if (!updated || updated.length === 0) {
+    throw new Error(`no profile found for userId ${custom.userId}`);
+  }
   return "sub-active";
 }
 
