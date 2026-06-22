@@ -200,7 +200,21 @@ async function handleTransactionCompleted(
     if (!custom.userId) {
       return "renewal:no-user-mapping"; // will be resolved by subscription.updated
     }
-    await admin
+    // Guard against custom_data spoofing: if this customer is already bound
+    // to a different user, refuse the renewal write.
+    if (customerId) {
+      const { data: existing } = await admin
+        .from("profiles")
+        .select("id")
+        .eq("paddle_customer_id", customerId)
+        .maybeSingle();
+      if (existing && existing.id !== custom.userId) {
+        throw new Error(
+          `paddle_customer_id ${customerId} already bound to a different user`,
+        );
+      }
+    }
+    const { error: upErr } = await admin
       .from("profiles")
       .update({
         plus_status: "active",
@@ -208,6 +222,7 @@ async function handleTransactionCompleted(
         paddle_subscription_id: subscriptionId,
       })
       .eq("id", custom.userId);
+    if (upErr) throw new Error(`profiles update: ${upErr.message}`);
     return "renewal:plus-active";
   }
 
