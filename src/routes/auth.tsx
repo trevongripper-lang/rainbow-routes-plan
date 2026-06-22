@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -26,6 +26,24 @@ function AuthPage() {
 
   const secsLeft = cooldown ? Math.max(0, Math.ceil((cooldown.until - Date.now()) / 1000)) : 0;
   const blocked = secsLeft > 0;
+
+  // If a session already exists (e.g. user returned from OAuth redirect, or
+  // signed in in another tab), bounce off /auth immediately. Also react to
+  // SIGNED_IN events triggered after setSession() — iOS Safari can race the
+  // navigate() call in handleGoogle().
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled && data.session) navigate({ to: "/trips", replace: true });
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) navigate({ to: "/trips", replace: true });
+    });
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
 
   async function guard(scope: "login" | "reset" | "signup", emailVal: string): Promise<boolean> {
     const r = await rlCheck({ data: { scope, email: emailVal } });
@@ -90,14 +108,21 @@ function AuthPage() {
 
   async function handleGoogle() {
     setLoading(true);
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/trips" });
-    if (result.error) {
-      toast.error(result.error.message ?? "Google sign-in failed");
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/trips" });
+      if (result.error) {
+        toast.error(result.error.message ?? "Google sign-in failed");
+        return;
+      }
+      if (result.redirected) return; // browser is navigating away
+      // Session is set; the onAuthStateChange listener above will navigate.
+      // Fallback navigation in case the event already fired before mount.
+      navigate({ to: "/trips", replace: true });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Google sign-in failed");
+    } finally {
       setLoading(false);
-      return;
     }
-    if (result.redirected) return;
-    navigate({ to: "/trips" });
   }
 
   return (
