@@ -114,9 +114,9 @@ export const Route = createFileRoute("/api/public/paddle-webhook")({
             .from("paddle_events")
             .update({ error: msg })
             .eq("event_id", event.event_id);
-          // Return 200 so Paddle doesn't infinitely retry on app-level bugs;
-          // the row in paddle_events with `error` set is the trail to replay manually.
-          return new Response("ok (logged)", { status: 200 });
+          // Return 500 so Paddle retries on transient failures. The paddle_events
+          // row with `error` set is the trail to replay manually if retries also fail.
+          return new Response(`handler failed: ${msg}`, { status: 500 });
         }
       },
 
