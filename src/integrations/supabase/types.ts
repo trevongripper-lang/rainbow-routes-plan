@@ -1162,7 +1162,6 @@ export type Database = {
           display_name: string
           id: string
           is_pro: boolean
-          plus_status: string
         }[]
       }
       get_trip_rating_aggregate: {
