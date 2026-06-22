@@ -1143,6 +1143,14 @@ export type Database = {
       _maybe_grant_loyalty: { Args: { _user: string }; Returns: undefined }
       auto_close_trips: { Args: never; Returns: number }
       cleanup_rate_limits: { Args: never; Returns: number }
+      debug_whoami: {
+        Args: never
+        Returns: {
+          auth_role: string
+          auth_uid: string
+          current_db_user: string
+        }[]
+      }
       fanout_notification: {
         Args: { _actor: string; _dest: string; _kind: string; _payload: Json }
         Returns: undefined
