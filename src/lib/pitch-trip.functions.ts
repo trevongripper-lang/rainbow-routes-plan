@@ -65,9 +65,19 @@ export const createPitchTrip = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const payload = { ...data, user_id: context.userId };
 
-    console.log("[createPitchTrip] verified identity before insert:", {
-      userId: context.userId,
+    const TABLE = "destinations";
+    const OPERATION = "INSERT";
+    const RLS_POLICY = "Users insert own destinations"; // WITH CHECK (auth.uid() = user_id)
+
+    console.log("[createPitchTrip] pre-insert RLS verification:", {
+      table: TABLE,
+      operation: OPERATION,
+      rls_policy: RLS_POLICY,
+      rls_expectation: "auth.uid() = user_id",
+      resolved_user_id: context.userId,
       payload_user_id: payload.user_id,
+      user_id_match: context.userId === payload.user_id,
+      client: "supabaseAdmin (service_role — RLS bypassed; user_id trusted from verified JWT)",
       claims: {
         sub: context.claims?.sub,
         email: (context.claims as { email?: string })?.email,
@@ -76,7 +86,9 @@ export const createPitchTrip = createServerFn({ method: "POST" })
         iss: (context.claims as { iss?: string })?.iss,
         exp: (context.claims as { exp?: number })?.exp,
       },
+      sub_matches_user_id: context.claims?.sub === context.userId,
     });
+
 
 
     const { data: row, error } = await supabaseAdmin
