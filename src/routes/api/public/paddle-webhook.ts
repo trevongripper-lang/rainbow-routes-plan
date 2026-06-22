@@ -114,9 +114,9 @@ export const Route = createFileRoute("/api/public/paddle-webhook")({
             .from("paddle_events")
             .update({ error: msg })
             .eq("event_id", event.event_id);
-          // Return 200 so Paddle doesn't infinitely retry on app-level bugs;
-          // the row in paddle_events with `error` set is the trail to replay manually.
-          return new Response("ok (logged)", { status: 200 });
+          // Return 500 so Paddle retries on transient failures. The paddle_events
+          // row with `error` set is the trail to replay manually if retries also fail.
+          return new Response(`handler failed: ${msg}`, { status: 500 });
         }
       },
 
@@ -200,7 +200,21 @@ async function handleTransactionCompleted(
     if (!custom.userId) {
       return "renewal:no-user-mapping"; // will be resolved by subscription.updated
     }
-    await admin
+    // Guard against custom_data spoofing: if this customer is already bound
+    // to a different user, refuse the renewal write.
+    if (customerId) {
+      const { data: existing } = await admin
+        .from("profiles")
+        .select("id")
+        .eq("paddle_customer_id", customerId)
+        .maybeSingle();
+      if (existing && existing.id !== custom.userId) {
+        throw new Error(
+          `paddle_customer_id ${customerId} already bound to a different user`,
+        );
+      }
+    }
+    const { error: upErr } = await admin
       .from("profiles")
       .update({
         plus_status: "active",
@@ -208,6 +222,7 @@ async function handleTransactionCompleted(
         paddle_subscription_id: subscriptionId,
       })
       .eq("id", custom.userId);
+    if (upErr) throw new Error(`profiles update: ${upErr.message}`);
     return "renewal:plus-active";
   }
 
@@ -245,9 +260,24 @@ async function handleSubscriptionActive(
     typeof d.next_billed_at === "string" ? d.next_billed_at : null;
 
   if (!custom.userId) {
-    return "sub-active:no-user-mapping";
+    throw new Error("subscription event missing custom_data.userId");
   }
-  await admin
+  // If this Paddle customer is already bound to a different user, refuse to
+  // re-assign Plus — defends against an attacker passing a victim's userId in
+  // custom_data, or vice versa.
+  if (customerId) {
+    const { data: existing } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("paddle_customer_id", customerId)
+      .maybeSingle();
+    if (existing && existing.id !== custom.userId) {
+      throw new Error(
+        `paddle_customer_id ${customerId} already bound to a different user`,
+      );
+    }
+  }
+  const { data: updated, error: upErr } = await admin
     .from("profiles")
     .update({
       plus_status: "active",
@@ -255,7 +285,12 @@ async function handleSubscriptionActive(
       paddle_customer_id: customerId ?? undefined,
       paddle_subscription_id: subscriptionId ?? undefined,
     })
-    .eq("id", custom.userId);
+    .eq("id", custom.userId)
+    .select("id");
+  if (upErr) throw new Error(`profiles update: ${upErr.message}`);
+  if (!updated || updated.length === 0) {
+    throw new Error(`no profile found for userId ${custom.userId}`);
+  }
   return "sub-active";
 }
 

@@ -59,39 +59,11 @@ export const createPitchTrip = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => clean(input))
   .handler(async ({ data, context }) => {
-    // Caller is already authenticated by requireSupabaseAuth — use the admin
-    // client so the insert isn't affected by PostgREST/RLS auth-context edge
-    // cases. We still set user_id from the verified token, never client input.
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const payload = { ...data, user_id: context.userId };
+    // Insert as the authenticated user so RLS (auth.uid() = user_id) applies.
+    const { supabase, userId } = context;
+    const payload = { ...data, user_id: userId };
 
-    const TABLE = "destinations";
-    const OPERATION = "INSERT";
-    const RLS_POLICY = "Users insert own destinations"; // WITH CHECK (auth.uid() = user_id)
-
-    console.log("[createPitchTrip] pre-insert RLS verification:", {
-      table: TABLE,
-      operation: OPERATION,
-      rls_policy: RLS_POLICY,
-      rls_expectation: "auth.uid() = user_id",
-      resolved_user_id: context.userId,
-      payload_user_id: payload.user_id,
-      user_id_match: context.userId === payload.user_id,
-      client: "supabaseAdmin (service_role — RLS bypassed; user_id trusted from verified JWT)",
-      claims: {
-        sub: context.claims?.sub,
-        email: (context.claims as { email?: string })?.email,
-        role: (context.claims as { role?: string })?.role,
-        aud: (context.claims as { aud?: string })?.aud,
-        iss: (context.claims as { iss?: string })?.iss,
-        exp: (context.claims as { exp?: number })?.exp,
-      },
-      sub_matches_user_id: context.claims?.sub === context.userId,
-    });
-
-
-
-    const { data: row, error } = await supabaseAdmin
+    const { data: row, error } = await supabase
       .from("destinations")
       .insert(payload as never)
       .select("id")
