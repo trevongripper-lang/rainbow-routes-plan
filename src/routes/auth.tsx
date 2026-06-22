@@ -108,14 +108,21 @@ function AuthPage() {
 
   async function handleGoogle() {
     setLoading(true);
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/trips" });
-    if (result.error) {
-      toast.error(result.error.message ?? "Google sign-in failed");
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/trips" });
+      if (result.error) {
+        toast.error(result.error.message ?? "Google sign-in failed");
+        return;
+      }
+      if (result.redirected) return; // browser is navigating away
+      // Session is set; the onAuthStateChange listener above will navigate.
+      // Fallback navigation in case the event already fired before mount.
+      navigate({ to: "/trips", replace: true });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Google sign-in failed");
+    } finally {
       setLoading(false);
-      return;
     }
-    if (result.redirected) return;
-    navigate({ to: "/trips" });
   }
 
   return (
