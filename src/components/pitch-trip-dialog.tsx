@@ -67,6 +67,7 @@ export function PitchTripDialog() {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const search = useServerFn(geocodeSearch);
+  const pitch = useServerFn(createPitchTrip);
 
   const update = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
   const toggleArr = (k: "vibes" | "audience", v: string) =>
