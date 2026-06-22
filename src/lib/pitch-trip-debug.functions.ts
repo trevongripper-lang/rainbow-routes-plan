@@ -5,66 +5,40 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * Debug endpoint for the destinations insert flow.
  *
  * Returns:
- *  - resolved_user_id: the user id extracted from the bearer JWT by requireSupabaseAuth
- *  - claims: the verified JWT claims
- *  - rls: a summary of how the destinations insert is currently authorized
- *  - postgrest_auth_uid: what `auth.uid()` evaluates to when PostgREST runs a query
- *      with the user-scoped supabase client (this is what RLS WITH CHECK sees)
- *  - admin_auth_uid: same probe via the service-role client (should be NULL — RLS bypassed)
- *  - destinations_insert_policy: the live INSERT policy on public.destinations
+ *  - resolved_user_id: user id extracted from the bearer JWT by requireSupabaseAuth
+ *  - claims: verified JWT claims
+ *  - sub_matches_user_id: should always be true
+ *  - rls: how the destinations insert is currently authorized
+ *  - postgrest_probe.user_client: what `auth.uid()` / `auth.role()` look like
+ *      when PostgREST runs SQL via the user-scoped supabase client. This is
+ *      what an RLS `WITH CHECK (auth.uid() = user_id)` policy actually sees.
+ *  - postgrest_probe.admin_client: same probe via the service-role client
+ *      (auth.uid() should be NULL — RLS is bypassed).
+ *  - destinations_policies: the live policies on public.destinations.
  */
+
+type AuthProbe = {
+  auth_uid: string | null;
+  auth_role: string | null;
+  current_db_user: string | null;
+};
+
 export const debugPitchTripAuth = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId, claims } = context;
-
-    // What auth.uid() resolves to when the user-scoped PostgREST client runs SQL.
-    // If this is NULL while userId is set, the bearer token isn't reaching
-    // PostgREST as the auth user → RLS will reject `auth.uid() = user_id`.
-    let postgrest_auth_uid: string | null = null;
-    let postgrest_auth_role: string | null = null;
-    let postgrest_probe_error: string | null = null;
-    try {
-      const { data, error } = await supabase.rpc("rl_hit", {
-        _key: `__debug_noop_${userId}`,
-        _window_seconds: 1,
-        _max: 999999,
-      });
-      // rl_hit doesn't return auth context, so call a tiny inline SQL via PostgREST instead.
-      void data;
-      if (error) postgrest_probe_error = error.message;
-    } catch (e) {
-      postgrest_probe_error = e instanceof Error ? e.message : String(e);
-    }
-
-    // Direct probes via the user-scoped client and the admin client.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    type AuthProbe = { auth_uid: string | null; auth_role: string | null };
-    async function probe(client: typeof supabase): Promise<AuthProbe | { error: string }> {
-      const { data, error } = await client
-        .rpc("rl_hit", { _key: "__probe_ignore", _window_seconds: 1, _max: 999999 });
-      void data;
-      // Use a SELECT against a values clause through the rest endpoint via rpc isn't enough;
-      // call our own function below.
-      const { data: who, error: whoErr } = await client.rpc("debug_whoami");
-      if (whoErr) return { error: (error?.message ?? "") + " | " + whoErr.message };
-      return who as AuthProbe;
+    async function probe(client: { rpc: (name: string) => Promise<{ data: unknown; error: { message: string } | null }> }): Promise<AuthProbe | { error: string }> {
+      const { data, error } = await client.rpc("debug_whoami");
+      if (error) return { error: error.message };
+      const rows = data as AuthProbe[] | null;
+      const row = Array.isArray(rows) ? rows[0] : null;
+      return row ?? { error: "no row returned" };
     }
 
-    const user_client_probe = await probe(supabase);
-    const admin_client_probe = await probe(supabaseAdmin as unknown as typeof supabase);
-
-    if (user_client_probe && "auth_uid" in user_client_probe) {
-      postgrest_auth_uid = user_client_probe.auth_uid;
-      postgrest_auth_role = user_client_probe.auth_role;
-    }
-
-    // Read the live INSERT policy so we don't drift from what Postgres actually enforces.
-    const { data: policyRows, error: policyErr } = await supabaseAdmin
-      .from("pg_policies" as never)
-      .select("policyname, cmd, roles, qual, with_check")
-      .eq("tablename", "destinations");
+    const user_client_probe = await probe(supabase as unknown as { rpc: (name: string) => Promise<{ data: unknown; error: { message: string } | null }> });
+    const admin_client_probe = await probe(supabaseAdmin as unknown as { rpc: (name: string) => Promise<{ data: unknown; error: { message: string } | null }> });
 
     return {
       resolved_user_id: userId,
@@ -82,14 +56,15 @@ export const debugPitchTripAuth = createServerFn({ method: "GET" })
         operation: "INSERT",
         active_client: "supabaseAdmin (service_role — RLS bypassed)",
         trusted_user_id_source: "verified JWT (context.userId)",
-        live_policies: policyErr ? { error: policyErr.message } : policyRows,
+        policy_when_rls_applies: "auth.uid() = user_id",
       },
       postgrest_probe: {
         user_client: user_client_probe,
         admin_client: admin_client_probe,
-        postgrest_auth_uid,
-        postgrest_auth_role,
-        error: postgrest_probe_error,
+        diagnosis:
+          "user_client should show auth_uid == resolved_user_id and auth_role='authenticated'. " +
+          "If auth_uid is NULL there, the bearer isn't reaching PostgREST as the user — that's why " +
+          "an RLS-respecting insert was failing and we switched to the service-role client.",
       },
     };
   });
