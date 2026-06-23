@@ -1,5 +1,5 @@
-// Weighted planning progress model. Each item earns up to `weight` points;
-// total across items = 100, so `pct === sum(earned)`.
+// Commitment-framed planning progress. Each item earns up to `weight`;
+// items sum to 100 so pct === sum(earned).
 
 import { netForUser, type CostRow, type SettlementRow } from "./trip-balances";
 
@@ -8,11 +8,10 @@ export type PlanningStatus = "done" | "partial" | "todo";
 export type PlanningKey =
   | "destination"
   | "dates"
-  | "invites"
+  | "people"
   | "stay"
-  | "flights"
-  | "activities"
-  | "balances";
+  | "travel"
+  | "money";
 
 export type PlanningItem = {
   key: PlanningKey;
@@ -24,27 +23,34 @@ export type PlanningItem = {
 };
 
 export type PlanningInput = {
+  // Dates
   startDate: string | null;
   endDate: string | null;
-  staysCount: number;
-  flightsBooked: number;
+  datesLocked: boolean;
+  // People
   memberCount: number;
-  ticketsCount: number;
+  confirmedCount: number;
+  headcount: number;
+  // Stay
+  staysCount: number;
+  stayNotNeeded: boolean;
+  // Travel (per-member, computed by caller)
+  travelHandledCount: number; // booked OR not_needed
+  // Money
   myNetCents: number;
-  /** Target trip size used as the Invites denominator. Falls back to memberCount. */
-  headcount?: number;
-  /** Any recorded settlements? Gives partial Balances credit while non-zero net remains. */
-  settlementsCount?: number;
+  settlementsCount: number;
+  noSharedCosts: boolean;
+  hasShared Costs?: boolean; // typo guard for older callers — see has SharedCosts below
+  hasSharedCosts: boolean; // are there any shared cost rows on the trip?
 };
 
 const W = {
   destination: 10,
-  dates: 10,
-  invites: 10,
+  dates: 15,
+  people: 15,
   stay: 15,
-  flights: 25,
-  activities: 15,
-  balances: 15,
+  travel: 25,
+  money: 20,
 } as const satisfies Record<PlanningKey, number>;
 
 function statusFor(earned: number, weight: number): PlanningStatus {
@@ -55,43 +61,67 @@ function statusFor(earned: number, weight: number): PlanningStatus {
 
 export function computePlanningItems(input: PlanningInput): PlanningItem[] {
   // Dates
-  const datesEarned = input.startDate && input.endDate ? W.dates : input.startDate || input.endDate ? W.dates / 2 : 0;
-  const datesHint = input.startDate && input.endDate ? "Set" : input.startDate || input.endDate ? "Partly set" : "Not set";
+  let datesEarned = 0;
+  let datesHint = "Not set";
+  if (input.startDate && input.endDate && input.datesLocked) {
+    datesEarned = W.dates;
+    datesHint = "Locked";
+  } else if (input.startDate && input.endDate) {
+    datesEarned = 7;
+    datesHint = "Set — lock to commit";
+  } else if (input.startDate || input.endDate) {
+    datesEarned = 3;
+    datesHint = "Partly set";
+  }
 
-  // Invites
-  const target = Math.max(1, input.headcount ?? input.memberCount);
-  const inviteRatio = Math.min(1, input.memberCount / target);
-  const invitesEarned = Math.round(inviteRatio * W.invites);
-  const invitesHint =
-    input.memberCount >= target ? `${input.memberCount} / ${target} joined` : `${input.memberCount} / ${target} joined`;
+  // People confirmed
+  const target = Math.max(1, input.headcount);
+  const confirmedRatio = Math.min(1, input.confirmedCount / target);
+  const peopleEarned = Math.round(confirmedRatio * W.people);
+  const peopleHint = `${input.confirmedCount} / ${target} confirmed`;
 
   // Stay
-  const stayEarned = input.staysCount > 0 ? W.stay : 0;
-  const stayHint = input.staysCount > 0 ? `${input.staysCount} booked` : "Not booked";
+  const stayEarned = input.stayNotNeeded ? W.stay : input.staysCount > 0 ? W.stay : 0;
+  const stayHint = input.stayNotNeeded
+    ? "Not needed"
+    : input.staysCount > 0
+    ? `${input.staysCount} booked`
+    : "Not handled";
 
-  // Flights
-  const flightDenom = Math.max(1, input.memberCount);
-  const flightRatio = Math.min(1, input.flightsBooked / flightDenom);
-  const flightsEarned = Math.round(flightRatio * W.flights);
-  const flightsHint = `${input.flightsBooked} / ${flightDenom} booked`;
+  // Travel — per-member coverage (booked or opted out)
+  const travelDenom = Math.max(1, input.memberCount);
+  const travelRatio = Math.min(1, input.travelHandledCount / travelDenom);
+  const travelEarned = Math.round(travelRatio * W.travel);
+  const travelHint = `${input.travelHandledCount} / ${travelDenom} handled`;
 
-  // Activities
-  const actEarned = input.ticketsCount > 0 ? W.activities : 0;
-  const actHint = input.ticketsCount > 0 ? `${input.ticketsCount} added` : "None yet";
-
-  // Balances: settled OR no shared costs at all → done; some settlement progress → partial; else todo.
-  const settled = Math.abs(input.myNetCents) < 1;
-  const balancesEarned = settled ? W.balances : (input.settlementsCount ?? 0) > 0 ? Math.round(W.balances * 0.5) : 0;
-  const balancesHint = settled ? "Settled" : (input.settlementsCount ?? 0) > 0 ? "Partly settled" : "Outstanding";
+  // Money — never auto-completes from emptiness
+  let moneyEarned = 0;
+  let moneyHint = "Not handled";
+  if (input.noSharedCosts) {
+    moneyEarned = W.money;
+    moneyHint = "No shared costs";
+  } else if (!input.hasSharedCosts) {
+    // Costs haven't been discussed yet — explicitly NOT done
+    moneyEarned = 0;
+    moneyHint = "Not discussed";
+  } else if (Math.abs(input.myNetCents) < 1 && input.settlementsCount > 0) {
+    moneyEarned = W.money;
+    moneyHint = "Settled";
+  } else if (input.settlementsCount > 0) {
+    moneyEarned = Math.round(W.money * 0.5);
+    moneyHint = "Partly settled";
+  } else {
+    moneyEarned = 0;
+    moneyHint = "Outstanding";
+  }
 
   return [
-    { key: "destination", label: "Destination", weight: W.destination, earned: W.destination, status: "done", hint: "Decided" },
-    { key: "dates", label: "Dates", weight: W.dates, earned: datesEarned, status: statusFor(datesEarned, W.dates), hint: datesHint },
-    { key: "invites", label: "Invites", weight: W.invites, earned: invitesEarned, status: statusFor(invitesEarned, W.invites), hint: invitesHint },
-    { key: "stay", label: "Stay", weight: W.stay, earned: stayEarned, status: statusFor(stayEarned, W.stay), hint: stayHint },
-    { key: "flights", label: "Flights", weight: W.flights, earned: flightsEarned, status: statusFor(flightsEarned, W.flights), hint: flightsHint },
-    { key: "activities", label: "Activities", weight: W.activities, earned: actEarned, status: statusFor(actEarned, W.activities), hint: actHint },
-    { key: "balances", label: "Balances", weight: W.balances, earned: balancesEarned, status: statusFor(balancesEarned, W.balances), hint: balancesHint },
+    { key: "destination", label: "Destination picked", weight: W.destination, earned: W.destination, status: "done", hint: "Decided" },
+    { key: "dates", label: "Dates locked", weight: W.dates, earned: datesEarned, status: statusFor(datesEarned, W.dates), hint: datesHint },
+    { key: "people", label: "People confirmed", weight: W.people, earned: peopleEarned, status: statusFor(peopleEarned, W.people), hint: peopleHint },
+    { key: "stay", label: "Stay handled", weight: W.stay, earned: stayEarned, status: statusFor(stayEarned, W.stay), hint: stayHint },
+    { key: "travel", label: "Travel handled", weight: W.travel, earned: travelEarned, status: statusFor(travelEarned, W.travel), hint: travelHint },
+    { key: "money", label: "Money handled", weight: W.money, earned: moneyEarned, status: statusFor(moneyEarned, W.money), hint: moneyHint },
   ];
 }
 
@@ -102,12 +132,10 @@ export function computeWeightedScore(items: PlanningItem[]): { earned: number; t
   return { earned, total, pct };
 }
 
-/** Items the tooltip surfaces — anything not yet fully earned. */
 export function pendingPlanningItems(items: PlanningItem[]): PlanningItem[] {
   return items.filter((i) => i.earned < i.weight);
 }
 
-/** Highest-impact pending item (max remaining weight). Null if everything's done. */
 export function nextBestAction(items: PlanningItem[]): PlanningItem | null {
   const pending = pendingPlanningItems(items);
   if (pending.length === 0) return null;
