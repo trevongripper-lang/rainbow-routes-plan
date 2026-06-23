@@ -4,6 +4,28 @@ Plan group trips together — pitch destinations, vote, chat, track flights/stay
 
 This is a **web app** that also installs to a phone home screen as a PWA. No App Store build yet.
 
+## Links
+
+- **GitHub repository:** _<add your repo URL here, e.g._ `https://github.com/<org>/<repo>` _>_
+- **Live (published):** https://rainbow-routes-plan.lovable.app
+- **Preview (editor):** https://id-preview--938ee2e4-e28c-4f9a-80fb-c8ac6ff9fb0b.lovable.app
+
+## Key setup files
+
+- [`README.md`](./README.md) — this file (setup, deploy, accounts, env vars)
+- [`AUDIT.md`](./AUDIT.md) — feature-by-feature beta readiness audit
+- [`BETA_CHECKLIST.md`](./BETA_CHECKLIST.md) — must-fix, nice-to-have, risks, mobile/PWA matrix
+- [`.env`](./.env) — non-secret client config (publishable Supabase keys)
+- [`package.json`](./package.json) — scripts and dependencies
+- [`vite.config.ts`](./vite.config.ts) — Vite + TanStack Start config
+- [`vitest.config.ts`](./vitest.config.ts) — test runner config
+- [`eslint.config.js`](./eslint.config.js) — lint rules
+- [`supabase/migrations/`](./supabase/migrations/) — database schema history (applied automatically by Lovable Cloud)
+- [`supabase/config.toml`](./supabase/config.toml) — Supabase project config (auto-managed)
+- [`src/routes/__root.tsx`](./src/routes/__root.tsx) — root layout, head tags, PWA manifest links
+- [`public/manifest.webmanifest`](./public/manifest.webmanifest) — PWA install manifest
+- [`src/integrations/supabase/`](./src/integrations/supabase/) — auto-generated DB client and types (do not edit)
+
 ---
 
 ## What's in the box
