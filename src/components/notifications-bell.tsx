@@ -62,7 +62,7 @@ export function NotificationsBell() {
   });
 
   const tripIds = useMemo(
-    () => Array.from(new Set(notifs.map((n) => n.destination_id))),
+    () => Array.from(new Set(notifs.map((n) => n.destination_id).filter((id): id is string => id !== null))),
     [notifs],
   );
   const { data: trips = [] } = useQuery({
