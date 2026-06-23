@@ -269,27 +269,59 @@ function EventsAdminPage() {
           <Loader2 className="size-4 animate-spin" />
         ) : (
           <ul className="divide-y">
-            {(list.data ?? []).map((e: Record<string, string | null>) => (
-              <li key={e.id} className="flex items-center justify-between py-2 text-sm">
-                <div>
-                  <div className="font-medium">{e.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {e.city}, {e.country} · {e.start_date}
-                    {e.end_date ? ` → ${e.end_date}` : ""}
+            {(list.data ?? []).map((e) => {
+              const hasCoords = e.latitude != null && e.longitude != null;
+              return (
+                <li key={e.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5 font-medium">
+                      <span className="truncate">{e.name}</span>
+                      {e.verified ? (
+                        <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+                          Verified
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-400">
+                          Unverified
+                        </span>
+                      )}
+                      {!hasCoords && (
+                        <span
+                          title="Missing coordinates"
+                          className="rounded-full bg-destructive/20 px-1.5 py-0.5 text-[10px] text-destructive"
+                        >
+                          No lat/lng
+                        </span>
+                      )}
+                      {e.reports_count > 0 && (
+                        <span className="rounded-full bg-destructive/20 px-1.5 py-0.5 text-[10px] text-destructive">
+                          {e.reports_count} report{e.reports_count === 1 ? "" : "s"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {e.city}, {e.country} · {e.start_date}
+                      {e.end_date ? ` → ${e.end_date}` : ""}
+                    </div>
+                    {e.confidence_notes && (
+                      <div className="mt-0.5 text-[11px] italic text-muted-foreground">
+                        {e.confidence_notes}
+                      </div>
+                    )}
                   </div>
-                </div>
-                {e.url && (
-                  <a
-                    href={e.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-primary hover:underline"
-                  >
-                    link
-                  </a>
-                )}
-              </li>
-            ))}
+                  {(e.source_url || e.url) && (
+                    <a
+                      href={(e.source_url || e.url) as string}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0 text-xs text-primary hover:underline"
+                    >
+                      source
+                    </a>
+                  )}
+                </li>
+              );
+            })}
             {(list.data ?? []).length === 0 && (
               <li className="py-4 text-sm text-muted-foreground">No events yet.</li>
             )}
