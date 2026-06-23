@@ -123,6 +123,15 @@ export function NotificationsBell() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
+  const clearAll = useMutation({
+    mutationFn: async () => {
+      if (!meId) return;
+      const { error } = await supabase.from("notifications").delete().eq("user_id", meId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
   // Group by trip (system notifications without a destination get their own row keyed by notif id)
   type Group = {
     key: string;
