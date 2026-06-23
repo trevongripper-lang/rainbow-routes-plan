@@ -30,7 +30,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/notifications-bell";
-import { InstallAppBanner } from "@/components/install-app-banner";
+
 import { useMe } from "@/hooks/use-me";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
