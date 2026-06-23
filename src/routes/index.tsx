@@ -30,7 +30,7 @@ export const Route = createFileRoute("/")({
 function Landing() {
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-hero)" }}>
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
+      <header className="safe-top mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <div className="flex items-center gap-2 font-display text-xl">
           <span className="inline-block size-2.5 rounded-full bg-primary" />
           Tribe Trips
