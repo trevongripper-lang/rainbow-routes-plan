@@ -189,10 +189,17 @@ function EventsAdminPage() {
                 onChange={(e) => setDraft({ ...draft, tags: e.target.value })}
               />
             </Field>
-            <Field label="URL" className="sm:col-span-2">
+            <Field label="URL (display link)" className="sm:col-span-2">
               <Input
                 value={draft.url}
                 onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+              />
+            </Field>
+            <Field label="Source URL (origin/citation)" className="sm:col-span-2">
+              <Input
+                value={draft.source_url}
+                placeholder="Where this event was discovered (often the same)"
+                onChange={(e) => setDraft({ ...draft, source_url: e.target.value })}
               />
             </Field>
             <Field label="Description" className="sm:col-span-2">
@@ -202,11 +209,35 @@ function EventsAdminPage() {
                 onChange={(e) => setDraft({ ...draft, description: e.target.value })}
               />
             </Field>
-            <div className="text-xs text-muted-foreground sm:col-span-2">
+            <Field label="Confidence notes (admin-only)" className="sm:col-span-2">
+              <Textarea
+                rows={2}
+                value={draft.confidence_notes}
+                placeholder="Notes about source reliability, ambiguous dates, etc."
+                onChange={(e) => setDraft({ ...draft, confidence_notes: e.target.value })}
+              />
+            </Field>
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={draft.verified}
+                onChange={(e) => setDraft({ ...draft, verified: e.target.checked })}
+              />
+              <span>
+                <strong>Verified</strong> — date, location, and source confirmed by an admin
+              </span>
+            </label>
+            <div
+              className={`text-xs sm:col-span-2 ${
+                draft.latitude != null && draft.longitude != null
+                  ? "text-muted-foreground"
+                  : "text-destructive"
+              }`}
+            >
               Coordinates:{" "}
               {draft.latitude != null && draft.longitude != null
                 ? `${draft.latitude.toFixed(4)}, ${draft.longitude.toFixed(4)}`
-                : "not resolved — will save without map pin"}
+                : "NOT resolved — event will not appear in nearby-trip matches by distance. Add lat/lng manually before publishing."}
             </div>
           </div>
 
