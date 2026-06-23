@@ -191,7 +191,7 @@ function renderBody(body: string, memberMap: Map<string, Profile>) {
       .map((m) => (m.display_name ?? "").toLowerCase())
       .filter(Boolean),
   );
-  const parts = body.split(/(@[\w][\w \-]*)/g);
+  const parts = body.split(/(@[\w][\w -]*)/g);
   return parts.map((p, i) => {
     if (p.startsWith("@")) {
       const candidate = p.slice(1).trim().toLowerCase();
@@ -277,7 +277,7 @@ function Composer({
     // Detect a trailing @token at the caret
     const caret = textareaRef.current?.selectionStart ?? val.length;
     const upToCaret = val.slice(0, caret);
-    const m = upToCaret.match(/(?:^|\s)@([\w \-]{0,30})$/);
+    const m = upToCaret.match(/(?:^|\s)@([\w -]{0,30})$/);
     if (m) {
       setPickerQuery(m[1]);
       setShowPicker(true);
@@ -291,7 +291,7 @@ function Composer({
     const before = body.slice(0, caret);
     const after = body.slice(caret);
     const replaced = before.replace(
-      /(^|\s)@([\w \-]{0,30})$/,
+      /(^|\s)@([\w -]{0,30})$/,
       (_m, pre) => `${pre}@${p.display_name ?? "user"} `,
     );
     const newBody = replaced + after;

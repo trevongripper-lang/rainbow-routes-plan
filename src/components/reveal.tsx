@@ -40,10 +40,10 @@ export function Reveal({ children, delay = 0, className = "", as: Tag = "div" }:
     return () => io.disconnect();
   }, []);
 
-  const Comp = Tag as any;
+  const Comp = Tag as React.ElementType;
   return (
     <Comp
-      ref={ref as any}
+      ref={ref as React.Ref<HTMLElement>}
       style={{ transitionDelay: visible ? `${delay}ms` : "0ms" }}
       className={[
         "transition-all duration-700 ease-out will-change-transform",

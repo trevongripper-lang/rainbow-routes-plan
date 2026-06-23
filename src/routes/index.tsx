@@ -243,7 +243,15 @@ function Landing() {
             <span className="inline-block size-2 rounded-full bg-primary" />
             Tribe Trips
           </div>
-          <p className="text-xs text-muted-foreground">Built for the community. Travel together.</p>
+          <nav className="flex items-center gap-4 text-xs text-muted-foreground">
+            <Link to="/privacy" className="hover:text-foreground">
+              Privacy
+            </Link>
+            <Link to="/terms" className="hover:text-foreground">
+              Terms
+            </Link>
+            <span>Built for the community. Travel together.</span>
+          </nav>
         </div>
       </footer>
     </div>

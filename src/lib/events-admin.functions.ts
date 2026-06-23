@@ -17,7 +17,10 @@ export type EventDraft = {
   longitude: number | null;
 };
 
-async function assertAdmin(ctx: { supabase: any; userId: string }) {
+async function assertAdmin(ctx: {
+  supabase: typeof import("@/integrations/supabase/client").supabase;
+  userId: string;
+}) {
   const { data, error } = await ctx.supabase.rpc("has_role", {
     _user_id: ctx.userId,
     _role: "admin",
@@ -64,7 +67,9 @@ function extractJsonLd(html: string): unknown[] {
       const v = JSON.parse(m[1].trim());
       if (Array.isArray(v)) out.push(...v);
       else out.push(v);
-    } catch {}
+    } catch {
+      // skip invalid JSON-LD blocks
+    }
   }
   return out;
 }
@@ -118,7 +123,9 @@ export const extractEventFromUrl = createServerFn({ method: "POST" })
         redirect: "follow",
       });
       if (res.ok) html = (await res.text()).slice(0, 600_000);
-    } catch {}
+    } catch {
+      // network/parse errors fall through to AI-only path
+    }
 
     const ogTitle =
       pickMeta(html, ["og:title", "twitter:title"]) ||
@@ -208,7 +215,9 @@ export const extractEventFromUrl = createServerFn({ method: "POST" })
             latitude = top.center[1];
           }
         }
-      } catch {}
+      } catch {
+        // geocoding failures are non-fatal
+      }
     }
 
     return {

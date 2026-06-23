@@ -297,7 +297,6 @@ export function SmartAdd({ destinationId, me }: { destinationId: string; me: str
                   </div>
                 )}
                 {draft.enriched?.image && (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={draft.enriched.image}
                     alt=""
