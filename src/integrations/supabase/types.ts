@@ -141,6 +141,7 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          dates_locked: boolean
           default_currency: string | null
           description: string | null
           downsides: string | null
@@ -151,11 +152,13 @@ export type Database = {
           is_past: boolean
           latitude: number | null
           longitude: number | null
+          no_shared_costs: boolean
           paid_amount_cents: number
           reasons: string[] | null
           region: string
           special_note: string | null
           start_date: string | null
+          stay_not_needed: boolean
           title: string
           trip_length: string | null
           unlock_status: string
@@ -173,6 +176,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          dates_locked?: boolean
           default_currency?: string | null
           description?: string | null
           downsides?: string | null
@@ -183,11 +187,13 @@ export type Database = {
           is_past?: boolean
           latitude?: number | null
           longitude?: number | null
+          no_shared_costs?: boolean
           paid_amount_cents?: number
           reasons?: string[] | null
           region: string
           special_note?: string | null
           start_date?: string | null
+          stay_not_needed?: boolean
           title: string
           trip_length?: string | null
           unlock_status?: string
@@ -205,6 +211,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          dates_locked?: boolean
           default_currency?: string | null
           description?: string | null
           downsides?: string | null
@@ -215,11 +222,13 @@ export type Database = {
           is_past?: boolean
           latitude?: number | null
           longitude?: number | null
+          no_shared_costs?: boolean
           paid_amount_cents?: number
           reasons?: string[] | null
           region?: string
           special_note?: string | null
           start_date?: string | null
+          stay_not_needed?: boolean
           title?: string
           trip_length?: string | null
           unlock_status?: string
@@ -720,6 +729,8 @@ export type Database = {
           id: string
           joined_at: string
           role: string
+          status: string
+          travel_status: string
           user_id: string
         }
         Insert: {
@@ -727,6 +738,8 @@ export type Database = {
           id?: string
           joined_at?: string
           role?: string
+          status?: string
+          travel_status?: string
           user_id: string
         }
         Update: {
@@ -734,6 +747,8 @@ export type Database = {
           id?: string
           joined_at?: string
           role?: string
+          status?: string
+          travel_status?: string
           user_id?: string
         }
         Relationships: [

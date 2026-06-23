@@ -7,9 +7,10 @@ import {
   computeWeightedScore,
   pendingPlanningItems,
   nextBestAction,
+  type PlanningInput,
 } from "@/lib/planning-progress";
 
-function view(input: Parameters<typeof computePlanningItems>[0]) {
+function view(input: PlanningInput) {
   const items = computePlanningItems(input);
   const remaining = pendingPlanningItems(items);
   const { earned, total, pct } = computeWeightedScore(items);
@@ -26,46 +27,53 @@ function view(input: Parameters<typeof computePlanningItems>[0]) {
   );
 }
 
-const FULL = {
+const FULL: PlanningInput = {
   startDate: "2026-07-01",
   endDate: "2026-07-08",
-  staysCount: 1,
-  flightsBooked: 4,
+  datesLocked: true,
   memberCount: 4,
+  confirmedCount: 4,
   headcount: 4,
-  ticketsCount: 2,
+  staysCount: 1,
+  stayNotNeeded: false,
+  travelHandledCount: 4,
   myNetCents: 0,
-  settlementsCount: 0,
+  settlementsCount: 1,
+  noSharedCosts: false,
+  hasSharedCosts: true,
 };
 
-const NEW_TRIP = {
+const NEW_TRIP: PlanningInput = {
   startDate: null,
   endDate: null,
-  staysCount: 0,
-  flightsBooked: 0,
+  datesLocked: false,
   memberCount: 1,
+  confirmedCount: 1,
   headcount: 4,
-  ticketsCount: 0,
+  staysCount: 0,
+  stayNotNeeded: false,
+  travelHandledCount: 0,
   myNetCents: 0,
   settlementsCount: 0,
+  noSharedCosts: false,
+  hasSharedCosts: false,
 };
 
-const PARTIAL = {
+const PARTIAL: PlanningInput = {
+  ...NEW_TRIP,
   startDate: "2026-07-01",
   endDate: "2026-07-08",
-  staysCount: 1,
-  flightsBooked: 2,
+  datesLocked: false,
   memberCount: 4,
-  headcount: 4,
-  ticketsCount: 1,
-  myNetCents: -4200,
-  settlementsCount: 0,
+  confirmedCount: 2,
+  travelHandledCount: 2,
+  staysCount: 1,
 };
 
 describe("PlanningProgressView accessibility", () => {
   beforeEach(() => cleanup());
 
-  it("exposes the trigger as a focusable button reachable by keyboard", async () => {
+  it("trigger is a focusable button reachable by keyboard", async () => {
     const user = userEvent.setup();
     render(view(NEW_TRIP));
     const trigger = screen.getByRole("button", { name: /planning progress/i });
@@ -74,37 +82,42 @@ describe("PlanningProgressView accessibility", () => {
     expect(trigger).toHaveFocus();
   });
 
-  it("announces a summary including percent and pending items", () => {
+  it("summary surfaces pending items in aria-label", () => {
     render(view(PARTIAL));
     const label = screen.getByRole("button").getAttribute("aria-label") ?? "";
-    expect(label).toMatch(/percent/i);
-    expect(label.toLowerCase()).toContain("flights 2 / 4 booked");
-    expect(label.toLowerCase()).toContain("balances outstanding");
+    expect(label.toLowerCase()).toContain("dates locked set");
+    expect(label.toLowerCase()).toContain("money handled not discussed");
   });
 
-  it("announces completion when nothing is pending", () => {
+  it("announces ready when nothing is pending", () => {
     render(view(FULL));
-    const trigger = screen.getByRole("button");
-    expect(trigger).toHaveAttribute("aria-label", expect.stringMatching(/complete/i));
+    expect(screen.getByRole("button")).toHaveAttribute("aria-label", expect.stringMatching(/ready to go/i));
   });
 
-  it("exposes the progress as a progressbar with a screen-reader value", () => {
+  it("progressbar exposes 100 percent when ready", () => {
     render(view(FULL));
     const bar = screen.getByRole("progressbar", { name: /planning progress/i });
     expect(bar).toHaveAttribute("aria-valuetext", "100 percent complete");
   });
 
-  it("opens the tooltip on keyboard focus and lists only pending items", async () => {
+  it("tooltip lists pending items on focus", async () => {
     const user = userEvent.setup();
     render(view(PARTIAL));
     await user.tab();
     const tooltip = await screen.findByRole("tooltip");
-    const list = within(tooltip).getByRole("list");
-    const rows = within(list).getAllByRole("listitem");
-    const text = rows.map((r) => r.textContent ?? "").join("|");
-    expect(text).toContain("Flights");
-    expect(text).toContain("Balances");
-    expect(text).not.toContain("Destination");
+    const text = within(tooltip).getByRole("list").textContent ?? "";
+    expect(text).toContain("Dates locked");
+    expect(text).toContain("Money handled");
+    expect(text).not.toContain("Destination picked");
+  });
+
+  it("Money is surfaced as pending on a brand-new trip (fixes false-positive)", async () => {
+    const user = userEvent.setup();
+    render(view(NEW_TRIP));
+    await user.tab();
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip.textContent ?? "").toContain("Money handled");
+    expect(tooltip.textContent ?? "").toContain("Not discussed");
   });
 
   it("closes on Escape", async () => {
@@ -116,16 +129,16 @@ describe("PlanningProgressView accessibility", () => {
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
-  it("shows 'Everything's planned' when complete", async () => {
+  it("shows 'Ready to go' when complete", async () => {
     const user = userEvent.setup();
     render(view(FULL));
     await user.tab();
     const tooltip = await screen.findByRole("tooltip");
     expect(within(tooltip).queryByRole("list")).not.toBeInTheDocument();
-    expect(tooltip.textContent ?? "").toMatch(/everything's planned/i);
+    expect(tooltip.textContent ?? "").toMatch(/ready to go/i);
   });
 
-  it("surfaces a 'Next best action' line in the tooltip when pending", async () => {
+  it("'Next best action' line appears when pending", async () => {
     const user = userEvent.setup();
     render(view(PARTIAL));
     await user.tab();
