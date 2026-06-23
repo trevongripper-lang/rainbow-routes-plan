@@ -35,11 +35,11 @@ export function InviteModal({ destinationId, isOwner = false }: { destinationId:
 
   const createInvite = useMutation({
     mutationFn: async (forEmail: string | null) => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Sign in required");
+      const { data: s } = await supabase.auth.getSession();
+      if (!s.session) throw new Error("Sign in required");
       const { data, error } = await supabase
         .from("trip_invites")
-        .insert({ destination_id: destinationId, invited_by: u.user.id, email: forEmail })
+        .insert({ destination_id: destinationId, invited_by: s.session.user.id, email: forEmail })
         .select("token")
         .single();
       if (error) throw error;
