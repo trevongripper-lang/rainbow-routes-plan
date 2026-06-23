@@ -280,7 +280,7 @@ export type Database = {
         Row: {
           actor_id: string | null
           created_at: string
-          destination_id: string
+          destination_id: string | null
           id: string
           kind: string
           payload: Json
@@ -290,7 +290,7 @@ export type Database = {
         Insert: {
           actor_id?: string | null
           created_at?: string
-          destination_id: string
+          destination_id?: string | null
           id?: string
           kind: string
           payload?: Json
@@ -300,7 +300,7 @@ export type Database = {
         Update: {
           actor_id?: string | null
           created_at?: string
-          destination_id?: string
+          destination_id?: string | null
           id?: string
           kind?: string
           payload?: Json
