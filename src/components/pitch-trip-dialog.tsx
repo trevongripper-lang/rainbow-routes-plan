@@ -91,10 +91,10 @@ export function PitchTripDialog() {
     }
     setUploading(true);
     try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Not signed in");
+      const { data: s } = await supabase.auth.getSession();
+      if (!s.session) throw new Error("Not signed in");
       const ext = file.name.split(".").pop() || "jpg";
-      const path = `${u.user.id}/${crypto.randomUUID()}.${ext}`;
+      const path = `${s.session.user.id}/${crypto.randomUUID()}.${ext}`;
       const up = await supabase.storage.from("destination-covers").upload(path, file, {
         cacheControl: "31536000", upsert: false,
       });
