@@ -29,7 +29,7 @@ Date: 2026-06-23 · Branch: web/PWA beta (no Expo/Capacitor)
 | Stays | ✅ | `trip_stays` |
 | Tickets | ✅ | `trip_tickets` |
 | Costs + settlements | ✅ | `trip_costs`, `trip_settlements`, balance math in `src/lib/trip-balances.ts` |
-| Events near trip | ✅ | `match_trip_events` RPC, EventsMap with Mapbox |
+| Events near trip | ✅ | `match_trip_events` RPC returns `match_score` + `verified`; admin events carry `source_url`, `verified`, `confidence_notes`; users can flag via `event_reports`. EventsMap with Mapbox. |
 | Notifications | ✅ | `notifications` table + bell, fanout from triggers |
 | Planning progress | ✅ | New 6-item commitment model (this release) |
 | Promo codes | ✅ | Admin console + `redeem_promo_code` RPC, rate-limited |
