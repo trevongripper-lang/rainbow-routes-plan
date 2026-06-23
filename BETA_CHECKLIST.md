@@ -54,3 +54,14 @@ Run each before opening signups:
 - [ ] Desktop Chrome + Safari — full flow including admin console (`/console/*`) if applicable
 
 If any layout breaks on iPhone-sized widths, the fix usually lives in the responsive header patterns documented in the codebase — see existing trip-detail headers as the reference for `grid-cols-[minmax(0,1fr)_auto]` + `min-w-0` + `shrink-0`.
+
+## Event accuracy verification
+
+Run these once before opening the beta and after any bulk event import:
+
+- [ ] **Coordinates audit**: in admin `/console/events`, every event without a "No lat/lng" red badge can match by distance. Fix or delete events flagged "No lat/lng" before they sit live.
+- [ ] **Verified pass**: walk the events list, toggle Verified ON only for ones with a confirmed source URL, real date, and correct city.
+- [ ] **Ranking smoke test**: open a trip whose city has a curated event in-dates → confirm it ranks above region-only matches.
+- [ ] **Report flow smoke test**: open any trip with suggested events → tap the flag icon → submit a report → confirm toast, then verify `/console/events` shows the report count.
+- [ ] **Stale events**: any event whose `end_date` is in the past should be removed or marked inactive — current schema has no `is_active` flag, so deletion is the simplest action for beta.
+- [ ] **Curated-only policy**: do NOT wire a third-party event API for beta. Tradeoffs documented in `AUDIT.md §7`.
