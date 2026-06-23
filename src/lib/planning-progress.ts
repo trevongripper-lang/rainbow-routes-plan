@@ -40,8 +40,8 @@ export type PlanningInput = {
   myNetCents: number;
   settlementsCount: number;
   noSharedCosts: boolean;
-  hasShared Costs?: boolean; // typo guard for older callers — see has SharedCosts below
-  hasSharedCosts: boolean; // are there any shared cost rows on the trip?
+  /** Are there any shared cost rows on the trip? */
+  hasSharedCosts: boolean;
 };
 
 const W = {
