@@ -19,6 +19,8 @@ import {
 import { getIntegrationsStatus, testSerpstack } from "@/lib/integrations.functions";
 import { lookupFlight } from "@/lib/flight-lookup.functions";
 import { runRlsSmokeTests, type SmokeCheck } from "@/lib/rls-smoke.functions";
+import { InstallAppButton } from "@/components/install-app-banner";
+import { Smartphone } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -98,6 +100,24 @@ function SettingsPage() {
           Manage integrations powering AI lookups and verification.
         </p>
       </header>
+
+      <section className="rounded-2xl border border-border/60 bg-card p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Smartphone className="size-5" />
+            </div>
+            <div>
+              <h2 className="font-display text-lg">Install app</h2>
+              <p className="mt-1 max-w-prose text-sm text-muted-foreground">
+                Add Tribe Trips to your home screen for a faster, full-screen experience. Works on
+                iPhone, iPad, Android, and desktop Chrome/Edge.
+              </p>
+            </div>
+          </div>
+          <InstallAppButton />
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-border/60 bg-card p-6">
         <div className="flex items-start justify-between gap-4">
