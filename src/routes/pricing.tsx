@@ -36,7 +36,7 @@ const features = [
 
 function PricingPage() {
   return (
-    <main className="min-h-screen bg-background px-6 py-16">
+    <main className="safe-top safe-bottom min-h-screen bg-background px-6 py-16">
       <div className="mx-auto max-w-5xl">
         <div className="text-center">
           <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">

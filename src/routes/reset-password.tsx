@@ -85,7 +85,7 @@ function ResetPasswordPage() {
 
   return (
     <div
-      className="min-h-screen grid place-items-center px-6 py-12"
+      className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
       style={{ background: "var(--gradient-hero)" }}
     >
       <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-8 backdrop-blur">

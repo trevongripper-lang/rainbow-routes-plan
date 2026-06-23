@@ -115,7 +115,7 @@ function AppShell() {
       />
 
       <SidebarInset className="min-w-0" style={{ background: "var(--gradient-hero)" }}>
-        <header className="sticky top-0 z-20 border-b border-border/60 bg-background/60 backdrop-blur">
+        <header className="safe-top sticky top-0 z-20 border-b border-border/60 bg-background/60 backdrop-blur">
           <div className="flex h-14 items-center justify-between px-4">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="text-muted-foreground hover:bg-card hover:text-foreground" />
@@ -138,8 +138,7 @@ function AppShell() {
           </div>
         </header>
 
-        
-        <main className="flex-1 px-4 py-8 md:px-8 md:py-12">
+        <main className="safe-bottom flex-1 px-4 py-8 md:px-8 md:py-12">
           <div className="mx-auto w-full max-w-6xl">
             <Outlet />
           </div>
