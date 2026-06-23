@@ -14,9 +14,9 @@ import {
 
 export const Route = createFileRoute("/_authenticated/console/promo-codes")({
   beforeLoad: async () => {
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) throw notFound();
-    const { data } = await supabase.rpc("has_role", { _user_id: userData.user.id, _role: "admin" });
+    const { data: userData } = await supabase.auth.getSession();
+    if (!userData.session) throw notFound();
+    const { data } = await supabase.rpc("has_role", { _user_id: userData.session.user.id, _role: "admin" });
     if (!data) throw notFound();
   },
   component: PromoAdminPage,
