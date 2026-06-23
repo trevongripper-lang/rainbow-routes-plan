@@ -21,9 +21,9 @@ export const Route = createFileRoute("/_authenticated/me")({
 
 
 async function fetchMine() {
-  const { data: u } = await supabase.auth.getUser();
-  if (!u.user) throw new Error("not signed in");
-  const userId = u.user.id;
+  const { data: s } = await supabase.auth.getSession();
+  if (!s.session) throw new Error("not signed in");
+  const userId = s.session.user.id;
   const [{ data: profile }, { data: dests }, { data: myVotes }, { data: myComments }] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
     supabase.from("destinations").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
@@ -40,7 +40,7 @@ async function fetchMine() {
 
   return {
     profile,
-    user: u.user,
+    user: s.session.user,
     dests: (dests ?? []).map((d) => ({ ...d, votes: counts[d.id] ?? 0 })),
     voted: myVotes ?? [],
     commentCount: myComments?.length ?? 0,

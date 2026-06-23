@@ -341,13 +341,14 @@ function TripCard({
   const qc = useQueryClient();
   const vote = useMutation({
     mutationFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Not signed in");
+      const { data: s } = await supabase.auth.getSession();
+      if (!s.session) throw new Error("Not signed in");
+      const uid = s.session.user.id;
       if (d.voted) {
-        const { error } = await supabase.from("votes").delete().eq("destination_id", d.id).eq("user_id", u.user.id);
+        const { error } = await supabase.from("votes").delete().eq("destination_id", d.id).eq("user_id", uid);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("votes").insert({ destination_id: d.id, user_id: u.user.id });
+        const { error } = await supabase.from("votes").insert({ destination_id: d.id, user_id: uid });
         if (error) throw error;
       }
     },

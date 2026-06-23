@@ -42,7 +42,7 @@ export function NotificationsBell() {
 
   const { data: meId } = useQuery({
     queryKey: ["me-id"],
-    queryFn: async () => (await supabase.auth.getUser()).data.user?.id ?? null,
+    queryFn: async () => (await supabase.auth.getSession()).data.session?.user.id ?? null,
     staleTime: Infinity,
   });
 

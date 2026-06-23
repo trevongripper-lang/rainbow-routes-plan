@@ -42,8 +42,9 @@ Loading: render six skeleton rows.
 Update `.lovable/plan.md`:
 
 - Move **Referrals** ("from invites" credit source, referral tracking) → Out of scope (next release).
-- Keep in scope: **promo codes** (admin console + redemption), **loyalty credits** (paid-trip progress → free unlocks), **credits panel/spending**.
-- Update `CreditsPanel` to hide the "Referral" tile (the `referralRemaining` data still loads but is not displayed). No backend changes — server fn keeps returning the field for future use.
+- Move **Ratings** (trip/destination ratings UI + storage) → Out of scope (next release).
+- Move **Credits & Loyalty** (credits panel/spending, loyalty progress → free unlocks) → Out of scope (next release). Promo-code redemption stays in scope only as an admin-side tool; user-facing credits UI is deferred.
+- In-scope this release: promo codes (admin console + redemption), planning-progress card, P0/P1 security fixes.
 
 ## Technical notes
 
