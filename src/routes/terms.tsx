@@ -6,8 +6,7 @@ export const Route = createFileRoute("/terms")({
       { title: "Terms of Service · Tribe Trips" },
       {
         name: "description",
-        content:
-          "The terms that govern your use of the Tribe Trips beta.",
+        content: "The terms that govern your use of the Tribe Trips beta.",
       },
       { property: "og:title", content: "Terms of Service · Tribe Trips" },
       {
@@ -28,24 +27,22 @@ function TermsPage() {
       </p>
       <h1 className="font-display text-3xl">Terms of Service</h1>
       <p className="mt-3 text-sm text-muted-foreground">
-        Welcome to Tribe Trips. By creating an account you agree to these simple
-        beta terms.
+        Welcome to Tribe Trips. By creating an account you agree to these simple beta terms.
       </p>
 
       <section className="mt-8 space-y-3 text-sm">
         <h2 className="font-display text-xl">Beta status</h2>
         <p className="text-muted-foreground">
-          Tribe Trips is in active beta. Features may change, break, or be
-          removed. We recommend keeping a copy of anything you cannot afford to
-          lose.
+          Tribe Trips is in active beta. Features may change, break, or be removed. We recommend
+          keeping a copy of anything you cannot afford to lose.
         </p>
       </section>
 
       <section className="mt-8 space-y-3 text-sm">
         <h2 className="font-display text-xl">Your account</h2>
         <p className="text-muted-foreground">
-          You are responsible for the activity on your account. Keep your
-          password secret. Tell us right away if you suspect unauthorized access.
+          You are responsible for the activity on your account. Keep your password secret. Tell us
+          right away if you suspect unauthorized access.
         </p>
       </section>
 
@@ -64,36 +61,34 @@ function TermsPage() {
       <section className="mt-8 space-y-3 text-sm">
         <h2 className="font-display text-xl">Payments</h2>
         <p className="text-muted-foreground">
-          Unlocking a trip is a one-time payment processed by Paddle, our
-          merchant of record. Free trips support up to 5 members. Paid unlocks
-          are non-refundable except where required by law.
+          Unlocking a trip is a one-time payment processed by Paddle, our merchant of record. Free
+          trips support up to 5 members. Paid unlocks are non-refundable except where required by
+          law.
         </p>
       </section>
 
       <section className="mt-8 space-y-3 text-sm">
         <h2 className="font-display text-xl">Content you create</h2>
         <p className="text-muted-foreground">
-          You own the content you add to your trips. You grant us a limited
-          license to store and display it so the app can work for you and your
-          co-travelers.
+          You own the content you add to your trips. You grant us a limited license to store and
+          display it so the app can work for you and your co-travelers.
         </p>
       </section>
 
       <section className="mt-8 space-y-3 text-sm">
         <h2 className="font-display text-xl">Disclaimer</h2>
         <p className="text-muted-foreground">
-          The service is provided "as is" during beta. We don't guarantee
-          uptime, accuracy, or fitness for any particular purpose. To the
-          maximum extent allowed by law, our liability is limited to the
-          amounts you paid us in the prior 12 months.
+          The service is provided "as is" during beta. We don't guarantee uptime, accuracy, or
+          fitness for any particular purpose. To the maximum extent allowed by law, our liability is
+          limited to the amounts you paid us in the prior 12 months.
         </p>
       </section>
 
       <section className="mt-8 space-y-3 text-sm">
         <h2 className="font-display text-xl">Changes</h2>
         <p className="text-muted-foreground">
-          We may update these terms as the product evolves. Material changes
-          will be announced by email or in-app notice.
+          We may update these terms as the product evolves. Material changes will be announced by
+          email or in-app notice.
         </p>
       </section>
 
