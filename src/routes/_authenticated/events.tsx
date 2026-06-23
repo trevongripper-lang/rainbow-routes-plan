@@ -10,10 +10,13 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/events")({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData({ queryKey: ["events"], queryFn: fetchEvents, staleTime: 60_000 }),
+    context.queryClient.ensureQueryData({
+      queryKey: ["events"],
+      queryFn: fetchEvents,
+      staleTime: 60_000,
+    }),
   component: EventsPage,
 });
-
 
 type EventRow = {
   id: string;
@@ -31,7 +34,10 @@ type EventRow = {
 type TripLite = { id: string; title: string; region: string; country: string | null };
 
 async function fetchEvents() {
-  const { data, error } = await supabase.from("events").select("*").order("start_date", { ascending: true });
+  const { data, error } = await supabase
+    .from("events")
+    .select("*")
+    .order("start_date", { ascending: true });
   if (error) throw error;
   return (data ?? []) as EventRow[];
 }
@@ -42,14 +48,22 @@ async function fetchMyTrips(userId: string): Promise<TripLite[]> {
     .select("destination_id, destinations:destination_id(id, title, region, country, is_past)")
     .eq("user_id", userId);
   if (error) throw error;
-  return (data ?? [])
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((r: any) => r.destinations)
-    .filter((d: { is_past?: boolean } | null): d is TripLite & { is_past: boolean } => !!d && !d.is_past);
+  return (
+    (data ?? [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((r: any) => r.destinations)
+      .filter(
+        (d: { is_past?: boolean } | null): d is TripLite & { is_past: boolean } =>
+          !!d && !d.is_past,
+      )
+  );
 }
 
 async function fetchAttachments(tripId: string): Promise<string[]> {
-  const { data, error } = await supabase.from("trip_events").select("event_id").eq("destination_id", tripId);
+  const { data, error } = await supabase
+    .from("trip_events")
+    .select("event_id")
+    .eq("destination_id", tripId);
   if (error) throw error;
   return (data ?? []).map((r) => r.event_id);
 }
@@ -61,7 +75,11 @@ function norm(s: string | null | undefined) {
 function EventsPage() {
   const me = useMe();
   const qc = useQueryClient();
-  const { data: events, isLoading } = useQuery({ queryKey: ["events"], queryFn: fetchEvents, staleTime: 60_000 });
+  const { data: events, isLoading } = useQuery({
+    queryKey: ["events"],
+    queryFn: fetchEvents,
+    staleTime: 60_000,
+  });
   const { data: trips = [] } = useQuery({
     queryKey: ["my-trips-lite", me.data?.id],
     queryFn: () => fetchMyTrips(me.data!.id),
@@ -83,10 +101,16 @@ function EventsPage() {
     mutationFn: async ({ eventId, attached }: { eventId: string; attached: boolean }) => {
       if (!me.data?.id || tripId === "all") return;
       if (attached) {
-        const { error } = await supabase.from("trip_events").delete().eq("destination_id", tripId).eq("event_id", eventId);
+        const { error } = await supabase
+          .from("trip_events")
+          .delete()
+          .eq("destination_id", tripId)
+          .eq("event_id", eventId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("trip_events").insert({ destination_id: tripId, event_id: eventId, added_by: me.data.id });
+        const { error } = await supabase
+          .from("trip_events")
+          .insert({ destination_id: tripId, event_id: eventId, added_by: me.data.id });
         if (error) throw error;
       }
     },
@@ -97,7 +121,10 @@ function EventsPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
-  const regions = useMemo(() => ["All", ...Array.from(new Set((events ?? []).map((e) => e.region)))], [events]);
+  const regions = useMemo(
+    () => ["All", ...Array.from(new Set((events ?? []).map((e) => e.region)))],
+    [events],
+  );
 
   const filtered = useMemo(() => {
     let list = events ?? [];
@@ -134,7 +161,9 @@ function EventsPage() {
 
       <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card/40 p-4 backdrop-blur md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
-          <label className="text-xs uppercase tracking-wide text-muted-foreground">Filter by trip</label>
+          <label className="text-xs uppercase tracking-wide text-muted-foreground">
+            Filter by trip
+          </label>
           <select
             value={tripId}
             onChange={(e) => setTripId(e.target.value)}
@@ -142,7 +171,9 @@ function EventsPage() {
           >
             <option value="all">All events</option>
             {trips.map((t) => (
-              <option key={t.id} value={t.id}>{t.title} — {t.region}</option>
+              <option key={t.id} value={t.id}>
+                {t.title} — {t.region}
+              </option>
             ))}
           </select>
           {activeTrip && (
@@ -154,8 +185,11 @@ function EventsPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {regions.map((r) => (
-            <button key={r} onClick={() => setRegion(r)}
-              className={`rounded-full border px-3 py-1 text-xs transition ${region === r ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card/40 text-muted-foreground hover:text-foreground"}`}>
+            <button
+              key={r}
+              onClick={() => setRegion(r)}
+              className={`rounded-full border px-3 py-1 text-xs transition ${region === r ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card/40 text-muted-foreground hover:text-foreground"}`}
+            >
               {r}
             </button>
           ))}
@@ -163,28 +197,51 @@ function EventsPage() {
       </div>
 
       <div className="grid gap-3">
-        {isLoading && Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-card/60" />)}
+        {isLoading &&
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-24 animate-pulse rounded-xl bg-card/60" />
+          ))}
         {filtered.map((e) => {
           const isAttached = attachedIds.includes(e.id);
           return (
-            <article key={e.id} className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-5 md:flex-row md:items-center md:justify-between">
+            <article
+              key={e.id}
+              className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-5 md:flex-row md:items-center md:justify-between"
+            >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-primary"><MapPin className="size-3" />{e.region}</span>
-                  <span>{e.city}, {e.country}</span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-primary">
+                    <MapPin className="size-3" />
+                    {e.region}
+                  </span>
+                  <span>
+                    {e.city}, {e.country}
+                  </span>
                   {e.tags && <span className="text-accent">· {e.tags}</span>}
-                  {isAttached && <span className="inline-flex items-center gap-1 rounded-full bg-accent/20 px-2 py-0.5 text-accent"><Check className="size-3" />Attached</span>}
+                  {isAttached && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-accent/20 px-2 py-0.5 text-accent">
+                      <Check className="size-3" />
+                      Attached
+                    </span>
+                  )}
                 </div>
                 <h3 className="mt-1.5 font-display text-xl">{e.name}</h3>
-                {e.description && <p className="mt-1 text-sm text-muted-foreground">{e.description}</p>}
+                {e.description && (
+                  <p className="mt-1 text-sm text-muted-foreground">{e.description}</p>
+                )}
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <div className="text-right">
                   <div className="flex items-center justify-end gap-1.5 text-sm font-medium">
                     <CalendarDays className="size-3.5 text-primary" />
-                    {format(new Date(e.start_date), "MMM d")}{e.end_date && e.end_date !== e.start_date ? ` – ${format(new Date(e.end_date), "MMM d")}` : ""}
+                    {format(new Date(e.start_date), "MMM d")}
+                    {e.end_date && e.end_date !== e.start_date
+                      ? ` – ${format(new Date(e.end_date), "MMM d")}`
+                      : ""}
                   </div>
-                  <div className="text-xs text-muted-foreground">{format(new Date(e.start_date), "yyyy")}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {format(new Date(e.start_date), "yyyy")}
+                  </div>
                 </div>
                 {activeTrip && (
                   <button
@@ -193,17 +250,38 @@ function EventsPage() {
                     className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs transition ${isAttached ? "border border-border bg-card text-muted-foreground hover:text-destructive" : "bg-primary text-primary-foreground hover:opacity-90"}`}
                     title={isAttached ? "Detach from trip" : `Attach to ${activeTrip.title}`}
                   >
-                    {isAttached ? <><X className="size-3" />Detach</> : <><Plus className="size-3" />Attach</>}
+                    {isAttached ? (
+                      <>
+                        <X className="size-3" />
+                        Detach
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="size-3" />
+                        Attach
+                      </>
+                    )}
                   </button>
                 )}
-                {e.url && <a href={e.url} target="_blank" rel="noreferrer" className="rounded-full border border-border p-2 text-muted-foreground hover:text-foreground"><ExternalLink className="size-4" /></a>}
+                {e.url && (
+                  <a
+                    href={e.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-full border border-border p-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <ExternalLink className="size-4" />
+                  </a>
+                )}
               </div>
             </article>
           );
         })}
         {filtered.length === 0 && !isLoading && (
           <div className="rounded-xl border border-dashed border-border p-10 text-center text-muted-foreground">
-            {activeTrip ? "No events match this trip yet. Try clearing the trip filter." : "Nothing in this region yet."}
+            {activeTrip
+              ? "No events match this trip yet. Try clearing the trip filter."
+              : "Nothing in this region yet."}
           </div>
         )}
       </div>

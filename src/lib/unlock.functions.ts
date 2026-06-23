@@ -17,56 +17,55 @@ export const quoteUnlock = createServerFn({ method: "POST" })
   .inputValidator((d: { destinationId: string }) => d)
   .handler(async ({ data, context }): Promise<UnlockQuote> => {
     try {
-    const { supabase, userId } = context;
+      const { supabase, userId } = context;
 
-    const { data: dest, error: derr } = await supabase
-      .from("destinations")
-      .select("id, user_id, headcount, unlock_status")
-      .eq("id", data.destinationId)
-      .maybeSingle();
-    if (derr) throw new Error(derr.message);
-    if (!dest) throw new Error("Trip not found");
+      const { data: dest, error: derr } = await supabase
+        .from("destinations")
+        .select("id, user_id, headcount, unlock_status")
+        .eq("id", data.destinationId)
+        .maybeSingle();
+      if (derr) throw new Error(derr.message);
+      if (!dest) throw new Error("Trip not found");
 
-    const { count: memberCount } = await supabase
-      .from("trip_members")
-      .select("user_id", { count: "exact", head: true })
-      .eq("destination_id", data.destinationId);
-    const members = memberCount ?? 0;
-    const effective = Math.max(members, dest.headcount ?? 0);
+      const { count: memberCount } = await supabase
+        .from("trip_members")
+        .select("user_id", { count: "exact", head: true })
+        .eq("destination_id", data.destinationId);
+      const members = memberCount ?? 0;
+      const effective = Math.max(members, dest.headcount ?? 0);
 
-    const { data: tierRow } = await supabase.rpc("required_unlock_tier", { _members: effective });
-    const tier = (tierRow as { tier: string | null; cents: number }[] | null)?.[0]?.tier ?? null;
-    const cents = (tierRow as { tier: string | null; cents: number }[] | null)?.[0]?.cents ?? 0;
+      const { data: tierRow } = await supabase.rpc("required_unlock_tier", { _members: effective });
+      const tier = (tierRow as { tier: string | null; cents: number }[] | null)?.[0]?.tier ?? null;
+      const cents = (tierRow as { tier: string | null; cents: number }[] | null)?.[0]?.cents ?? 0;
 
-    let credits = 0;
-    if (dest.user_id === userId) {
-      const { data: rows } = await supabase
-        .from("user_credits")
-        .select("remaining")
-        .eq("user_id", userId);
-      credits = (rows ?? []).reduce((s, r) => s + (r.remaining ?? 0), 0);
-    }
+      let credits = 0;
+      if (dest.user_id === userId) {
+        const { data: rows } = await supabase
+          .from("user_credits")
+          .select("remaining")
+          .eq("user_id", userId);
+        credits = (rows ?? []).reduce((s, r) => s + (r.remaining ?? 0), 0);
+      }
 
-    const status = dest.unlock_status as "free" | "paid" | "credited";
-    const needsPayment = status === "free" && tier !== null;
-    const dueCents = needsPayment ? (credits > 0 ? 0 : cents) : 0;
+      const status = dest.unlock_status as "free" | "paid" | "credited";
+      const needsPayment = status === "free" && tier !== null;
+      const dueCents = needsPayment ? (credits > 0 ? 0 : cents) : 0;
 
-    return {
-      destinationId: data.destinationId,
-      members,
-      tier: tier as UnlockQuote["tier"],
-      priceCents: cents,
-      status,
-      creditsAvailable: credits,
-      dueCents,
-      isOwner: dest.user_id === userId,
-    };
+      return {
+        destinationId: data.destinationId,
+        members,
+        tier: tier as UnlockQuote["tier"],
+        priceCents: cents,
+        status,
+        creditsAvailable: credits,
+        dueCents,
+        isOwner: dest.user_id === userId,
+      };
     } catch (err) {
       console.error("[quoteUnlock] failed", { destinationId: data.destinationId, err });
       throw err instanceof Error ? err : new Error(String(err));
     }
   });
-
 
 export const unlockTripWithCredit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

@@ -30,7 +30,9 @@ function ResetPasswordPage() {
     const probe = async () => {
       const { data } = await supabase.auth.getSession();
       // If hash isn't present and there's no session, this page was opened directly.
-      const hasRecoveryHash = typeof window !== "undefined" && /[?#&]type=recovery/.test(window.location.hash + window.location.search);
+      const hasRecoveryHash =
+        typeof window !== "undefined" &&
+        /[?#&]type=recovery/.test(window.location.hash + window.location.search);
       if (data.session) {
         setStatus("ready");
       } else if (!hasRecoveryHash) {
@@ -82,9 +84,14 @@ function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen grid place-items-center px-6 py-12" style={{ background: "var(--gradient-hero)" }}>
+    <div
+      className="min-h-screen grid place-items-center px-6 py-12"
+      style={{ background: "var(--gradient-hero)" }}
+    >
       <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-8 backdrop-blur">
-        <Link to="/auth" className="text-xs text-muted-foreground hover:text-foreground">← back to sign in</Link>
+        <Link to="/auth" className="text-xs text-muted-foreground hover:text-foreground">
+          ← back to sign in
+        </Link>
         <div className="mt-3 flex items-center gap-2">
           <KeyRound className="size-5 text-primary" />
           <h1 className="font-display text-3xl">Set a new password</h1>
@@ -99,7 +106,9 @@ function ResetPasswordPage() {
             <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
               <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
               <div>
-                <p className="font-medium text-foreground">This reset link is invalid or expired.</p>
+                <p className="font-medium text-foreground">
+                  This reset link is invalid or expired.
+                </p>
                 <p className="mt-1 text-muted-foreground">
                   Reset links work once and expire quickly. Request a new one from the sign-in page.
                 </p>
@@ -124,7 +133,8 @@ function ResetPasswordPage() {
         {status === "ready" && (
           <>
             <p className="mt-2 text-sm text-muted-foreground">
-              Pick something at least 8 characters. You'll be sent back to sign in with your new password.
+              Pick something at least 8 characters. You'll be sent back to sign in with your new
+              password.
             </p>
             <form onSubmit={handleSubmit} className="mt-5 space-y-3">
               <div>
@@ -155,7 +165,8 @@ function ResetPasswordPage() {
                 {loading ? "Updating…" : "Update password"}
               </Button>
               <p className="text-[11px] text-muted-foreground">
-                Tip: a passphrase like <span className="font-mono">poolside-spritz-2026</span> beats <span className="font-mono">P@ssw0rd!</span>.
+                Tip: a passphrase like <span className="font-mono">poolside-spritz-2026</span> beats{" "}
+                <span className="font-mono">P@ssw0rd!</span>.
               </p>
             </form>
           </>

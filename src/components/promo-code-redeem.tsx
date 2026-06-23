@@ -13,8 +13,14 @@ export function PromoCodeRedeem() {
   const mut = useMutation({
     mutationFn: (c: string) => fn({ data: { code: c } }),
     onSuccess: (res) => {
-      const days = Math.max(1, Math.round((new Date(res.expiresAt).getTime() - Date.now()) / 86400000));
-      setMsg({ kind: "ok", text: `🎉 ${res.credits} credit${res.credits === 1 ? "" : "s"} added · expire in ${days} days` });
+      const days = Math.max(
+        1,
+        Math.round((new Date(res.expiresAt).getTime() - Date.now()) / 86400000),
+      );
+      setMsg({
+        kind: "ok",
+        text: `🎉 ${res.credits} credit${res.credits === 1 ? "" : "s"} added · expire in ${days} days`,
+      });
       setCode("");
       qc.invalidateQueries({ queryKey: ["my-credits"] });
     },
@@ -51,9 +57,13 @@ export function PromoCodeRedeem() {
         </button>
       </form>
       {msg && (
-        <p className={`mt-2 text-xs ${msg.kind === "ok" ? "text-primary" : "text-destructive"}`}>{msg.text}</p>
+        <p className={`mt-2 text-xs ${msg.kind === "ok" ? "text-primary" : "text-destructive"}`}>
+          {msg.text}
+        </p>
       )}
-      <p className="mt-2 text-[11px] text-muted-foreground">Credits expire 90 days after redemption (or as set by the code).</p>
+      <p className="mt-2 text-[11px] text-muted-foreground">
+        Credits expire 90 days after redemption (or as set by the code).
+      </p>
     </div>
   );
 }

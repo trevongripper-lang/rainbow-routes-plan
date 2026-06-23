@@ -12,7 +12,16 @@ import {
 import { track } from "@/lib/analytics";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { CheckCircle2, Circle, AlertCircle, Lock, Plane, DollarSign, Hotel, UserCheck } from "lucide-react";
+import {
+  CheckCircle2,
+  Circle,
+  AlertCircle,
+  Lock,
+  Plane,
+  DollarSign,
+  Hotel,
+  UserCheck,
+} from "lucide-react";
 import { toast } from "sonner";
 
 type Props = {
@@ -28,42 +37,78 @@ type Props = {
 type MemberRow = { user_id: string; role: string; status: string; travel_status: string };
 type DestFlags = { dates_locked: boolean; stay_not_needed: boolean; no_shared_costs: boolean };
 
-export function PlanningProgress({ destinationId, me, startDate, endDate, headcountFallback, isOwner }: Props) {
+export function PlanningProgress({
+  destinationId,
+  me,
+  startDate,
+  endDate,
+  headcountFallback,
+  isOwner,
+}: Props) {
   const qc = useQueryClient();
 
   const results = useQueries({
     queries: [
-      { queryKey: ["trip-members", destinationId], queryFn: async () => {
+      {
+        queryKey: ["trip-members", destinationId],
+        queryFn: async () => {
           const { data, error } = await supabase
             .from("trip_members")
             .select("user_id, role, status, travel_status" as never)
             .eq("destination_id", destinationId);
-          if (error) throw error; return (data ?? []) as unknown as MemberRow[];
-        } },
-      { queryKey: ["dest-flags", destinationId], queryFn: async () => {
+          if (error) throw error;
+          return (data ?? []) as unknown as MemberRow[];
+        },
+      },
+      {
+        queryKey: ["dest-flags", destinationId],
+        queryFn: async () => {
           const { data, error } = await supabase
             .from("destinations")
             .select("dates_locked, stay_not_needed, no_shared_costs" as never)
             .eq("id", destinationId)
             .maybeSingle();
           if (error) throw error;
-          return (data ?? { dates_locked: false, stay_not_needed: false, no_shared_costs: false }) as unknown as DestFlags;
-        } },
-      { queryKey: ["stays", destinationId], queryFn: async () => {
-          const { data, error } = await supabase.from("trip_stays").select("id").eq("destination_id", destinationId);
-          if (error) throw error; return data ?? [];
-        } },
-      { queryKey: ["costs", destinationId], queryFn: async () => {
-          const { data, error } = await supabase.from("trip_costs").select("*").eq("destination_id", destinationId);
-          if (error) throw error; return data ?? [];
-        } },
-      { queryKey: ["settlements", destinationId], queryFn: async () => {
+          return (data ?? {
+            dates_locked: false,
+            stay_not_needed: false,
+            no_shared_costs: false,
+          }) as unknown as DestFlags;
+        },
+      },
+      {
+        queryKey: ["stays", destinationId],
+        queryFn: async () => {
+          const { data, error } = await supabase
+            .from("trip_stays")
+            .select("id")
+            .eq("destination_id", destinationId);
+          if (error) throw error;
+          return data ?? [];
+        },
+      },
+      {
+        queryKey: ["costs", destinationId],
+        queryFn: async () => {
+          const { data, error } = await supabase
+            .from("trip_costs")
+            .select("*")
+            .eq("destination_id", destinationId);
+          if (error) throw error;
+          return data ?? [];
+        },
+      },
+      {
+        queryKey: ["settlements", destinationId],
+        queryFn: async () => {
           const { data, error } = await supabase
             .from("trip_settlements")
             .select("from_user, to_user, amount_cents, currency")
             .eq("destination_id", destinationId);
-          if (error) throw error; return data ?? [];
-        } },
+          if (error) throw error;
+          return data ?? [];
+        },
+      },
     ],
   });
 
@@ -71,23 +116,37 @@ export function PlanningProgress({ destinationId, me, startDate, endDate, headco
   const isLoading = results.some((r) => r.isLoading);
 
   const members = (membersQ.data ?? []) as MemberRow[];
-  const flags = (flagsQ.data ?? { dates_locked: false, stay_not_needed: false, no_shared_costs: false }) as DestFlags;
+  const flags = (flagsQ.data ?? {
+    dates_locked: false,
+    stay_not_needed: false,
+    no_shared_costs: false,
+  }) as DestFlags;
   const stays = (staysQ.data ?? []) as { id: string }[];
   const costs = (costsQ.data ?? []) as CostRow[];
   const settlements = (settlementsQ.data ?? []) as SettlementRow[];
 
   const memberCount = Math.max(members.length, 1);
-  const confirmedCount = members.filter((m) => m.status === "confirmed" || m.role === "owner").length;
-  const travelHandledCount = members.filter((m) => m.travel_status === "booked" || m.travel_status === "not_needed").length;
+  const confirmedCount = members.filter(
+    (m) => m.status === "confirmed" || m.role === "owner",
+  ).length;
+  const travelHandledCount = members.filter(
+    (m) => m.travel_status === "booked" || m.travel_status === "not_needed",
+  ).length;
   const hasSharedCosts = costs.some((c) => c.is_shared);
 
   const memberIds = useMemo(() => {
     const ids = new Set<string>(members.map((m) => m.user_id));
-    for (const c of costs) { ids.add(c.user_id); if (c.paid_by) ids.add(c.paid_by); }
+    for (const c of costs) {
+      ids.add(c.user_id);
+      if (c.paid_by) ids.add(c.paid_by);
+    }
     return Array.from(ids);
   }, [members, costs]);
 
-  const myNetCents = useMemo(() => netForUser(costs, settlements, memberIds, me), [costs, settlements, memberIds, me]);
+  const myNetCents = useMemo(
+    () => netForUser(costs, settlements, memberIds, me),
+    [costs, settlements, memberIds, me],
+  );
 
   useEffect(() => {
     if (!isLoading) track("planning_progress_view", {}, destinationId);
@@ -119,7 +178,10 @@ export function PlanningProgress({ destinationId, me, startDate, endDate, headco
 
   const flipFlag = useMutation({
     mutationFn: async (patch: Partial<DestFlags>) => {
-      const { error } = await supabase.from("destinations").update(patch as never).eq("id", destinationId);
+      const { error } = await supabase
+        .from("destinations")
+        .update(patch as never)
+        .eq("id", destinationId);
       if (error) throw error;
     },
     onSuccess: (_d, patch) => {
@@ -152,21 +214,26 @@ export function PlanningProgress({ destinationId, me, startDate, endDate, headco
   });
 
   const actions: Partial<Record<string, () => void>> = {
-    dates: isOwner && startDate && endDate && !flags.dates_locked
-      ? () => flipFlag.mutate({ dates_locked: true })
-      : undefined,
-    stay: isOwner && !flags.stay_not_needed && stays.length === 0
-      ? () => flipFlag.mutate({ stay_not_needed: true })
-      : undefined,
-    money: isOwner && !flags.no_shared_costs && !hasSharedCosts
-      ? () => flipFlag.mutate({ no_shared_costs: true })
-      : undefined,
-    travel: myStatus && myTravel === "pending"
-      ? () => updateMe.mutate({ travel_status: "not_needed" })
-      : undefined,
-    people: myStatus && myStatus.status !== "confirmed" && myStatus.role !== "owner"
-      ? () => updateMe.mutate({ status: "confirmed" })
-      : undefined,
+    dates:
+      isOwner && startDate && endDate && !flags.dates_locked
+        ? () => flipFlag.mutate({ dates_locked: true })
+        : undefined,
+    stay:
+      isOwner && !flags.stay_not_needed && stays.length === 0
+        ? () => flipFlag.mutate({ stay_not_needed: true })
+        : undefined,
+    money:
+      isOwner && !flags.no_shared_costs && !hasSharedCosts
+        ? () => flipFlag.mutate({ no_shared_costs: true })
+        : undefined,
+    travel:
+      myStatus && myTravel === "pending"
+        ? () => updateMe.mutate({ travel_status: "not_needed" })
+        : undefined,
+    people:
+      myStatus && myStatus.status !== "confirmed" && myStatus.role !== "owner"
+        ? () => updateMe.mutate({ status: "confirmed" })
+        : undefined,
   };
 
   const actionLabels: Partial<Record<string, string>> = {
@@ -212,14 +279,24 @@ export type PlanningProgressViewProps = {
   actionLabels?: Partial<Record<string, string>>;
 };
 
-export function PlanningProgressView({ isLoading, items, earned, total, pct, remaining, next, actions, actionLabels }: PlanningProgressViewProps) {
+export function PlanningProgressView({
+  isLoading,
+  items,
+  earned,
+  total,
+  pct,
+  remaining,
+  next,
+  actions,
+  actionLabels,
+}: PlanningProgressViewProps) {
   const summary = isLoading
     ? "Planning progress: loading"
     : remaining.length === 0
-    ? `Planning progress: ready to go, ${earned} of ${total} points`
-    : `Planning progress: ${pct} percent, ${earned} of ${total} points, ${remaining.length} pending — ${remaining
-        .map((r) => `${r.label} ${r.hint.toLowerCase()}`)
-        .join(", ")}`;
+      ? `Planning progress: ready to go, ${earned} of ${total} points`
+      : `Planning progress: ${pct} percent, ${earned} of ${total} points, ${remaining.length} pending — ${remaining
+          .map((r) => `${r.label} ${r.hint.toLowerCase()}`)
+          .join(", ")}`;
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -244,7 +321,11 @@ export function PlanningProgressView({ isLoading, items, earned, total, pct, rem
             />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="bottom" align="start" className="max-w-sm border-green-900/30 bg-green-950 p-3 text-green-50 shadow-lg">
+        <TooltipContent
+          side="bottom"
+          align="start"
+          className="max-w-sm border-green-900/30 bg-green-950 p-3 text-green-50 shadow-lg"
+        >
           {isLoading ? (
             <p className="text-xs text-muted-foreground">Loading…</p>
           ) : remaining.length === 0 ? (
@@ -268,13 +349,18 @@ export function PlanningProgressView({ isLoading, items, earned, total, pct, rem
                     <li key={i.key} className="space-y-1">
                       <div className="flex items-center gap-2 text-xs">
                         <StatusIcon className={`size-3.5 ${color}`} aria-hidden="true" />
-                        {KindIcon && <KindIcon className="size-3.5 text-green-200" aria-hidden="true" />}
+                        {KindIcon && (
+                          <KindIcon className="size-3.5 text-green-200" aria-hidden="true" />
+                        )}
                         <span className="font-medium">{i.label}</span>
                         <span className="text-muted-foreground">
                           <span aria-hidden="true">· </span>
                           {i.hint}
                         </span>
-                        <span className="ml-auto tabular-nums text-[10px] text-muted-foreground" aria-hidden="true">
+                        <span
+                          className="ml-auto tabular-nums text-[10px] text-muted-foreground"
+                          aria-hidden="true"
+                        >
                           {i.earned}/{i.weight}
                         </span>
                       </div>
@@ -293,7 +379,8 @@ export function PlanningProgressView({ isLoading, items, earned, total, pct, rem
               </ul>
               {next && (
                 <p className="border-t border-green-900/30 pt-1.5 text-[11px] text-green-200">
-                  Next best action: <span className="font-medium">{next.label}</span> (+{next.weight - next.earned} pts)
+                  Next best action: <span className="font-medium">{next.label}</span> (+
+                  {next.weight - next.earned} pts)
                 </p>
               )}
             </div>

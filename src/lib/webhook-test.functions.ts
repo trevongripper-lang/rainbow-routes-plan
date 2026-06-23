@@ -28,57 +28,49 @@ function buildTestPayload() {
   };
 }
 
-export const generateTestPayload = createServerFn({ method: "POST" }).handler(
-  async () => {
-    const secret = process.env.PADDLE_WEBHOOK_SECRET;
-    if (!secret) {
-      return { configured: false as const, error: "PADDLE_WEBHOOK_SECRET is not set" };
-    }
-
-    const payload = buildTestPayload();
-    const rawBody = JSON.stringify(payload);
-    const ts = Math.floor(Date.now() / 1000);
-    const signature = createHmac("sha256", secret)
-      .update(`${ts}:${rawBody}`)
-      .digest("hex");
-
-    const paddleSignature = `ts=${ts};h1=${signature}`;
-
-    return {
-      configured: true as const,
-      payload,
-      rawBody,
-      paddleSignature,
-    };
+export const generateTestPayload = createServerFn({ method: "POST" }).handler(async () => {
+  const secret = process.env.PADDLE_WEBHOOK_SECRET;
+  if (!secret) {
+    return { configured: false as const, error: "PADDLE_WEBHOOK_SECRET is not set" };
   }
-);
 
-export const listRecentWebhookEvents = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
-      .from("paddle_events")
-      .select("event_id, event_type, processed_at, result, error")
-      .order("processed_at", { ascending: false })
-      .limit(50);
+  const payload = buildTestPayload();
+  const rawBody = JSON.stringify(payload);
+  const ts = Math.floor(Date.now() / 1000);
+  const signature = createHmac("sha256", secret).update(`${ts}:${rawBody}`).digest("hex");
 
-    if (error) throw new Error(error.message);
-    return (data ?? []) as {
-      event_id: string;
-      event_type: string;
-      processed_at: string;
-      result: string | null;
-      error: string | null;
-    }[];
-  }
-);
+  const paddleSignature = `ts=${ts};h1=${signature}`;
 
-export const getWebhookStatus = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const secret = process.env.PADDLE_WEBHOOK_SECRET;
-    return {
-      secretConfigured: !!secret,
-      secretPrefix: secret ? `${secret.slice(0, 4)}…${secret.slice(-4)}` : null,
-    };
-  }
-);
+  return {
+    configured: true as const,
+    payload,
+    rawBody,
+    paddleSignature,
+  };
+});
+
+export const listRecentWebhookEvents = createServerFn({ method: "GET" }).handler(async () => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("paddle_events")
+    .select("event_id, event_type, processed_at, result, error")
+    .order("processed_at", { ascending: false })
+    .limit(50);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as {
+    event_id: string;
+    event_type: string;
+    processed_at: string;
+    result: string | null;
+    error: string | null;
+  }[];
+});
+
+export const getWebhookStatus = createServerFn({ method: "GET" }).handler(async () => {
+  const secret = process.env.PADDLE_WEBHOOK_SECRET;
+  return {
+    secretConfigured: !!secret,
+    secretPrefix: secret ? `${secret.slice(0, 4)}…${secret.slice(-4)}` : null,
+  };
+});

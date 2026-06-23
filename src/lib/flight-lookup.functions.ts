@@ -11,7 +11,10 @@ const Schema = {
   properties: {
     airline: { type: "string", description: "Airline name, e.g. 'Delta Air Lines'" },
     flight_number: { type: "string", description: "Flight number, e.g. 'DL123'" },
-    flight_date: { type: "string", description: "ISO date YYYY-MM-DD if mentioned, otherwise empty string" },
+    flight_date: {
+      type: "string",
+      description: "ISO date YYYY-MM-DD if mentioned, otherwise empty string",
+    },
     depart_airport: { type: "string", description: "IATA code or city, e.g. 'JFK' or 'New York'" },
     arrive_airport: { type: "string", description: "IATA code or city of arrival" },
     depart_time: { type: "string", description: "Local departure time HH:MM (24h), or empty" },
@@ -61,7 +64,8 @@ export const lookupFlight = createServerFn({ method: "POST" })
     });
 
     if (res.status === 429) throw new Error("AI rate limit reached. Try again in a moment.");
-    if (res.status === 402) throw new Error("AI credits exhausted. Add credits in workspace settings.");
+    if (res.status === 402)
+      throw new Error("AI credits exhausted. Add credits in workspace settings.");
     if (!res.ok) {
       const txt = await res.text();
       throw new Error(`AI lookup failed: ${txt.slice(0, 200)}`);

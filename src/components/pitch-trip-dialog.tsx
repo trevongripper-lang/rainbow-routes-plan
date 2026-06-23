@@ -6,8 +6,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ImageOff, MapPin, Plus, Upload, X, Check, Sparkles, ArrowLeft, Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  ImageOff,
+  MapPin,
+  Plus,
+  Upload,
+  X,
+  Check,
+  Sparkles,
+  ArrowLeft,
+  Loader2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { geocodeSearch, type GeocodeCandidate } from "@/lib/geocode.functions";
 import { createPitchTrip } from "@/lib/pitch-trip.functions";
@@ -26,8 +42,15 @@ const VIBES = [
 ];
 
 const AUDIENCES = [
-  "Party Lovers", "Beach Lovers", "Foodies", "LGBTQ+ Travelers",
-  "Luxury Travelers", "Adventure Seekers", "Couples", "Friend Groups", "Solo Travelers",
+  "Party Lovers",
+  "Beach Lovers",
+  "Foodies",
+  "LGBTQ+ Travelers",
+  "Luxury Travelers",
+  "Adventure Seekers",
+  "Couples",
+  "Friend Groups",
+  "Solo Travelers",
 ];
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -51,10 +74,19 @@ type FormState = {
 };
 
 const EMPTY: FormState = {
-  title: "", country: "", city: "", image_url: "",
-  vibes: [], description: "", special_note: "",
-  best_time: "", trip_length: "", budget: "",
-  reasons: ["", "", ""], audience: [], downsides: "",
+  title: "",
+  country: "",
+  city: "",
+  image_url: "",
+  vibes: [],
+  description: "",
+  special_note: "",
+  best_time: "",
+  trip_length: "",
+  budget: "",
+  reasons: ["", "", ""],
+  audience: [],
+  downsides: "",
 };
 
 export function PitchTripDialog() {
@@ -69,7 +101,8 @@ export function PitchTripDialog() {
   const search = useServerFn(geocodeSearch);
   const pitch = useServerFn(createPitchTrip);
 
-  const update = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const update = <K extends keyof FormState>(k: K, v: FormState[K]) =>
+    setForm((f) => ({ ...f, [k]: v }));
   const toggleArr = (k: "vibes" | "audience", v: string) =>
     setForm((f) => ({ ...f, [k]: f[k].includes(v) ? f[k].filter((x) => x !== v) : [...f[k], v] }));
 
@@ -96,10 +129,13 @@ export function PitchTripDialog() {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${s.session.user.id}/${crypto.randomUUID()}.${ext}`;
       const up = await supabase.storage.from("destination-covers").upload(path, file, {
-        cacheControl: "31536000", upsert: false,
+        cacheControl: "31536000",
+        upsert: false,
       });
       if (up.error) throw up.error;
-      const signed = await supabase.storage.from("destination-covers").createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+      const signed = await supabase.storage
+        .from("destination-covers")
+        .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
       if (signed.error) throw signed.error;
       update("image_url", signed.data.signedUrl);
     } catch (e) {
@@ -191,7 +227,10 @@ export function PitchTripDialog() {
       const msg =
         e instanceof Error
           ? e.message
-          : (e && typeof e === "object" && "message" in e && typeof (e as { message: unknown }).message === "string")
+          : e &&
+              typeof e === "object" &&
+              "message" in e &&
+              typeof (e as { message: unknown }).message === "string"
             ? (e as { message: string }).message
             : "Failed to create trip";
       toast.error(msg);
@@ -201,7 +240,9 @@ export function PitchTripDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="shrink-0"><Plus className="size-4" /> Pitch a trip</Button>
+        <Button className="shrink-0">
+          <Plus className="size-4" /> Pitch a trip
+        </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[92vh] max-w-5xl gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b border-border/60 px-6 py-4">
@@ -209,7 +250,9 @@ export function PitchTripDialog() {
             <Sparkles className="mr-2 inline size-5 text-primary" />
             Pitch a trip
           </DialogTitle>
-          <p className="text-sm text-muted-foreground">Convince the crew — make it sound impossible to say no.</p>
+          <p className="text-sm text-muted-foreground">
+            Convince the crew — make it sound impossible to say no.
+          </p>
         </DialogHeader>
 
         {step === "verify" ? (
@@ -223,185 +266,228 @@ export function PitchTripDialog() {
             typed={{ title: form.title, city: form.city, country: form.country }}
           />
         ) : (
-        <div className="grid max-h-[calc(92vh-5rem)] grid-cols-1 overflow-hidden md:grid-cols-[1.4fr_1fr]">
-
-          {/* Form column */}
-          <form
-            onSubmit={(e) => { e.preventDefault(); lookup.mutate(); }}
-
-            className="space-y-6 overflow-y-auto px-6 py-5"
-          >
-            {/* Destination */}
-            <Section title="Destination">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <Label>Destination name *</Label>
-                  <Input required value={form.title} onChange={(e) => update("title", e.target.value)} placeholder="Mykonos" />
-                </div>
-                <div>
-                  <Label>Country *</Label>
-                  <Input required value={form.country} onChange={(e) => update("country", e.target.value)} placeholder="Greece" />
-                </div>
-              </div>
-              <div>
-                <Label>City <span className="text-muted-foreground">(optional)</span></Label>
-                <Input value={form.city} onChange={(e) => update("city", e.target.value)} placeholder="Mykonos Town" />
-              </div>
-            </Section>
-
-            {/* Cover photo */}
-            <Section title="Cover Photo">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                <div className="relative h-32 w-full overflow-hidden rounded-xl border border-border/60 bg-muted sm:w-48">
-                  {form.image_url ? (
-                    <>
-                      <img src={form.image_url} alt="Cover preview" className="size-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => update("image_url", "")}
-                        className="absolute right-1.5 top-1.5 rounded-full bg-background/90 p-1 hover:bg-background"
-                        aria-label="Remove cover"
-                      >
-                        <X className="size-3.5" />
-                      </button>
-                    </>
-                  ) : (
-                    <div className="flex size-full items-center justify-center text-muted-foreground">
-                      <ImageOff className="size-6" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 space-y-2">
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ""; }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileRef.current?.click()}
-                    disabled={uploading}
-                    className="w-full sm:w-auto"
-                  >
-                    <Upload className="size-4" /> {uploading ? "Uploading..." : "Upload image"}
-                  </Button>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="h-px flex-1 bg-border" /> or paste a URL <span className="h-px flex-1 bg-border" />
+          <div className="grid max-h-[calc(92vh-5rem)] grid-cols-1 overflow-hidden md:grid-cols-[1.4fr_1fr]">
+            {/* Form column */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                lookup.mutate();
+              }}
+              className="space-y-6 overflow-y-auto px-6 py-5"
+            >
+              {/* Destination */}
+              <Section title="Destination">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label>Destination name *</Label>
+                    <Input
+                      required
+                      value={form.title}
+                      onChange={(e) => update("title", e.target.value)}
+                      placeholder="Mykonos"
+                    />
                   </div>
+                  <div>
+                    <Label>Country *</Label>
+                    <Input
+                      required
+                      value={form.country}
+                      onChange={(e) => update("country", e.target.value)}
+                      placeholder="Greece"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>
+                    City <span className="text-muted-foreground">(optional)</span>
+                  </Label>
                   <Input
-                    value={form.image_url}
-                    onChange={(e) => update("image_url", e.target.value)}
-                    placeholder="https://..."
+                    value={form.city}
+                    onChange={(e) => update("city", e.target.value)}
+                    placeholder="Mykonos Town"
                   />
                 </div>
-              </div>
-            </Section>
+              </Section>
 
-            {/* Vibes */}
-            <Section title="Vibe" hint="Pick all that fit">
-              <ChipGrid
-                options={VIBES.map((v) => ({ id: v.id, label: `${v.emoji} ${v.label}` }))}
-                value={form.vibes}
-                onToggle={(id) => toggleArr("vibes", id)}
-              />
-            </Section>
+              {/* Cover photo */}
+              <Section title="Cover Photo">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                  <div className="relative h-32 w-full overflow-hidden rounded-xl border border-border/60 bg-muted sm:w-48">
+                    {form.image_url ? (
+                      <>
+                        <img
+                          src={form.image_url}
+                          alt="Cover preview"
+                          className="size-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => update("image_url", "")}
+                          className="absolute right-1.5 top-1.5 rounded-full bg-background/90 p-1 hover:bg-background"
+                          aria-label="Remove cover"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </>
+                    ) : (
+                      <div className="flex size-full items-center justify-center text-muted-foreground">
+                        <ImageOff className="size-6" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleUpload(f);
+                        e.target.value = "";
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileRef.current?.click()}
+                      disabled={uploading}
+                      className="w-full sm:w-auto"
+                    >
+                      <Upload className="size-4" /> {uploading ? "Uploading..." : "Upload image"}
+                    </Button>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="h-px flex-1 bg-border" /> or paste a URL{" "}
+                      <span className="h-px flex-1 bg-border" />
+                    </div>
+                    <Input
+                      value={form.image_url}
+                      onChange={(e) => update("image_url", e.target.value)}
+                      placeholder="https://..."
+                    />
+                  </div>
+                </div>
+              </Section>
 
-            {/* Convince */}
-            <Section title="Convince the Crew">
-              <div>
-                <Label>Why should we go? *</Label>
-                <Textarea
-                  required
-                  rows={4}
-                  value={form.description}
-                  onChange={(e) => update("description", e.target.value)}
-                  placeholder="Convince your friends this destination is worth the PTO, money, and planning."
-                />
-              </div>
-              <div>
-                <Label>What makes this trip special? <span className="text-muted-foreground">(optional)</span></Label>
-                <Input
-                  value={form.special_note}
-                  onChange={(e) => update("special_note", e.target.value)}
-                  placeholder="Atlantis Week · Pride Festival · Legendary beach clubs"
-                />
-              </div>
-            </Section>
-
-            {/* Planning */}
-            <Section title="Trip Planning">
-              <div>
-                <Label>Best time to go</Label>
+              {/* Vibes */}
+              <Section title="Vibe" hint="Pick all that fit">
                 <ChipGrid
-                  options={MONTHS.map((m) => ({ id: m, label: m }))}
-                  value={form.best_time ? [form.best_time] : []}
-                  onToggle={(id) => update("best_time", form.best_time === id ? "" : id)}
-                  size="sm"
+                  options={VIBES.map((v) => ({ id: v.id, label: `${v.emoji} ${v.label}` }))}
+                  value={form.vibes}
+                  onToggle={(id) => toggleArr("vibes", id)}
                 />
-              </div>
-              <div>
-                <Label>Ideal trip length</Label>
-                <Segmented options={LENGTHS} value={form.trip_length} onChange={(v) => update("trip_length", v)} />
-              </div>
-              <div>
-                <Label>Budget</Label>
-                <Segmented options={BUDGETS} value={form.budget} onChange={(v) => update("budget", v)} />
-              </div>
-            </Section>
+              </Section>
 
-            {/* Highlights */}
-            <Section title="Top 3 Reasons This Trip Wins">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-medium text-primary">{i + 1}</span>
-                  <Input
-                    value={form.reasons[i]}
-                    onChange={(e) => {
-                      const next = [...form.reasons] as FormState["reasons"];
-                      next[i] = e.target.value;
-                      update("reasons", next);
-                    }}
-                    placeholder={["Sunset views in Little Venice", "Legendary nightlife", "Elia Beach"][i]}
+              {/* Convince */}
+              <Section title="Convince the Crew">
+                <div>
+                  <Label>Why should we go? *</Label>
+                  <Textarea
+                    required
+                    rows={4}
+                    value={form.description}
+                    onChange={(e) => update("description", e.target.value)}
+                    placeholder="Convince your friends this destination is worth the PTO, money, and planning."
                   />
                 </div>
-              ))}
-            </Section>
+                <div>
+                  <Label>
+                    What makes this trip special?{" "}
+                    <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input
+                    value={form.special_note}
+                    onChange={(e) => update("special_note", e.target.value)}
+                    placeholder="Atlantis Week · Pride Festival · Legendary beach clubs"
+                  />
+                </div>
+              </Section>
 
-            {/* Audience */}
-            <Section title="Who Is This Trip For?" hint="Multi-select">
-              <ChipGrid
-                options={AUDIENCES.map((a) => ({ id: a, label: a }))}
-                value={form.audience}
-                onToggle={(id) => toggleArr("audience", id)}
-              />
-            </Section>
+              {/* Planning */}
+              <Section title="Trip Planning">
+                <div>
+                  <Label>Best time to go</Label>
+                  <ChipGrid
+                    options={MONTHS.map((m) => ({ id: m, label: m }))}
+                    value={form.best_time ? [form.best_time] : []}
+                    onToggle={(id) => update("best_time", form.best_time === id ? "" : id)}
+                    size="sm"
+                  />
+                </div>
+                <div>
+                  <Label>Ideal trip length</Label>
+                  <Segmented
+                    options={LENGTHS}
+                    value={form.trip_length}
+                    onChange={(v) => update("trip_length", v)}
+                  />
+                </div>
+                <div>
+                  <Label>Budget</Label>
+                  <Segmented
+                    options={BUDGETS}
+                    value={form.budget}
+                    onChange={(v) => update("budget", v)}
+                  />
+                </div>
+              </Section>
 
-            {/* Downsides */}
-            <Section title="Things to Know" hint="Optional — be honest">
-              <Textarea
-                rows={2}
-                value={form.downsides}
-                onChange={(e) => update("downsides", e.target.value)}
-                placeholder="Expensive during peak season · Crowded in summer · Requires multiple flights"
-              />
-            </Section>
+              {/* Highlights */}
+              <Section title="Top 3 Reasons This Trip Wins">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-medium text-primary">
+                      {i + 1}
+                    </span>
+                    <Input
+                      value={form.reasons[i]}
+                      onChange={(e) => {
+                        const next = [...form.reasons] as FormState["reasons"];
+                        next[i] = e.target.value;
+                        update("reasons", next);
+                      }}
+                      placeholder={
+                        ["Sunset views in Little Venice", "Legendary nightlife", "Elia Beach"][i]
+                      }
+                    />
+                  </div>
+                ))}
+              </Section>
 
-            <Button type="submit" disabled={lookup.isPending} className="w-full" size="lg">
-              {lookup.isPending ? "Looking up location..." : "Next: verify location"}
-            </Button>
-          </form>
+              {/* Audience */}
+              <Section title="Who Is This Trip For?" hint="Multi-select">
+                <ChipGrid
+                  options={AUDIENCES.map((a) => ({ id: a, label: a }))}
+                  value={form.audience}
+                  onToggle={(id) => toggleArr("audience", id)}
+                />
+              </Section>
 
-          {/* Preview column */}
-          <aside className="hidden border-l border-border/60 bg-muted/20 md:block">
-            <div className="sticky top-0 max-h-[calc(92vh-5rem)] overflow-y-auto p-5">
-              <p className="mb-3 text-xs uppercase tracking-wider text-muted-foreground">Live preview</p>
-              <PitchPreview form={form} />
-            </div>
-          </aside>
-        </div>
+              {/* Downsides */}
+              <Section title="Things to Know" hint="Optional — be honest">
+                <Textarea
+                  rows={2}
+                  value={form.downsides}
+                  onChange={(e) => update("downsides", e.target.value)}
+                  placeholder="Expensive during peak season · Crowded in summer · Requires multiple flights"
+                />
+              </Section>
+
+              <Button type="submit" disabled={lookup.isPending} className="w-full" size="lg">
+                {lookup.isPending ? "Looking up location..." : "Next: verify location"}
+              </Button>
+            </form>
+
+            {/* Preview column */}
+            <aside className="hidden border-l border-border/60 bg-muted/20 md:block">
+              <div className="sticky top-0 max-h-[calc(92vh-5rem)] overflow-y-auto p-5">
+                <p className="mb-3 text-xs uppercase tracking-wider text-muted-foreground">
+                  Live preview
+                </p>
+                <PitchPreview form={form} />
+              </div>
+            </aside>
+          </div>
         )}
       </DialogContent>
     </Dialog>
@@ -432,8 +518,8 @@ function VerifyStep({
         <p className="text-xs uppercase tracking-wider text-muted-foreground">Step 2 of 2</p>
         <h3 className="font-display text-xl">Verify the location</h3>
         <p className="text-sm text-muted-foreground">
-          You typed <span className="text-foreground">"{typedQuery}"</span>. Pick the location that matches so the
-          map, events, and timezone all line up.
+          You typed <span className="text-foreground">"{typedQuery}"</span>. Pick the location that
+          matches so the map, events, and timezone all line up.
         </p>
       </div>
       <ul className="flex-1 space-y-2 overflow-y-auto px-6 py-4">
@@ -482,16 +568,34 @@ function VerifyStep({
         <Button type="button" variant="ghost" onClick={onBack} disabled={confirming}>
           <ArrowLeft className="size-4" /> Back to edit
         </Button>
-        <Button type="button" onClick={onConfirm} disabled={confirming || selectedIdx == null} size="lg">
-          {confirming ? <><Loader2 className="size-4 animate-spin" /> Pitching...</> : "Confirm & pitch to crew"}
+        <Button
+          type="button"
+          onClick={onConfirm}
+          disabled={confirming || selectedIdx == null}
+          size="lg"
+        >
+          {confirming ? (
+            <>
+              <Loader2 className="size-4 animate-spin" /> Pitching...
+            </>
+          ) : (
+            "Confirm & pitch to crew"
+          )}
         </Button>
       </div>
     </div>
   );
 }
 
-
-function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+function Section({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="space-y-3">
       <div className="flex items-baseline justify-between gap-2">
@@ -504,7 +608,10 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 }
 
 function ChipGrid({
-  options, value, onToggle, size = "md",
+  options,
+  value,
+  onToggle,
+  size = "md",
 }: {
   options: { id: string; label: string }[];
   value: string[];
@@ -534,7 +641,15 @@ function ChipGrid({
   );
 }
 
-function Segmented({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
+function Segmented({
+  options,
+  value,
+  onChange,
+}: {
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
   return (
     <div className="inline-flex flex-wrap gap-1 rounded-full border border-border bg-card p-1">
       {options.map((o) => {
@@ -600,7 +715,9 @@ function PitchPreview({ form }: { form: FormState }) {
               </span>
             ))}
             {vibeLabels.length > 5 && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">+{vibeLabels.length - 5}</span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                +{vibeLabels.length - 5}
+              </span>
             )}
           </div>
         )}
@@ -610,7 +727,9 @@ function PitchPreview({ form }: { form: FormState }) {
         )}
 
         {form.special_note && (
-          <p className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">✨ {form.special_note}</p>
+          <p className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">
+            ✨ {form.special_note}
+          </p>
         )}
 
         {reasons.length > 0 && (

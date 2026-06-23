@@ -32,7 +32,8 @@ export function computeNetByUser(
     if (!c.is_shared) continue;
     const payer = c.paid_by ?? c.user_id;
     paid.set(payer, (paid.get(payer) ?? 0) + c.amount_cents);
-    const splitIds = c.split_member_ids && c.split_member_ids.length > 0 ? c.split_member_ids : memberIds;
+    const splitIds =
+      c.split_member_ids && c.split_member_ids.length > 0 ? c.split_member_ids : memberIds;
     const denom = Math.max(1, splitIds.length);
     const share = c.amount_cents / denom;
     for (const uid of splitIds) {
@@ -67,7 +68,11 @@ export function netForUser(
 export function formatCents(cents: number, currency: string): string {
   const abs = Math.abs(cents) / 100;
   try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 2 }).format(abs);
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(abs);
   } catch {
     return `${abs.toFixed(2)} ${currency}`;
   }

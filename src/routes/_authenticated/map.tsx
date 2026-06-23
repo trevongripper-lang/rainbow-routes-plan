@@ -27,10 +27,13 @@ type TripLite = { id: string; title: string; region: string; country: string | n
 export const Route = createFileRoute("/_authenticated/map")({
   ssr: false,
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData({ queryKey: ["events"], queryFn: fetchEvents, staleTime: 60_000 }),
+    context.queryClient.ensureQueryData({
+      queryKey: ["events"],
+      queryFn: fetchEvents,
+      staleTime: 60_000,
+    }),
   component: MapPage,
 });
-
 
 async function fetchEvents() {
   const { data, error } = await supabase.from("events").select("*").order("start_date");
@@ -44,14 +47,22 @@ async function fetchMyTrips(userId: string): Promise<TripLite[]> {
     .select("destination_id, destinations:destination_id(id, title, region, country, is_past)")
     .eq("user_id", userId);
   if (error) throw error;
-  return (data ?? [])
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((r: any) => r.destinations)
-    .filter((d: { is_past?: boolean } | null): d is TripLite & { is_past: boolean } => !!d && !d.is_past);
+  return (
+    (data ?? [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((r: any) => r.destinations)
+      .filter(
+        (d: { is_past?: boolean } | null): d is TripLite & { is_past: boolean } =>
+          !!d && !d.is_past,
+      )
+  );
 }
 
 async function fetchAttachments(tripId: string): Promise<string[]> {
-  const { data, error } = await supabase.from("trip_events").select("event_id").eq("destination_id", tripId);
+  const { data, error } = await supabase
+    .from("trip_events")
+    .select("event_id")
+    .eq("destination_id", tripId);
   if (error) throw error;
   return (data ?? []).map((r) => r.event_id);
 }
@@ -82,14 +93,18 @@ function MapPage() {
     enabled: tripId !== "all",
   });
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   useEffect(() => {
     if (!mounted) return;
     let cancelled = false;
     import("@/components/EventsMap").then((mod) => {
       if (!cancelled) setEventsMap(() => mod.default);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [mounted]);
 
   const filtered = useMemo(() => {
@@ -133,15 +148,21 @@ function MapPage() {
 
       <div className="grid gap-3 rounded-2xl border border-border/60 bg-card/60 p-4 backdrop-blur sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
         <div>
-          <Label htmlFor="from" className="text-xs text-muted-foreground">From</Label>
+          <Label htmlFor="from" className="text-xs text-muted-foreground">
+            From
+          </Label>
           <Input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         </div>
         <div>
-          <Label htmlFor="to" className="text-xs text-muted-foreground">To</Label>
+          <Label htmlFor="to" className="text-xs text-muted-foreground">
+            To
+          </Label>
           <Input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
         <div>
-          <Label htmlFor="trip" className="text-xs text-muted-foreground">Trip</Label>
+          <Label htmlFor="trip" className="text-xs text-muted-foreground">
+            Trip
+          </Label>
           <select
             id="trip"
             value={tripId}
@@ -150,7 +171,9 @@ function MapPage() {
           >
             <option value="all">All trips</option>
             {trips.map((t) => (
-              <option key={t.id} value={t.id}>{t.title} — {t.region}</option>
+              <option key={t.id} value={t.id}>
+                {t.title} — {t.region}
+              </option>
             ))}
           </select>
         </div>
@@ -160,7 +183,10 @@ function MapPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card" style={{ height: "60vh", minHeight: 420 }}>
+      <div
+        className="overflow-hidden rounded-2xl border border-border/60 bg-card"
+        style={{ height: "60vh", minHeight: 420 }}
+      >
         {mounted && EventsMap ? (
           <EventsMap events={filtered as EventRow[]} />
         ) : (

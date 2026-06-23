@@ -89,16 +89,32 @@ export function InstallAppBanner() {
         </button>
       </div>
       {showIOS && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center" onClick={() => setShowIOS(false)}>
-          <div className="w-full max-w-sm rounded-2xl border border-border/60 bg-card p-5 text-sm" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+          onClick={() => setShowIOS(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-border/60 bg-card p-5 text-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-start justify-between gap-3">
               <h3 className="font-display text-base">Install on iPhone</h3>
-              <button onClick={() => setShowIOS(false)} aria-label="Close"><X className="size-4" /></button>
+              <button onClick={() => setShowIOS(false)} aria-label="Close">
+                <X className="size-4" />
+              </button>
             </div>
             <ol className="mt-3 space-y-2 text-muted-foreground">
-              <li>1. Tap the <Share className="inline size-3.5" /> Share button in Safari's toolbar.</li>
-              <li>2. Scroll and choose <strong className="text-foreground">Add to Home Screen</strong>.</li>
-              <li>3. Tap <strong className="text-foreground">Add</strong> — Tribe Trips will appear on your home screen.</li>
+              <li>
+                1. Tap the <Share className="inline size-3.5" /> Share button in Safari's toolbar.
+              </li>
+              <li>
+                2. Scroll and choose <strong className="text-foreground">Add to Home Screen</strong>
+                .
+              </li>
+              <li>
+                3. Tap <strong className="text-foreground">Add</strong> — Tribe Trips will appear on
+                your home screen.
+              </li>
             </ol>
           </div>
         </div>

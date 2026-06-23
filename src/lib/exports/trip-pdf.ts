@@ -54,7 +54,11 @@ function wrap(text: string, font: PDFFont, size: number, maxWidth: number): stri
   return lines;
 }
 
-function drawText(ctx: Ctx, text: string, opts: { size?: number; bold?: boolean; color?: [number, number, number]; indent?: number } = {}) {
+function drawText(
+  ctx: Ctx,
+  text: string,
+  opts: { size?: number; bold?: boolean; color?: [number, number, number]; indent?: number } = {},
+) {
   const size = opts.size ?? 11;
   const font = opts.bold ? ctx.bold : ctx.font;
   const color = opts.color ?? [0.12, 0.13, 0.18];
@@ -67,7 +71,9 @@ function drawText(ctx: Ctx, text: string, opts: { size?: number; bold?: boolean;
   }
 }
 
-function gap(ctx: Ctx, h = 8) { ctx.y -= h; }
+function gap(ctx: Ctx, h = 8) {
+  ctx.y -= h;
+}
 
 function hr(ctx: Ctx) {
   ensureSpace(ctx, 8);
@@ -82,9 +88,17 @@ function hr(ctx: Ctx) {
 
 function fmtDateRange(start: string | null, end: string | null): string {
   if (!start) return "Dates TBD";
-  const s = new Date(start + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const s = new Date(start + "T00:00:00").toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
   if (!end || end === start) return s;
-  const e = new Date(end + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const e = new Date(end + "T00:00:00").toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
   return `${s} → ${e}`;
 }
 
@@ -122,16 +136,24 @@ export async function buildTripsPdf(trips: TripLite[]): Promise<Uint8Array> {
     gap(ctx, 2);
     const loc = [trip.city, trip.region, trip.country].filter(Boolean).join(", ");
     if (loc) drawText(ctx, loc, { size: 12, color: [0.4, 0.42, 0.5] });
-    drawText(ctx, fmtDateRange(trip.start_date, trip.end_date), { size: 11, color: [0.4, 0.42, 0.5] });
+    drawText(ctx, fmtDateRange(trip.start_date, trip.end_date), {
+      size: 11,
+      color: [0.4, 0.42, 0.5],
+    });
     gap(ctx);
-    if (trip.description) { drawText(ctx, trip.description, { size: 10 }); gap(ctx); }
+    if (trip.description) {
+      drawText(ctx, trip.description, { size: 10 });
+      gap(ctx);
+    }
 
     // Members
     const tripMembers = (members.data ?? []).filter((m) => m.destination_id === trip.id);
     if (tripMembers.length) {
       hr(ctx);
       drawText(ctx, "Crew", { size: 14, bold: true });
-      drawText(ctx, tripMembers.map((m) => nameOf.get(m.user_id) ?? "Traveler").join(", "), { size: 10 });
+      drawText(ctx, tripMembers.map((m) => nameOf.get(m.user_id) ?? "Traveler").join(", "), {
+        size: 10,
+      });
       gap(ctx);
     }
 
@@ -143,10 +165,20 @@ export async function buildTripsPdf(trips: TripLite[]): Promise<Uint8Array> {
       for (const f of tflights) {
         const route = [f.depart_airport, f.arrive_airport].filter(Boolean).join(" -> ");
         const title = `${f.airline ?? "Flight"} ${f.flight_number ?? ""}`.trim();
-        drawText(ctx, `• ${title} ${route ? "(" + route + ")" : ""}`.trim(), { size: 10, bold: true });
-        const meta = [f.flight_date, [f.depart_time, f.arrive_time].filter(Boolean).join(" – ")].filter(Boolean).join(" · ");
+        drawText(ctx, `• ${title} ${route ? "(" + route + ")" : ""}`.trim(), {
+          size: 10,
+          bold: true,
+        });
+        const meta = [f.flight_date, [f.depart_time, f.arrive_time].filter(Boolean).join(" – ")]
+          .filter(Boolean)
+          .join(" · ");
         if (meta) drawText(ctx, meta, { size: 9, color: [0.45, 0.47, 0.55], indent: 12 });
-        if (f.confirmation) drawText(ctx, `Conf #${f.confirmation}`, { size: 9, color: [0.45, 0.47, 0.55], indent: 12 });
+        if (f.confirmation)
+          drawText(ctx, `Conf #${f.confirmation}`, {
+            size: 9,
+            color: [0.45, 0.47, 0.55],
+            indent: 12,
+          });
       }
       gap(ctx);
     }
@@ -172,7 +204,8 @@ export async function buildTripsPdf(trips: TripLite[]): Promise<Uint8Array> {
       hr(ctx);
       drawText(ctx, "Tickets", { size: 14, bold: true });
       for (const t of ttickets) {
-        const price = t.price_cents != null ? ` — ${(t.price_cents / 100).toFixed(2)} ${t.currency}` : "";
+        const price =
+          t.price_cents != null ? ` — ${(t.price_cents / 100).toFixed(2)} ${t.currency}` : "";
         drawText(ctx, `• ${t.name}${price}`, { size: 10 });
         if (t.url) drawText(ctx, t.url, { size: 9, color: [0.2, 0.4, 0.8], indent: 12 });
         if (t.notes) drawText(ctx, t.notes, { size: 9, color: [0.45, 0.47, 0.55], indent: 12 });
@@ -225,9 +258,10 @@ export async function exportTripsPdf(trips: TripLite[]): Promise<void> {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = trips.length === 1
-    ? `${trips[0].title.replace(/[^\w\s-]/g, "").trim() || "trip"}.pdf`
-    : `trips-${new Date().toISOString().slice(0, 10)}.pdf`;
+  a.download =
+    trips.length === 1
+      ? `${trips[0].title.replace(/[^\w\s-]/g, "").trim() || "trip"}.pdf`
+      : `trips-${new Date().toISOString().slice(0, 10)}.pdf`;
   document.body.appendChild(a);
   a.click();
   a.remove();

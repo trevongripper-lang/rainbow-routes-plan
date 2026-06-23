@@ -20,15 +20,16 @@ export function useMe() {
         .select("id, display_name, avatar_url, is_pro")
         .eq("id", userId)
         .maybeSingle();
-      return (p as MyProfile | null) ?? {
-        id: userId,
-        display_name: null,
-        avatar_url: null,
-        is_pro: false,
-      };
+      return (
+        (p as MyProfile | null) ?? {
+          id: userId,
+          display_name: null,
+          avatar_url: null,
+          is_pro: false,
+        }
+      );
     },
     staleTime: 5 * 60_000,
     gcTime: 30 * 60_000,
   });
-
 }

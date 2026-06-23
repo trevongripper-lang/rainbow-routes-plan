@@ -7,8 +7,15 @@ vi.mock("@tanstack/react-router", () => ({
     ...(options as Record<string, unknown>),
     useParams: () => ({ id: "trip-1" }),
   }),
-  Link: ({ children, to, ...rest }: { children?: React.ReactNode; to?: string; [k: string]: unknown }) =>
-    React.createElement("a", { href: to, ...rest }, children),
+  Link: ({
+    children,
+    to,
+    ...rest
+  }: {
+    children?: React.ReactNode;
+    to?: string;
+    [k: string]: unknown;
+  }) => React.createElement("a", { href: to, ...rest }, children),
   useNavigate: () => () => {},
   useSearch: () => ({}),
 }));
@@ -47,13 +54,19 @@ vi.mock("sonner", () => ({ toast: { success: () => {}, error: () => {} } }));
 vi.mock("@/lib/analytics", () => ({ track: () => {} }));
 
 vi.mock("@/components/ui/tabs", () => ({
-  Tabs: ({ children }: { children?: React.ReactNode }) => React.createElement("div", null, children),
-  TabsContent: ({ children }: { children?: React.ReactNode }) => React.createElement("div", null, children),
+  Tabs: ({ children }: { children?: React.ReactNode }) =>
+    React.createElement("div", null, children),
+  TabsContent: ({ children }: { children?: React.ReactNode }) =>
+    React.createElement("div", null, children),
 }));
 
 vi.mock("@/components/page-hero", () => ({
   Breadcrumbs: ({ items }: { items: { label: string }[] }) =>
-    React.createElement("nav", { "aria-label": "Breadcrumbs" }, items.map((i) => React.createElement("span", { key: i.label }, i.label))),
+    React.createElement(
+      "nav",
+      { "aria-label": "Breadcrumbs" },
+      items.map((i) => React.createElement("span", { key: i.label }, i.label)),
+    ),
 }));
 
 vi.mock("@/components/trip-tabs", () => ({
@@ -72,7 +85,11 @@ vi.mock("@/components/polls", () => ({ PollsPanel: () => null }));
 vi.mock("@/components/attendees-card", () => ({ AttendeesCard: () => null }));
 vi.mock("@/components/planning-progress", () => ({
   PlanningProgress: () =>
-    React.createElement("button", { type: "button", "data-testid": "planning-progress" }, "Planning progress"),
+    React.createElement(
+      "button",
+      { type: "button", "data-testid": "planning-progress" },
+      "Planning progress",
+    ),
 }));
 
 import { Route } from "@/routes/_authenticated/trips.$id";

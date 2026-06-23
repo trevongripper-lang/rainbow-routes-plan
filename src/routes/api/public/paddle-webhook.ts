@@ -82,13 +82,11 @@ export const Route = createFileRoute("/api/public/paddle-webhook")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         // Idempotency: insert event_id; if duplicate, ack and return.
-        const { error: insertErr } = await supabaseAdmin
-          .from("paddle_events")
-          .insert({
-            event_id: event.event_id,
-            event_type: event.event_type,
-            payload: event as never,
-          });
+        const { error: insertErr } = await supabaseAdmin.from("paddle_events").insert({
+          event_id: event.event_id,
+          event_type: event.event_type,
+          payload: event as never,
+        });
 
         if (insertErr) {
           // 23505 = unique_violation → already processed, ack quietly
@@ -146,9 +144,7 @@ type CustomData = {
   kind?: "unlock" | "plus" | string;
 };
 
-type AdminClient = Awaited<
-  typeof import("@/integrations/supabase/client.server")
->["supabaseAdmin"];
+type AdminClient = Awaited<typeof import("@/integrations/supabase/client.server")>["supabaseAdmin"];
 
 // ────────────────────────────────────────────────────────────────────────────
 // Dispatch
@@ -209,9 +205,7 @@ async function handleTransactionCompleted(
         .eq("paddle_customer_id", customerId)
         .maybeSingle();
       if (existing && existing.id !== custom.userId) {
-        throw new Error(
-          `paddle_customer_id ${customerId} already bound to a different user`,
-        );
+        throw new Error(`paddle_customer_id ${customerId} already bound to a different user`);
       }
     }
     const { error: upErr } = await admin
@@ -256,8 +250,7 @@ async function handleSubscriptionActive(
   const custom = readCustomData(d);
   const subscriptionId = typeof d.id === "string" ? d.id : null;
   const customerId = typeof d.customer_id === "string" ? d.customer_id : null;
-  const nextBilling =
-    typeof d.next_billed_at === "string" ? d.next_billed_at : null;
+  const nextBilling = typeof d.next_billed_at === "string" ? d.next_billed_at : null;
 
   if (!custom.userId) {
     throw new Error("subscription event missing custom_data.userId");
@@ -272,9 +265,7 @@ async function handleSubscriptionActive(
       .eq("paddle_customer_id", customerId)
       .maybeSingle();
     if (existing && existing.id !== custom.userId) {
-      throw new Error(
-        `paddle_customer_id ${customerId} already bound to a different user`,
-      );
+      throw new Error(`paddle_customer_id ${customerId} already bound to a different user`);
     }
   }
   const { data: updated, error: upErr } = await admin
@@ -303,8 +294,7 @@ async function handleSubscriptionUpdated(
   if (!subscriptionId) return "sub-updated:no-id";
 
   const status = typeof d.status === "string" ? d.status : "active";
-  const nextBilling =
-    typeof d.next_billed_at === "string" ? d.next_billed_at : null;
+  const nextBilling = typeof d.next_billed_at === "string" ? d.next_billed_at : null;
 
   // Map Paddle status → our enum
   const mapped: "active" | "past_due" | "canceled" =

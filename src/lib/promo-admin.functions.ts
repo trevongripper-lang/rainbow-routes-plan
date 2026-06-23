@@ -56,9 +56,11 @@ type PromoInput = {
 
 function validate(input: PromoInput): PromoInput {
   const code = (input.code ?? "").trim().toUpperCase();
-  if (!/^[A-Z0-9_-]{3,32}$/.test(code)) throw new Error("Code must be 3–32 chars (A–Z, 0–9, _ or -)");
+  if (!/^[A-Z0-9_-]{3,32}$/.test(code))
+    throw new Error("Code must be 3–32 chars (A–Z, 0–9, _ or -)");
   const credits = Number(input.credits);
-  if (!Number.isInteger(credits) || credits < 1 || credits > 50) throw new Error("Credits must be 1–50");
+  if (!Number.isInteger(credits) || credits < 1 || credits > 50)
+    throw new Error("Credits must be 1–50");
   const validity_days = Number(input.validity_days);
   if (!Number.isInteger(validity_days) || validity_days < 1 || validity_days > 365)
     throw new Error("Validity must be 1–365 days");

@@ -56,21 +56,36 @@ describe("commitment planning progress", () => {
   });
 
   it("shared costs exist but unsettled → todo (Outstanding)", () => {
-    const items = computePlanningItems({ ...FULL, hasSharedCosts: true, myNetCents: 4200, settlementsCount: 0 });
+    const items = computePlanningItems({
+      ...FULL,
+      hasSharedCosts: true,
+      myNetCents: 4200,
+      settlementsCount: 0,
+    });
     const money = items.find((i) => i.key === "money")!;
     expect(money.status).toBe("todo");
     expect(money.hint).toBe("Outstanding");
   });
 
   it("shared costs with partial settlements → partial", () => {
-    const items = computePlanningItems({ ...FULL, hasSharedCosts: true, myNetCents: 4200, settlementsCount: 1 });
+    const items = computePlanningItems({
+      ...FULL,
+      hasSharedCosts: true,
+      myNetCents: 4200,
+      settlementsCount: 1,
+    });
     const money = items.find((i) => i.key === "money")!;
     expect(money.status).toBe("partial");
     expect(money.earned).toBe(10);
   });
 
   it("dates: both set but unlocked is only partial credit", () => {
-    const items = computePlanningItems({ ...NEW_TRIP, startDate: "2026-07-01", endDate: "2026-07-08", datesLocked: false });
+    const items = computePlanningItems({
+      ...NEW_TRIP,
+      startDate: "2026-07-01",
+      endDate: "2026-07-08",
+      datesLocked: false,
+    });
     const dates = items.find((i) => i.key === "dates")!;
     expect(dates.status).toBe("partial");
     expect(dates.earned).toBe(7);
@@ -78,7 +93,12 @@ describe("commitment planning progress", () => {
   });
 
   it("dates: locked earns full credit", () => {
-    const items = computePlanningItems({ ...NEW_TRIP, startDate: "2026-07-01", endDate: "2026-07-08", datesLocked: true });
+    const items = computePlanningItems({
+      ...NEW_TRIP,
+      startDate: "2026-07-01",
+      endDate: "2026-07-08",
+      datesLocked: true,
+    });
     const dates = items.find((i) => i.key === "dates")!;
     expect(dates.status).toBe("done");
     expect(dates.earned).toBe(15);
@@ -136,7 +156,12 @@ describe("commitment planning progress", () => {
 
   it("nextBestAction picks the highest-impact pending item", () => {
     // Missing Travel (25) and Money (20) — Travel wins
-    const items = computePlanningItems({ ...FULL, travelHandledCount: 0, noSharedCosts: false, hasSharedCosts: false });
+    const items = computePlanningItems({
+      ...FULL,
+      travelHandledCount: 0,
+      noSharedCosts: false,
+      hasSharedCosts: false,
+    });
     expect(nextBestAction(items)?.key).toBe("travel");
   });
 

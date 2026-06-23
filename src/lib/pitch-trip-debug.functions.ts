@@ -29,7 +29,9 @@ export const debugPitchTripAuth = createServerFn({ method: "GET" })
     const { supabase, userId, claims } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    async function probe(client: { rpc: (name: string) => Promise<{ data: unknown; error: { message: string } | null }> }): Promise<AuthProbe | { error: string }> {
+    async function probe(client: {
+      rpc: (name: string) => Promise<{ data: unknown; error: { message: string } | null }>;
+    }): Promise<AuthProbe | { error: string }> {
       const { data, error } = await client.rpc("debug_whoami");
       if (error) return { error: error.message };
       const rows = data as AuthProbe[] | null;
@@ -37,8 +39,16 @@ export const debugPitchTripAuth = createServerFn({ method: "GET" })
       return row ?? { error: "no row returned" };
     }
 
-    const user_client_probe = await probe(supabase as unknown as { rpc: (name: string) => Promise<{ data: unknown; error: { message: string } | null }> });
-    const admin_client_probe = await probe(supabaseAdmin as unknown as { rpc: (name: string) => Promise<{ data: unknown; error: { message: string } | null }> });
+    const user_client_probe = await probe(
+      supabase as unknown as {
+        rpc: (name: string) => Promise<{ data: unknown; error: { message: string } | null }>;
+      },
+    );
+    const admin_client_probe = await probe(
+      supabaseAdmin as unknown as {
+        rpc: (name: string) => Promise<{ data: unknown; error: { message: string } | null }>;
+      },
+    );
 
     return {
       resolved_user_id: userId,

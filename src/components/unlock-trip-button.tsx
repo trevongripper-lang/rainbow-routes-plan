@@ -4,7 +4,13 @@ import { quoteUnlock, unlockTripWithCredit } from "@/lib/unlock.functions";
 import { startPaddleCheckout } from "@/lib/paddle-checkout.functions";
 import { validatePaddleConfig, type PaddleConfigIssue } from "@/lib/paddle-config.functions";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Lock, Sparkles, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -20,7 +26,13 @@ function fmt(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-export function UnlockTripButton({ destinationId, isOwner }: { destinationId: string; isOwner: boolean }) {
+export function UnlockTripButton({
+  destinationId,
+  isOwner,
+}: {
+  destinationId: string;
+  isOwner: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
   const quote = useServerFn(quoteUnlock);
@@ -63,7 +75,9 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
         const report = await validateConfig({});
         if (!report.ok) {
           setConfigIssues(report.issues);
-          toast.error(`Paddle is misconfigured (${report.issues.length} issue${report.issues.length === 1 ? "" : "s"})`);
+          toast.error(
+            `Paddle is misconfigured (${report.issues.length} issue${report.issues.length === 1 ? "" : "s"})`,
+          );
         } else {
           toast.error(e instanceof Error ? e.message : "Could not start checkout");
         }
@@ -74,7 +88,6 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
       setPaying(false);
     }
   }
-
 
   const q = useQuery({
     queryKey: ["unlock-quote", destinationId],
@@ -148,8 +161,8 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
             <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
               <div className="flex items-center gap-2 text-sm">
                 <Sparkles className="size-4 text-primary" />
-                You have <strong>{creditsAvailable}</strong> free credit{creditsAvailable === 1 ? "" : "s"}.
-                Use 1 to unlock this trip at no cost.
+                You have <strong>{creditsAvailable}</strong> free credit
+                {creditsAvailable === 1 ? "" : "s"}. Use 1 to unlock this trip at no cost.
               </div>
               <Button
                 className="mt-3 w-full"
@@ -169,7 +182,10 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
               </div>
               <ul className="mt-2 space-y-2">
                 {configIssues.map((i) => (
-                  <li key={i.secret} className="rounded-lg border border-destructive/30 bg-background/40 p-2">
+                  <li
+                    key={i.secret}
+                    className="rounded-lg border border-destructive/30 bg-background/40 p-2"
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <code className="text-xs font-semibold">{i.secret}</code>
                       <span className="rounded-full border border-destructive/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-destructive">
@@ -194,7 +210,6 @@ export function UnlockTripButton({ destinationId, isOwner }: { destinationId: st
           <p className="text-center text-[11px] text-muted-foreground">
             Secure checkout by Paddle · sandbox mode
           </p>
-
         </div>
       </DialogContent>
     </Dialog>

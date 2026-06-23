@@ -47,9 +47,7 @@ function checkPriceSecret(
 export const validatePaddleConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async (): Promise<PaddleConfigReport> => {
-    const environment = (process.env.PADDLE_ENVIRONMENT ?? "sandbox") as
-      | "sandbox"
-      | "production";
+    const environment = (process.env.PADDLE_ENVIRONMENT ?? "sandbox") as "sandbox" | "production";
     const issues: PaddleConfigIssue[] = [];
     const checked = [
       "PADDLE_CLIENT_TOKEN",

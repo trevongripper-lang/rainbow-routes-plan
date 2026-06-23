@@ -15,7 +15,9 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
     return { code };
   })
   .handler(async ({ data, context }): Promise<PromoRedeemResult> => {
-    const { data: res, error } = await context.supabase.rpc("redeem_promo_code", { _code: data.code });
+    const { data: res, error } = await context.supabase.rpc("redeem_promo_code", {
+      _code: data.code,
+    });
     if (error) throw new Error(error.message);
     const obj = res as { credits: number; expires_at: string };
     return { credits: obj.credits, expiresAt: obj.expires_at };

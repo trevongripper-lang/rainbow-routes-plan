@@ -112,8 +112,7 @@ export const extractEventFromUrl = createServerFn({ method: "POST" })
     try {
       const res = await fetch(data.url, {
         headers: {
-          "user-agent":
-            "Mozilla/5.0 (compatible; TribeTripsBot/1.0; +https://tribetrips.app)",
+          "user-agent": "Mozilla/5.0 (compatible; TribeTripsBot/1.0; +https://tribetrips.app)",
           accept: "text/html,application/xhtml+xml",
         },
         redirect: "follow",
@@ -121,8 +120,10 @@ export const extractEventFromUrl = createServerFn({ method: "POST" })
       if (res.ok) html = (await res.text()).slice(0, 600_000);
     } catch {}
 
-    const ogTitle = pickMeta(html, ["og:title", "twitter:title"]) ||
-      html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() || "";
+    const ogTitle =
+      pickMeta(html, ["og:title", "twitter:title"]) ||
+      html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() ||
+      "";
     const ogDesc = pickMeta(html, ["og:description", "twitter:description", "description"]) || "";
     const ogImage = pickMeta(html, ["og:image", "twitter:image", "twitter:image:src"]);
     const jsonLd = findEventNodes(extractJsonLd(html));
@@ -164,7 +165,12 @@ export const extractEventFromUrl = createServerFn({ method: "POST" })
             content: `URL: ${data.url}\nPage title: ${ogTitle}\nPage description: ${ogDesc}\nJSON-LD event hint: ${ldHint}`,
           },
         ],
-        tools: [{ type: "function", function: { name: "event", description: "Event details", parameters: schema } }],
+        tools: [
+          {
+            type: "function",
+            function: { name: "event", description: "Event details", parameters: schema },
+          },
+        ],
         tool_choice: { type: "function", function: { name: "event" } },
       }),
     });
@@ -226,7 +232,11 @@ const SaveInput = z.object({
   name: z.string().min(2).max(200),
   description: z.string().max(2000).optional().default(""),
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  end_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
   city: z.string().min(1).max(120),
   region: z.string().min(1).max(120),
   country: z.string().min(1).max(120),

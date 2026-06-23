@@ -54,11 +54,19 @@ export function TripEventsStrip({
     const hasEnd = !!endDate;
     if (!hasStart && !hasEnd) return { kind: "none" as const };
     if (!hasStart || !hasEnd)
-      return { kind: "incomplete" as const, message: `Add a ${!hasStart ? "start" : "end"} date to match events to this trip.` };
+      return {
+        kind: "incomplete" as const,
+        message: `Add a ${!hasStart ? "start" : "end"} date to match events to this trip.`,
+      };
     const s = new Date(startDate as string).getTime();
     const e = new Date(endDate as string).getTime();
-    if (Number.isNaN(s) || Number.isNaN(e)) return { kind: "invalid" as const, message: "Trip dates aren't valid — fix them to match events." };
-    if (e < s) return { kind: "invalid" as const, message: "Trip end date is before the start date." };
+    if (Number.isNaN(s) || Number.isNaN(e))
+      return {
+        kind: "invalid" as const,
+        message: "Trip dates aren't valid — fix them to match events.",
+      };
+    if (e < s)
+      return { kind: "invalid" as const, message: "Trip end date is before the start date." };
     return { kind: "ok" as const };
   }, [startDate, endDate]);
   const hasDates = dateState.kind === "ok";
@@ -81,7 +89,9 @@ export function TripEventsStrip({
         // swallow — falls back to country/region match
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [destinationId, region, country, geocode, qc]);
 
   const { data: matches = [] } = useQuery({
@@ -101,7 +111,10 @@ export function TripEventsStrip({
   const { data: attachedIds = [] } = useQuery({
     queryKey: ["trip-events", destinationId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("trip_events").select("event_id").eq("destination_id", destinationId);
+      const { data, error } = await supabase
+        .from("trip_events")
+        .select("event_id")
+        .eq("destination_id", destinationId);
       if (error) throw error;
       return (data ?? []).map((r) => r.event_id);
     },
@@ -113,7 +126,7 @@ export function TripEventsStrip({
     queryFn: async () => {
       const { data, error } = await supabase.from("events").select("*").in("id", attachedIds);
       if (error) throw error;
-      return (data ?? []).map((e) => ({ ...e, distance_miles: null } as EventRow));
+      return (data ?? []).map((e) => ({ ...e, distance_miles: null }) as EventRow);
     },
   });
 
@@ -125,10 +138,16 @@ export function TripEventsStrip({
   const toggle = useMutation({
     mutationFn: async ({ eventId, attached }: { eventId: string; attached: boolean }) => {
       if (attached) {
-        const { error } = await supabase.from("trip_events").delete().eq("destination_id", destinationId).eq("event_id", eventId);
+        const { error } = await supabase
+          .from("trip_events")
+          .delete()
+          .eq("destination_id", destinationId)
+          .eq("event_id", eventId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("trip_events").insert({ destination_id: destinationId, event_id: eventId, added_by: me });
+        const { error } = await supabase
+          .from("trip_events")
+          .insert({ destination_id: destinationId, event_id: eventId, added_by: me });
         if (error) throw error;
       }
     },
@@ -139,12 +158,14 @@ export function TripEventsStrip({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
-  const dateProblem = dateState.kind === "incomplete" || dateState.kind === "invalid" ? dateState.message : null;
+  const dateProblem =
+    dateState.kind === "incomplete" || dateState.kind === "invalid" ? dateState.message : null;
   if (attachedRows.length === 0 && suggested.length === 0 && !hasDates && !dateProblem) return null;
 
-  const list = variant === "compact"
-    ? [...attachedRows, ...suggested.slice(0, 4)]
-    : [...attachedRows, ...suggested];
+  const list =
+    variant === "compact"
+      ? [...attachedRows, ...suggested.slice(0, 4)]
+      : [...attachedRows, ...suggested];
 
   return (
     <section className="rounded-2xl border border-border/60 bg-card/60 p-4">
@@ -162,7 +183,9 @@ export function TripEventsStrip({
               max={1000}
               step={10}
               value={radius}
-              onChange={(e) => setRadius(Math.max(10, Math.min(1000, Number(e.target.value) || 100)))}
+              onChange={(e) =>
+                setRadius(Math.max(10, Math.min(1000, Number(e.target.value) || 100)))
+              }
               className="w-16 rounded-md border border-border/60 bg-background px-1.5 py-0.5 text-foreground"
             />
             <span>mi</span>
@@ -176,7 +199,9 @@ export function TripEventsStrip({
                   min={0}
                   max={120}
                   value={buffer}
-                  onChange={(e) => setBuffer(Math.max(0, Math.min(120, Number(e.target.value) || 0)))}
+                  onChange={(e) =>
+                    setBuffer(Math.max(0, Math.min(120, Number(e.target.value) || 0)))
+                  }
                   disabled={showOutside}
                   className="w-14 rounded-md border border-border/60 bg-background px-1.5 py-0.5 text-foreground disabled:opacity-50"
                 />
@@ -185,7 +210,9 @@ export function TripEventsStrip({
                 type="button"
                 onClick={() => setShowOutside((v) => !v)}
                 className={`rounded-full border px-2 py-0.5 transition ${
-                  showOutside ? "border-primary/50 bg-primary/15 text-primary" : "border-border/60 hover:border-primary/40"
+                  showOutside
+                    ? "border-primary/50 bg-primary/15 text-primary"
+                    : "border-border/60 hover:border-primary/40"
                 }`}
                 aria-pressed={showOutside}
               >
@@ -193,7 +220,9 @@ export function TripEventsStrip({
               </button>
             </>
           )}
-          <span className="whitespace-nowrap">{attachedRows.length} attached · {suggested.length} suggested</span>
+          <span className="whitespace-nowrap">
+            {attachedRows.length} attached · {suggested.length} suggested
+          </span>
         </div>
       </div>
       {dateProblem && (
@@ -210,7 +239,8 @@ export function TripEventsStrip({
       )}
       {hasDates && suggested.length === 0 && attachedRows.length === 0 && (
         <p className="mt-3 text-xs text-muted-foreground">
-          No events within {radius} mi and ±{buffer} days. Widen the radius or tap "See outside my dates".
+          No events within {radius} mi and ±{buffer} days. Widen the radius or tap "See outside my
+          dates".
         </p>
       )}
       <ul className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -220,7 +250,9 @@ export function TripEventsStrip({
             <li
               key={e.id}
               className={`group rounded-xl border p-3 text-sm transition ${
-                isAttached ? "border-primary/60 bg-primary/10" : "border-border/60 bg-background/40 hover:border-primary/40"
+                isAttached
+                  ? "border-primary/60 bg-primary/10"
+                  : "border-border/60 bg-background/40 hover:border-primary/40"
               }`}
             >
               <div className="flex items-start justify-between gap-2">
@@ -228,7 +260,12 @@ export function TripEventsStrip({
                   <div className="flex items-center gap-1.5">
                     <span className="truncate font-medium">{e.name}</span>
                     {e.url && (
-                      <a href={e.url} target="_blank" rel="noreferrer noopener" className="text-primary">
+                      <a
+                        href={e.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="text-primary"
+                      >
                         <ExternalLink className="size-3.5" />
                       </a>
                     )}
@@ -242,12 +279,18 @@ export function TripEventsStrip({
                     <span className="inline-flex items-center gap-1">
                       <MapPin className="size-3" />
                       {e.city}
-                      {e.distance_miles != null && <span className="opacity-70">· {e.distance_miles} mi</span>}
+                      {e.distance_miles != null && (
+                        <span className="opacity-70">· {e.distance_miles} mi</span>
+                      )}
                     </span>
                     {isAttached ? (
-                      <span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">Attached</span>
+                      <span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                        Attached
+                      </span>
                     ) : (
-                      <span className="rounded-full bg-accent/30 px-1.5 py-0.5 text-[10px] font-medium text-accent-foreground">Matches trip</span>
+                      <span className="rounded-full bg-accent/30 px-1.5 py-0.5 text-[10px] font-medium text-accent-foreground">
+                        Matches trip
+                      </span>
                     )}
                   </div>
                 </div>
