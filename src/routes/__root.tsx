@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "sonner";
 import { RlsDebugPanel } from "@/components/rls-debug-panel";
+import { InstallAppBanner } from "@/components/install-app-banner";
 
 function NotFoundComponent() {
   return (
