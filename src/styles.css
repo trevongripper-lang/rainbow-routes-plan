@@ -109,6 +109,15 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* Honor iOS landscape notches at the body level so nothing leaks under
+     the rounded edges when viewport-fit=cover is in effect. Top/bottom are
+     handled per-surface so we don't inflate desktop layouts where the env()
+     values resolve to 0 anyway. */
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
   h1,
   h2,
   h3,
@@ -117,3 +126,31 @@
     letter-spacing: -0.02em;
   }
 }
+
+/* Safe-area utilities. env(safe-area-inset-*) resolves to 0 on browsers
+   without notches, so applying these on desktop / non-PWA mobile is a no-op
+   and never adds extra spacing. They additively compose with existing
+   padding via max() so an explicit p-* utility stays as a floor. */
+@utility safe-top {
+  padding-top: max(env(safe-area-inset-top), 0px);
+}
+
+@utility safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+
+@utility safe-x {
+  padding-left: max(env(safe-area-inset-left), 0px);
+  padding-right: max(env(safe-area-inset-right), 0px);
+}
+
+/* For sticky headers and fixed bars that already have their own padding,
+   use these to add the inset on top of the existing value. */
+@utility pt-safe {
+  padding-top: calc(env(safe-area-inset-top) + var(--pt-safe-base, 0px));
+}
+
+@utility pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--pb-safe-base, 0px));
+}
+
