@@ -67,7 +67,34 @@ export function TripEventsStrip({
   const [buffer, setBuffer] = useState<number>(bufferDays);
   const [radius, setRadius] = useState<number>(radiusMiles);
   const [showOutside, setShowOutside] = useState<boolean>(false);
+  const [reportFor, setReportFor] = useState<EventRow | null>(null);
+  const [reportReason, setReportReason] = useState<string>("not_relevant");
+  const [reportNote, setReportNote] = useState<string>("");
   const geocode = useServerFn(geocodeDestination);
+
+  const submitReport = useMutation({
+    mutationFn: async () => {
+      if (!reportFor) return;
+      const { error } = await supabase.from("event_reports").insert({
+        event_id: reportFor.id,
+        user_id: me,
+        destination_id: destinationId,
+        reason: reportReason,
+        note: reportNote.trim() || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Thanks — we'll review this event.");
+      setReportFor(null);
+      setReportReason("not_relevant");
+      setReportNote("");
+    },
+    onError: (e) => {
+      const msg = e instanceof Error ? e.message : "Failed";
+      toast.error(msg.includes("duplicate") ? "You've already reported this." : msg);
+    },
+  });
 
   const dateState = useMemo(() => {
     const hasStart = !!startDate;
