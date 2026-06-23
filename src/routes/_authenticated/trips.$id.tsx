@@ -172,6 +172,7 @@ function TripDetail() {
           endDate={dest.end_date}
           headcountFallback={dest.headcount ?? 2}
           defaultCurrency={(dest as { default_currency?: string | null }).default_currency ?? "USD"}
+          isOwner={isOwner}
         />
       )}
 
