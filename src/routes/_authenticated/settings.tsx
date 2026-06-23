@@ -105,6 +105,24 @@ function SettingsPage() {
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Smartphone className="size-5" />
+            </div>
+            <div>
+              <h2 className="font-display text-lg">Install app</h2>
+              <p className="mt-1 max-w-prose text-sm text-muted-foreground">
+                Add Tribe Trips to your home screen for a faster, full-screen experience. Works on
+                iPhone, iPad, Android, and desktop Chrome/Edge.
+              </p>
+            </div>
+          </div>
+          <InstallAppButton />
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border/60 bg-card p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <Search className="size-5" />
             </div>
             <div>
