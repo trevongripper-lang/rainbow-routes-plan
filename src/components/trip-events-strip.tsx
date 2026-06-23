@@ -2,7 +2,16 @@ import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { CalendarDays, MapPin, ExternalLink, Sparkles, X, Plus } from "lucide-react";
+import {
+  CalendarDays,
+  MapPin,
+  ExternalLink,
+  Sparkles,
+  X,
+  Plus,
+  BadgeCheck,
+  Flag,
+} from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { geocodeDestination } from "@/lib/geocode.functions";
@@ -20,7 +29,18 @@ type EventRow = {
   latitude: number | null;
   longitude: number | null;
   distance_miles: number | null;
+  verified?: boolean | null;
+  match_score?: number | null;
 };
+
+const REPORT_REASONS = [
+  { value: "not_relevant", label: "Not relevant to this trip" },
+  { value: "wrong_date", label: "Wrong date" },
+  { value: "wrong_location", label: "Wrong location" },
+  { value: "incorrect_info", label: "Incorrect info" },
+  { value: "duplicate", label: "Duplicate of another event" },
+  { value: "other", label: "Other" },
+] as const;
 
 export function TripEventsStrip({
   destinationId,
