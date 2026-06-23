@@ -71,3 +71,51 @@ Not added. Web/PWA path is correct for beta because:
 4. Push notifications, deep links, and offline mode would be the only reasons to wrap in Capacitor — none are in scope for beta
 
 Trade-off if we wrap later: Capacitor adds a build pipeline, requires Apple/Google developer accounts, and gates every release on store review. Recommendation: stay PWA for the beta cohort.
+
+## 7. Event accuracy (curated model)
+
+We deliberately keep the curated-events approach for beta. A third-party
+events API (Ticketmaster, PredictHQ, SeatGeek, Eventbrite) was evaluated and
+deferred:
+
+- Coverage gaps for our niche (Pride, circuit, queer beach events) — most
+  large APIs over-index on mainstream sports/concerts and under-index on
+  what our users actually plan trips around.
+- Licensing + per-call cost would force caching anyway, putting us back in
+  the curated/normalized shape we already have.
+- Mixing sources without a trust signal makes the "Events near this trip"
+  list noisier, not cleaner. Beta value comes from precision, not volume.
+
+We'll revisit after beta if users ask for broader coverage.
+
+### What we shipped this turn
+
+- `events.source_url`, `events.verified`, `events.confidence_notes` columns.
+- `event_reports` table (user-submitted flags, RLS-scoped: users see their
+  own, admins see all).
+- `match_trip_events` rewritten with a `match_score`:
+  exact city + in-dates = 100, within-radius + in-dates = 85, buffered/region
+  fallbacks lower, verified bonus +5. Results ordered by score.
+- Admin console exposes source URL, verified toggle, confidence notes,
+  missing-coordinates warning, and per-event report count.
+- "Events near this trip" surfaces a Verified badge, "Strong match" label
+  when `match_score ≥ 75`, and a Flag icon that opens a Report dialog.
+
+### How to test event accuracy
+
+1. **Coordinates required for distance**: open an event in admin without
+   lat/lng → save → confirm it does NOT appear in a trip's nearby list at
+   default 100mi radius (only matches if same city/region/country fallback).
+2. **City + date ranking**: create two events in the same country — one in
+   the trip's exact city during trip dates, one in a different city of the
+   same country. Confirm the exact-city event appears first.
+3. **Verified bonus**: toggle Verified on a tied-rank event → it should move
+   above an unverified peer.
+4. **Report flow**: tap the flag on a suggested event → submit "Not
+   relevant" → toast confirms → re-submitting the same reason errors with
+   "already reported".
+5. **Admin report visibility**: as admin, refresh `/console/events` →
+   reported event shows a red "N reports" badge.
+6. **Buffered dates**: with `_include_outside_dates=false`, events outside
+   trip dates ± buffer must not show; toggling "See outside my dates" must
+   reveal them with a lower match score.
