@@ -17,7 +17,10 @@ export type EventDraft = {
   longitude: number | null;
 };
 
-async function assertAdmin(ctx: { supabase: typeof import("@/integrations/supabase/client").supabase; userId: string }) {
+async function assertAdmin(ctx: {
+  supabase: typeof import("@/integrations/supabase/client").supabase;
+  userId: string;
+}) {
   const { data, error } = await ctx.supabase.rpc("has_role", {
     _user_id: ctx.userId,
     _role: "admin",

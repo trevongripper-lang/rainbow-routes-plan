@@ -134,7 +134,6 @@ function EventsAdminPage() {
           </div>
 
           {draft.image_url && (
-            
             <img
               src={draft.image_url}
               alt=""
