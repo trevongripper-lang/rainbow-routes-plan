@@ -120,9 +120,10 @@ export function NotificationsBell() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
-  // Group by trip
+  // Group by trip (system notifications without a destination get their own row keyed by notif id)
   type Group = {
-    destinationId: string;
+    key: string;
+    destinationId: string | null;
     title: string;
     region: string;
     total: number;
@@ -133,12 +134,18 @@ export function NotificationsBell() {
   const groups: Group[] = useMemo(() => {
     const m = new Map<string, Group>();
     for (const n of notifs) {
-      const t = tripMap.get(n.destination_id);
-      const g = m.get(n.destination_id);
+      const key = n.destination_id ?? `sys:${n.id}`;
+      const t = n.destination_id ? tripMap.get(n.destination_id) : undefined;
+      const fallbackTitle =
+        n.kind === "welcome"
+          ? ((n.payload?.title as string | undefined) ?? "Welcome to Tribe Trips 👋")
+          : "Trip";
+      const g = m.get(key);
       if (!g) {
-        m.set(n.destination_id, {
+        m.set(key, {
+          key,
           destinationId: n.destination_id,
-          title: t?.title ?? "Trip",
+          title: t?.title ?? fallbackTitle,
           region: t?.region ?? "",
           total: 1,
           unread: n.read_at ? 0 : 1,
@@ -157,7 +164,46 @@ export function NotificationsBell() {
     );
   }, [notifs, tripMap]);
 
+  const markNotifRead = useMutation({
+    mutationFn: async (notifId: string) => {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("id", notifId)
+        .is("read_at", null);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
   const totalUnread = groups.reduce((s, g) => s + g.unread, 0);
+
+  const renderBody = (g: Group) => (
+    <div className="min-w-0 flex-1">
+      <div className="flex items-center gap-2">
+        <span className="truncate font-medium">{g.title}</span>
+        {g.unread > 0 && (
+          <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
+            {g.unread}
+          </span>
+        )}
+      </div>
+      <div className="mt-0.5 truncate text-xs text-muted-foreground">
+        {g.latest.kind === "welcome" && g.latest.payload?.body
+          ? (g.latest.payload.body as string)
+          : `${KIND_LABEL[g.latest.kind] ?? g.latest.kind} · ${formatDistanceToNow(new Date(g.latest.created_at), { addSuffix: true })}`}
+      </div>
+      {g.kinds.length > 1 && (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {g.kinds.slice(0, 4).map((k) => (
+            <span key={k} className="rounded-full bg-card px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              {KIND_LABEL[k] ?? k}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <Popover>
@@ -195,40 +241,29 @@ export function NotificationsBell() {
               You're all caught up.
             </div>
           )}
-          {groups.map((g) => (
-            <Link
-              key={g.destinationId}
-              to="/trips/$id"
-              params={{ id: g.destinationId }}
-              search={{ tab: KIND_TAB[g.latest.kind] ?? "overview" }}
-              onClick={() => markRead.mutate(g.destinationId)}
-              className={`flex items-start gap-3 border-b border-border/40 px-4 py-3 transition hover:bg-card/60 ${g.unread > 0 ? "bg-primary/5" : ""}`}
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="truncate font-medium">{g.title}</span>
-                  {g.unread > 0 && (
-                    <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
-                      {g.unread}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {KIND_LABEL[g.latest.kind] ?? g.latest.kind} ·{" "}
-                  {formatDistanceToNow(new Date(g.latest.created_at), { addSuffix: true })}
-                </div>
-                {g.kinds.length > 1 && (
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {g.kinds.slice(0, 4).map((k) => (
-                      <span key={k} className="rounded-full bg-card px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                        {KIND_LABEL[k] ?? k}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </Link>
-          ))}
+          {groups.map((g) =>
+            g.destinationId ? (
+              <Link
+                key={g.key}
+                to="/trips/$id"
+                params={{ id: g.destinationId }}
+                search={{ tab: KIND_TAB[g.latest.kind] ?? "overview" }}
+                onClick={() => markRead.mutate(g.destinationId!)}
+                className={`flex items-start gap-3 border-b border-border/40 px-4 py-3 transition hover:bg-card/60 ${g.unread > 0 ? "bg-primary/5" : ""}`}
+              >
+                {renderBody(g)}
+              </Link>
+            ) : (
+              <button
+                key={g.key}
+                type="button"
+                onClick={() => g.unread > 0 && markNotifRead.mutate(g.latest.id)}
+                className={`flex w-full items-start gap-3 border-b border-border/40 px-4 py-3 text-left transition hover:bg-card/60 ${g.unread > 0 ? "bg-primary/5" : ""}`}
+              >
+                {renderBody(g)}
+              </button>
+            ),
+          )}
         </div>
       </PopoverContent>
     </Popover>
