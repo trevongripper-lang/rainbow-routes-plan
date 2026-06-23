@@ -115,8 +115,9 @@ async function fetchRatingData(id: string, me: string | undefined) {
           .maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
-  const a = (agg as any)?.[0] ?? { avg_rating: null, rating_count: 0, feedbacks: [] };
-  return { agg: a, mine: (mine as any)?.data ?? null };
+  const a = (agg as { data?: Array<{ avg_rating: number | null; rating_count: number; feedbacks: string[] }> } | null)?.data?.[0]
+    ?? { avg_rating: null, rating_count: 0, feedbacks: [] };
+  return { agg: a, mine: (mine as { data?: unknown } | null)?.data ?? null };
 }
 
 function TripDetail() {

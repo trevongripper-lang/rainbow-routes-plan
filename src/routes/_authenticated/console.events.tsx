@@ -134,7 +134,7 @@ function EventsAdminPage() {
           </div>
 
           {draft.image_url && (
-            // eslint-disable-next-line @next/next/no-img-element
+            
             <img
               src={draft.image_url}
               alt=""
@@ -236,7 +236,7 @@ function EventsAdminPage() {
           <Loader2 className="size-4 animate-spin" />
         ) : (
           <ul className="divide-y">
-            {(list.data ?? []).map((e: any) => (
+            {(list.data ?? []).map((e: Record<string, string | null>) => (
               <li key={e.id} className="flex items-center justify-between py-2 text-sm">
                 <div>
                   <div className="font-medium">{e.name}</div>

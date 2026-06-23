@@ -175,9 +175,9 @@ function MePage() {
                       className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm hover:border-primary/50"
                     >
                       <MessageCircle className="size-3 text-primary" />
-                      {(v.destinations as any).title}
+              {(v.destinations as { title: string; region: string }).title}
                       <span className="text-muted-foreground">
-                        · {(v.destinations as any).region}
+                        · {(v.destinations as { title: string; region: string }).region}
                       </span>
                     </Link>
                   </li>
