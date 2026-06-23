@@ -306,6 +306,14 @@ export function TripEventsStrip({
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="truncate font-medium">{e.name}</span>
+                    {e.verified && (
+                      <span
+                        title="Verified by an admin"
+                        className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400"
+                      >
+                        <BadgeCheck className="size-3" /> Verified
+                      </span>
+                    )}
                     {e.url && (
                       <a
                         href={e.url}
@@ -336,28 +344,107 @@ export function TripEventsStrip({
                       </span>
                     ) : (
                       <span className="rounded-full bg-accent/30 px-1.5 py-0.5 text-[10px] font-medium text-accent-foreground">
-                        Matches trip
+                        {e.match_score != null && e.match_score >= 75
+                          ? "Strong match"
+                          : "Matches trip"}
                       </span>
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={() => toggle.mutate({ eventId: e.id, attached: isAttached })}
-                  disabled={toggle.isPending}
-                  className={`shrink-0 rounded-full border p-1.5 transition ${
-                    isAttached
-                      ? "border-border text-muted-foreground hover:border-destructive hover:text-destructive"
-                      : "border-primary/40 text-primary hover:bg-primary/15"
-                  }`}
-                  aria-label={isAttached ? "Detach" : "Attach"}
-                >
-                  {isAttached ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
-                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    onClick={() => {
+                      setReportFor(e);
+                      setReportReason("not_relevant");
+                      setReportNote("");
+                    }}
+                    className="rounded-full border border-border/60 p-1.5 text-muted-foreground transition hover:border-destructive/50 hover:text-destructive"
+                    aria-label="Report incorrect or not relevant"
+                    title="Report"
+                  >
+                    <Flag className="size-3.5" />
+                  </button>
+                  <button
+                    onClick={() => toggle.mutate({ eventId: e.id, attached: isAttached })}
+                    disabled={toggle.isPending}
+                    className={`rounded-full border p-1.5 transition ${
+                      isAttached
+                        ? "border-border text-muted-foreground hover:border-destructive hover:text-destructive"
+                        : "border-primary/40 text-primary hover:bg-primary/15"
+                    }`}
+                    aria-label={isAttached ? "Detach" : "Attach"}
+                  >
+                    {isAttached ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
+                  </button>
+                </div>
               </div>
             </li>
           );
         })}
       </ul>
+
+      {reportFor && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setReportFor(null);
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-xl">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <h4 className="font-display text-base">Report event</h4>
+                <p className="text-xs text-muted-foreground">"{reportFor.name}"</p>
+              </div>
+              <button
+                onClick={() => setReportFor(null)}
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Close"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <fieldset className="space-y-1.5">
+              {REPORT_REASONS.map((r) => (
+                <label key={r.value} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="report-reason"
+                    value={r.value}
+                    checked={reportReason === r.value}
+                    onChange={() => setReportReason(r.value)}
+                  />
+                  {r.label}
+                </label>
+              ))}
+            </fieldset>
+            <textarea
+              value={reportNote}
+              onChange={(e) => setReportNote(e.target.value.slice(0, 500))}
+              rows={3}
+              placeholder="Optional details (max 500 chars)"
+              className="mt-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setReportFor(null)}
+                className="rounded-full border border-border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => submitReport.mutate()}
+                disabled={submitReport.isPending}
+                className="rounded-full bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:opacity-90 disabled:opacity-60"
+              >
+                {submitReport.isPending ? "Sending…" : "Submit report"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
