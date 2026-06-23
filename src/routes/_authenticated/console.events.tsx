@@ -70,9 +70,12 @@ function EventsAdminPage() {
           region: draft.region,
           country: draft.country,
           url: draft.url || "",
+          source_url: draft.source_url || draft.url || "",
           tags: draft.tags,
           latitude: draft.latitude,
           longitude: draft.longitude,
+          verified: draft.verified,
+          confidence_notes: draft.confidence_notes,
         },
       });
     },
