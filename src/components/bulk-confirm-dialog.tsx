@@ -45,7 +45,9 @@ export function BulkConfirmDialog({
               </p>
               <ul className="space-y-0.5">
                 {willApply.map((w) => (
-                  <li key={w.id} className="truncate">• {w.label}</li>
+                  <li key={w.id} className="truncate">
+                    • {w.label}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -57,7 +59,9 @@ export function BulkConfirmDialog({
               </p>
               <ul className="space-y-0.5 text-muted-foreground">
                 {skipped.map((s) => (
-                  <li key={s.id} className="truncate">• {s.label} — <span className="italic">{s.reason}</span></li>
+                  <li key={s.id} className="truncate">
+                    • {s.label} — <span className="italic">{s.reason}</span>
+                  </li>
                 ))}
               </ul>
             </div>
@@ -68,7 +72,11 @@ export function BulkConfirmDialog({
           <AlertDialogAction
             onClick={onConfirm}
             disabled={willApply.length === 0}
-            className={destructive ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            className={
+              destructive
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                : ""
+            }
           >
             {confirmLabel}
           </AlertDialogAction>

@@ -16,7 +16,10 @@ export const Route = createFileRoute("/_authenticated/console/promo-codes")({
   beforeLoad: async () => {
     const { data: userData } = await supabase.auth.getSession();
     if (!userData.session) throw notFound();
-    const { data } = await supabase.rpc("has_role", { _user_id: userData.session.user.id, _role: "admin" });
+    const { data } = await supabase.rpc("has_role", {
+      _user_id: userData.session.user.id,
+      _role: "admin",
+    });
     if (!data) throw notFound();
   },
   component: PromoAdminPage,
@@ -100,7 +103,8 @@ function PromoAdminPage() {
         <p className="text-xs uppercase tracking-widest text-muted-foreground">Console</p>
         <h1 className="font-display text-3xl">Promo codes</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Codes grant trip-unlock credits. Credits expire after the validity window from each redemption.
+          Codes grant trip-unlock credits. Credits expire after the validity window from each
+          redemption.
         </p>
       </header>
 
@@ -190,7 +194,13 @@ function PromoAdminPage() {
               disabled={save.isPending}
               className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
             >
-              {save.isPending ? <Loader2 className="size-4 animate-spin" /> : form.id ? <Save className="size-4" /> : <Plus className="size-4" />}
+              {save.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : form.id ? (
+                <Save className="size-4" />
+              ) : (
+                <Plus className="size-4" />
+              )}
               {form.id ? "Save changes" : "Create code"}
             </button>
           </div>
@@ -249,7 +259,11 @@ function PromoAdminPage() {
                         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                         onClick={() => toggle.mutate({ id: r.id, active: !r.active })}
                       >
-                        {r.active ? <PowerOff className="size-3.5" /> : <Power className="size-3.5" />}
+                        {r.active ? (
+                          <PowerOff className="size-3.5" />
+                        ) : (
+                          <Power className="size-3.5" />
+                        )}
                         {r.active ? "Deactivate" : "Activate"}
                       </button>
                     </div>
@@ -270,7 +284,9 @@ const input =
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="mb-1 block text-xs uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
       {children}
     </label>
   );

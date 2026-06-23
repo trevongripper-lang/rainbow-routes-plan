@@ -16,17 +16,25 @@ export function CreditsPanel() {
     <section className="rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-display text-2xl">Your unlock credits</h2>
-        <Link to="/pricing" className="text-xs text-muted-foreground hover:text-primary">How credits work →</Link>
+        <Link to="/pricing" className="text-xs text-muted-foreground hover:text-primary">
+          How credits work →
+        </Link>
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
-          <div className="flex items-center gap-2 text-primary"><Sparkles className="size-4" /><span className="text-xs uppercase tracking-wide">Available</span></div>
+          <div className="flex items-center gap-2 text-primary">
+            <Sparkles className="size-4" />
+            <span className="text-xs uppercase tracking-wide">Available</span>
+          </div>
           <p className="mt-1 font-display text-3xl">{total}</p>
           <p className="text-xs text-muted-foreground">credits ready to spend</p>
         </div>
         <div className="rounded-xl border border-border/60 p-4">
-          <div className="flex items-center gap-2 text-muted-foreground"><Award className="size-4" /><span className="text-xs uppercase tracking-wide">Loyalty</span></div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Award className="size-4" />
+            <span className="text-xs uppercase tracking-wide">Loyalty</span>
+          </div>
           <p className="mt-1 font-display text-3xl">{loyaltyRemaining}</p>
           <p className="text-xs text-muted-foreground">from paid trips</p>
         </div>
@@ -35,7 +43,11 @@ export function CreditsPanel() {
       <div className="mt-6">
         <div className="flex items-baseline justify-between text-xs">
           <span className="text-muted-foreground">
-            Loyalty progress · <strong>{loyaltyProgress}/{loyaltyTarget}</strong> paid trips toward next 2 free
+            Loyalty progress ·{" "}
+            <strong>
+              {loyaltyProgress}/{loyaltyTarget}
+            </strong>{" "}
+            paid trips toward next 2 free
           </span>
           <span className="text-muted-foreground tabular-nums">{paidTripCount} paid total</span>
         </div>

@@ -28,13 +28,21 @@ async function fetchPolls(destinationId: string): Promise<Poll[]> {
   if (!polls?.length) return [];
   const ids = polls.map((p) => p.id);
   const [{ data: options }, { data: votes }] = await Promise.all([
-    supabase.from("trip_poll_options").select("id, poll_id, label, image_url, sort_order").in("poll_id", ids).order("sort_order"),
+    supabase
+      .from("trip_poll_options")
+      .select("id, poll_id, label, image_url, sort_order")
+      .in("poll_id", ids)
+      .order("sort_order"),
     supabase.from("trip_poll_votes").select("poll_id, option_id, user_id").in("poll_id", ids),
   ]);
   return polls.map((p) => ({
     ...p,
-    options: (options ?? []).filter((o) => o.poll_id === p.id).map((o) => ({ id: o.id, label: o.label, image_url: o.image_url })),
-    votes: (votes ?? []).filter((v) => v.poll_id === p.id).map((v) => ({ option_id: v.option_id, user_id: v.user_id })),
+    options: (options ?? [])
+      .filter((o) => o.poll_id === p.id)
+      .map((o) => ({ id: o.id, label: o.label, image_url: o.image_url })),
+    votes: (votes ?? [])
+      .filter((v) => v.poll_id === p.id)
+      .map((v) => ({ option_id: v.option_id, user_id: v.user_id })),
   }));
 }
 
@@ -58,7 +66,12 @@ export function PollsPanel({ destinationId, me }: { destinationId: string; me: s
       if (cleanOpts.length < 2) throw new Error("Add at least two options");
       const { data: poll, error } = await supabase
         .from("trip_polls")
-        .insert({ destination_id: destinationId, user_id: me, question: q, allow_multi: allowMulti })
+        .insert({
+          destination_id: destinationId,
+          user_id: me,
+          question: q,
+          allow_multi: allowMulti,
+        })
         .select("id")
         .single();
       if (error) throw error;
@@ -129,11 +142,17 @@ export function PollsPanel({ destinationId, me }: { destinationId: string; me: s
             </button>
           </div>
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            <input type="checkbox" checked={allowMulti} onChange={(e) => setAllowMulti(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={allowMulti}
+              onChange={(e) => setAllowMulti(e.target.checked)}
+            />
             Allow multiple selections per person
           </label>
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setCreating(false)}>Cancel</Button>
+            <Button size="sm" variant="ghost" onClick={() => setCreating(false)}>
+              Cancel
+            </Button>
             <Button size="sm" onClick={() => create.mutate()} disabled={create.isPending}>
               {create.isPending ? <Loader2 className="size-4 animate-spin" /> : "Post poll"}
             </Button>
@@ -215,17 +234,32 @@ function PollCard({ poll, me }: { poll: Poll; me: string }) {
         <div className="min-w-0">
           <p className="font-medium">{poll.question}</p>
           <p className="mt-0.5 flex items-center gap-3 text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1"><Users className="size-3" /> {voters} {voters === 1 ? "voter" : "voters"} · {total} {total === 1 ? "vote" : "votes"}</span>
-            {closed && <span className="inline-flex items-center gap-1 text-amber-500"><Lock className="size-3" /> Closed</span>}
+            <span className="inline-flex items-center gap-1">
+              <Users className="size-3" /> {voters} {voters === 1 ? "voter" : "voters"} · {total}{" "}
+              {total === 1 ? "vote" : "votes"}
+            </span>
+            {closed && (
+              <span className="inline-flex items-center gap-1 text-amber-500">
+                <Lock className="size-3" /> Closed
+              </span>
+            )}
             {poll.allow_multi && <span>multi-select</span>}
           </p>
         </div>
         {canManage && (
           <div className="flex gap-1">
-            <button onClick={() => close.mutate()} className="rounded-md p-1.5 text-muted-foreground hover:text-foreground" title={closed ? "Reopen" : "Close"}>
+            <button
+              onClick={() => close.mutate()}
+              className="rounded-md p-1.5 text-muted-foreground hover:text-foreground"
+              title={closed ? "Reopen" : "Close"}
+            >
               <Lock className="size-3.5" />
             </button>
-            <button onClick={() => del.mutate()} className="rounded-md p-1.5 text-muted-foreground hover:text-destructive" title="Delete">
+            <button
+              onClick={() => del.mutate()}
+              className="rounded-md p-1.5 text-muted-foreground hover:text-destructive"
+              title="Delete"
+            >
               <Trash2 className="size-3.5" />
             </button>
           </div>
@@ -255,7 +289,9 @@ function PollCard({ poll, me }: { poll: Poll; me: string }) {
                   {picked && <Check className="size-4 text-primary" />}
                   {o.label}
                 </span>
-                <span className="text-xs tabular-nums text-muted-foreground">{pct}% · {count}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {pct}% · {count}
+                </span>
               </div>
             </button>
           );

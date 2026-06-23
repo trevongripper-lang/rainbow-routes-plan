@@ -2,7 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Users } from "lucide-react";
 
-export function AttendeesCard({ destinationId, onOpen }: { destinationId: string; onOpen?: () => void }) {
+export function AttendeesCard({
+  destinationId,
+  onOpen,
+}: {
+  destinationId: string;
+  onOpen?: () => void;
+}) {
   const { data: members = [] } = useQuery({
     queryKey: ["trip-members", destinationId],
     queryFn: async () => {

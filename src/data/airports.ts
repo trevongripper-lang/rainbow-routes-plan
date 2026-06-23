@@ -102,7 +102,12 @@ export const AIRPORTS: Airport[] = [
   { iata: "TIJ", city: "Tijuana", country: "Mexico", name: "Tijuana Intl" },
   { iata: "PTY", city: "Panama City", country: "Panama", name: "Tocumen Intl" },
   { iata: "SJO", city: "San José", country: "Costa Rica", name: "Juan Santamaría Intl" },
-  { iata: "SAL", city: "San Salvador", country: "El Salvador", name: "Monseñor Óscar Arnulfo Romero" },
+  {
+    iata: "SAL",
+    city: "San Salvador",
+    country: "El Salvador",
+    name: "Monseñor Óscar Arnulfo Romero",
+  },
   { iata: "GUA", city: "Guatemala City", country: "Guatemala", name: "La Aurora Intl" },
   { iata: "HAV", city: "Havana", country: "Cuba", name: "José Martí Intl" },
   { iata: "SDQ", city: "Santo Domingo", country: "Dominican Republic", name: "Las Américas Intl" },

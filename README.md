@@ -1,0 +1,105 @@
+# Tribe Trips
+
+Plan group trips together — pitch destinations, vote, chat, track flights/stays/tickets, split costs, and discover events near your dates.
+
+This is a **web app** that also installs to a phone home screen as a PWA. No App Store build yet.
+
+---
+
+## What's in the box
+
+- **Frontend:** React 19 + TanStack Start (SSR on Cloudflare Workers) + Tailwind v4 + shadcn/ui
+- **Backend:** Lovable Cloud (managed Supabase) — Postgres + Auth + Storage + Row-Level Security
+- **Payments:** Paddle (sandbox today, switch keys to go live)
+- **Email auth + Google OAuth** out of the box
+
+---
+
+## Running locally
+
+Requires [Bun](https://bun.sh) ≥ 1.1.
+
+```bash
+bun install
+bun run dev          # http://localhost:8080
+```
+
+Other scripts:
+
+```bash
+bun run build        # production build (Cloudflare Worker bundle)
+bun run preview      # preview the production build
+bun run lint         # ESLint
+bun run format       # Prettier --write
+bunx vitest run      # unit + accessibility tests
+```
+
+The dev server reads `.env` (see below).
+
+---
+
+## Deploying
+
+The simplest path: click **Publish** in the Lovable editor. That ships both the frontend bundle and the Worker SSR runtime to a `*.lovable.app` URL. A custom domain can be attached afterwards from **Project settings → Domains**.
+
+Database migrations live in `supabase/migrations/` and are applied automatically through Lovable Cloud — there's nothing to deploy by hand.
+
+---
+
+## Accounts & services you need
+
+| Service | Why | How to get a key |
+| --- | --- | --- |
+| **Lovable Cloud** | Database, auth, storage, server functions | Comes with the Lovable project — nothing to sign up for |
+| **Google Cloud OAuth** | Google sign-in | Console → Credentials → OAuth Client ID (Web). Add the published origin + `https://<project>.lovable.app` as redirect URIs |
+| **Paddle** | Trip-unlock payments | Sandbox keys today. Production keys before charging real money |
+| **Mapbox** | Map tiles on the Events map | mapbox.com → access token (public scope) |
+| **Aviationstack** | Flight number lookup | aviationstack.com (free tier OK for beta) |
+| **Serpstack** | Image search for trip covers | serpstack.com (free tier OK for beta) |
+
+All of the above are optional except Lovable Cloud — features degrade gracefully if a key is missing.
+
+---
+
+## Environment variables
+
+Secrets live in **Lovable Cloud → Project secrets** (or local `.env` for `bun run dev`). Never commit real values. The current keys are:
+
+**Client-visible (safe in the bundle):**
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `VITE_SUPABASE_PROJECT_ID`
+
+**Server-only (never expose):**
+
+- `SUPABASE_URL`
+- `SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` — bypasses RLS, used only by webhooks/admin paths
+- `SUPABASE_DB_URL`
+- `PADDLE_CLIENT_TOKEN` — used client-side too (publishable)
+- `PADDLE_WEBHOOK_SECRET` — verifies Paddle webhook signatures
+- `PADDLE_PRICE_TIER1`, `PADDLE_PRICE_TIER2`, `PADDLE_PRICE_TIER3`
+- `MAPBOX_TOKEN`
+- `AVIATIONSTACK_API_KEY`
+- `SERPSTACK_API_KEY`
+- `LOVABLE_API_KEY` — Lovable AI Gateway (image search fallback, summaries)
+
+The Paddle webhook endpoint is `/api/public/paddle-webhook`.
+
+---
+
+## Project layout
+
+```
+src/
+  routes/                 file-based routing (TanStack Router)
+    _authenticated/       signed-in subtree (auto-gated)
+    api/public/           webhooks & cron endpoints (no auth)
+  components/             UI components
+  lib/                    business logic + *.functions.ts (server fns)
+  integrations/supabase/  managed Supabase clients (do not edit)
+supabase/migrations/      database schema history
+```
+
+See `AUDIT.md` for the current state of every feature and `BETA_CHECKLIST.md` for what to verify before opening the beta.

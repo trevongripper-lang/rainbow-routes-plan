@@ -6,9 +6,16 @@ export const Route = createFileRoute("/pricing")({
   head: () => ({
     meta: [
       { title: "Pricing — Tribe Trips" },
-      { name: "description", content: "Free for crews up to 5. Pay once per trip when your group grows — no subscriptions." },
+      {
+        name: "description",
+        content:
+          "Free for crews up to 5. Pay once per trip when your group grows — no subscriptions.",
+      },
       { property: "og:title", content: "Tribe Trips — Pricing" },
-      { property: "og:description", content: "Pay once per trip. No subscriptions. Earn free trips when you keep planning." },
+      {
+        property: "og:description",
+        content: "Pay once per trip. No subscriptions. Earn free trips when you keep planning.",
+      },
     ],
   }),
   component: PricingPage,
@@ -17,7 +24,7 @@ export const Route = createFileRoute("/pricing")({
 const tiers = [
   { range: "6–10", price: "$4.99", note: "Most crews" },
   { range: "11–20", price: "$9.99", note: "Group getaways" },
-  { range: "21+",   price: "$19.99", note: "Whole-squad trips" },
+  { range: "21+", price: "$19.99", note: "Whole-squad trips" },
 ];
 
 const features = [
@@ -32,10 +39,13 @@ function PricingPage() {
     <main className="min-h-screen bg-background px-6 py-16">
       <div className="mx-auto max-w-5xl">
         <div className="text-center">
-          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← Tribe Trips</Link>
+          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
+            ← Tribe Trips
+          </Link>
           <h1 className="mt-4 font-display text-5xl md:text-6xl">Pay once, when it counts</h1>
           <p className="mt-3 text-lg text-muted-foreground">
-            Free for crews up to 5. For bigger trips, the organizer pays a single one-time fee — no subscriptions, ever.
+            Free for crews up to 5. For bigger trips, the organizer pays a single one-time fee — no
+            subscriptions, ever.
           </p>
         </div>
 
@@ -44,9 +54,14 @@ function PricingPage() {
           <div className="flex flex-wrap items-baseline justify-between gap-4">
             <div>
               <h2 className="font-display text-2xl">Free</h2>
-              <p className="mt-1 text-sm text-muted-foreground">For trips up to 5 people. Unlimited free trips.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                For trips up to 5 people. Unlimited free trips.
+              </p>
             </div>
-            <div><span className="font-display text-4xl">$0</span><span className="text-muted-foreground"> / forever</span></div>
+            <div>
+              <span className="font-display text-4xl">$0</span>
+              <span className="text-muted-foreground"> / forever</span>
+            </div>
           </div>
           <ul className="mt-6 grid gap-2 sm:grid-cols-2">
             {features.map((f) => (
@@ -68,7 +83,8 @@ function PricingPage() {
           </div>
           <h2 className="mt-2 font-display text-3xl">Unlock a trip — pay once, done</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            When a trip grows past 5 people, the organizer unlocks it for the whole crew. Permanent. No renewals.
+            When a trip grows past 5 people, the organizer unlocks it for the whole crew. Permanent.
+            No renewals.
           </p>
 
           <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -82,7 +98,8 @@ function PricingPage() {
             ))}
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
-            Adding members later that pushes the trip into a larger tier triggers a small top-up for the difference. Guests never pay.
+            Adding members later that pushes the trip into a larger tier triggers a small top-up for
+            the difference. Guests never pay.
           </p>
         </div>
 
@@ -95,8 +112,8 @@ function PricingPage() {
               </div>
               <h2 className="mt-2 font-display text-3xl">Organizer Plus</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Plan as many trips as you want, any size, without thinking about unlocks.
-                Pays for itself at roughly <strong>7 paid trips a year</strong>.
+                Plan as many trips as you want, any size, without thinking about unlocks. Pays for
+                itself at roughly <strong>7 paid trips a year</strong>.
               </p>
               <ul className="mt-5 grid gap-2 sm:grid-cols-2">
                 {[
@@ -123,11 +140,12 @@ function PricingPage() {
                   <Crown className="size-4" /> Get Organizer Plus
                 </Link>
               </Button>
-              <p className="mt-2 text-[11px] text-muted-foreground">Checkout activates once payments are live.</p>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Checkout activates once payments are live.
+              </p>
             </div>
           </div>
         </div>
-
 
         {/* Credits */}
         <div className="mt-8 grid gap-6 md:grid-cols-2">
@@ -137,7 +155,8 @@ function PricingPage() {
               <h3 className="font-display text-xl">Loyalty credits</h3>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
-              Every <strong>8 trips you pay to unlock</strong>, you get <strong>2 free unlock credits</strong> — usable on any tier.
+              Every <strong>8 trips you pay to unlock</strong>, you get{" "}
+              <strong>2 free unlock credits</strong> — usable on any tier.
             </p>
           </div>
           <div className="rounded-3xl border border-border/60 bg-card p-6">
@@ -146,13 +165,18 @@ function PricingPage() {
               <h3 className="font-display text-xl">Referral credits</h3>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
-              Join via an invite from someone who's paid for at least one trip? You get <strong>3 free unlock credits</strong> for trips you organize.
+              Join via an invite from someone who's paid for at least one trip? You get{" "}
+              <strong>3 free unlock credits</strong> for trips you organize.
             </p>
           </div>
         </div>
 
         <div className="mt-16 text-center text-sm text-muted-foreground">
-          Questions? <a className="text-primary hover:underline" href="mailto:hi@tribetrips.app">Get in touch</a>.
+          Questions?{" "}
+          <a className="text-primary hover:underline" href="mailto:hi@tribetrips.app">
+            Get in touch
+          </a>
+          .
         </div>
       </div>
     </main>

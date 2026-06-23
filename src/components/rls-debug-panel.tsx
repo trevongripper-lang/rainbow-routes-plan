@@ -47,20 +47,41 @@ function installFetchInterceptor() {
   window.fetch = async (input, init) => {
     const res = await orig(input, init);
     try {
-      const url = typeof input === "string" ? input : input instanceof Request ? input.url : (input as URL).toString();
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof Request
+            ? input.url
+            : (input as URL).toString();
       const isRest = url.includes("/rest/v1/") || url.includes("/auth/v1/");
       if (!isRest) return res;
       if (res.ok) return res;
       // peek body without consuming
       const clone = res.clone();
       const text = await clone.text();
-      let parsed: { code?: string; message?: string; hint?: string; details?: string; error?: string; error_description?: string } | null = null;
-      try { parsed = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
-      const method = (init?.method || (input instanceof Request ? input.method : "GET") || "GET").toUpperCase();
+      let parsed: {
+        code?: string;
+        message?: string;
+        hint?: string;
+        details?: string;
+        error?: string;
+        error_description?: string;
+      } | null = null;
+      try {
+        parsed = text ? JSON.parse(text) : null;
+      } catch {
+        /* not JSON */
+      }
+      const method = (
+        init?.method ||
+        (input instanceof Request ? input.method : "GET") ||
+        "GET"
+      ).toUpperCase();
       const tableMatch = url.match(/\/rest\/v1\/([^?]+)/);
       const table = tableMatch ? tableMatch[1] : null;
       const code = parsed?.code ?? null;
-      const message = parsed?.message ?? parsed?.error_description ?? parsed?.error ?? `HTTP ${res.status}`;
+      const message =
+        parsed?.message ?? parsed?.error_description ?? parsed?.error ?? `HTTP ${res.status}`;
       const hint = parsed?.hint ?? null;
       const details = parsed?.details ?? null;
 
@@ -75,7 +96,7 @@ function installFetchInterceptor() {
         blockedBy = fn?.[1] ?? rel?.[1] ?? null;
       }
       if (
-        code === "42501" && /row-level security/i.test(message) ||
+        (code === "42501" && /row-level security/i.test(message)) ||
         /violates row-level security policy/i.test(message) ||
         /new row violates row-level security/i.test(message)
       ) {
@@ -86,7 +107,18 @@ function installFetchInterceptor() {
       // 403 on REST with no clear code is usually RLS filtering
       if (res.status === 403 && kind === "other") kind = "rls";
 
-      store.push({ method, table, url, status: res.status, code, message, hint, details, blockedBy, kind });
+      store.push({
+        method,
+        table,
+        url,
+        status: res.status,
+        code,
+        message,
+        hint,
+        details,
+        blockedBy,
+        kind,
+      });
     } catch {
       // swallow — debug panel must never break the app
     }
@@ -110,7 +142,9 @@ export function RlsDebugPanel() {
   const [expanded, setExpanded] = useState<number | null>(null);
   const events = useEvents();
 
-  useEffect(() => { installFetchInterceptor(); }, []);
+  useEffect(() => {
+    installFetchInterceptor();
+  }, []);
 
   const unseenCount = events.length;
 
@@ -139,10 +173,18 @@ export function RlsDebugPanel() {
               <span className="text-xs text-muted-foreground">{events.length} captured</span>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={() => store.clear()} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" title="Clear">
+              <button
+                onClick={() => store.clear()}
+                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                title="Clear"
+              >
                 <Trash2 className="size-4" />
               </button>
-              <button onClick={() => setOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" title="Close">
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                title="Close"
+              >
                 <X className="size-4" />
               </button>
             </div>
@@ -151,18 +193,28 @@ export function RlsDebugPanel() {
           <div className="flex-1 overflow-y-auto">
             {events.length === 0 && (
               <div className="p-6 text-center text-xs text-muted-foreground">
-                No RLS, permission, or auth failures captured yet. Try an action that should be blocked.
+                No RLS, permission, or auth failures captured yet. Try an action that should be
+                blocked.
               </div>
             )}
             <ul className="divide-y divide-border">
               {events.map((e) => (
                 <li key={e.id} className="px-3 py-2 text-xs">
-                  <button onClick={() => setExpanded(expanded === e.id ? null : e.id)} className="flex w-full items-start gap-2 text-left">
-                    <span className={`mt-0.5 shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase ${KIND_STYLE[e.kind]}`}>
+                  <button
+                    onClick={() => setExpanded(expanded === e.id ? null : e.id)}
+                    className="flex w-full items-start gap-2 text-left"
+                  >
+                    <span
+                      className={`mt-0.5 shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase ${KIND_STYLE[e.kind]}`}
+                    >
                       {e.kind}
                     </span>
-                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">{e.method}</span>
-                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">{e.status}</span>
+                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+                      {e.method}
+                    </span>
+                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+                      {e.status}
+                    </span>
                     <span className="min-w-0 flex-1">
                       <span className="font-mono text-foreground">{e.table ?? "(non-rest)"}</span>
                       {e.blockedBy && (
@@ -170,21 +222,45 @@ export function RlsDebugPanel() {
                           blocked by <span className="font-mono text-amber-300">{e.blockedBy}</span>
                         </span>
                       )}
-                      <span className="mt-0.5 block truncate text-muted-foreground">{e.message}</span>
+                      <span className="mt-0.5 block truncate text-muted-foreground">
+                        {e.message}
+                      </span>
                     </span>
                   </button>
                   {expanded === e.id && (
                     <div className="mt-2 space-y-1 rounded bg-muted/40 p-2 font-mono text-[11px]">
-                      <div><span className="text-muted-foreground">time:</span> {new Date(e.time).toLocaleTimeString()}</div>
-                      <div className="break-all"><span className="text-muted-foreground">url:</span> {e.url}</div>
-                      {e.code && <div><span className="text-muted-foreground">code:</span> {e.code}</div>}
-                      <div className="whitespace-pre-wrap"><span className="text-muted-foreground">message:</span> {e.message}</div>
-                      {e.hint && <div className="whitespace-pre-wrap"><span className="text-muted-foreground">hint:</span> {e.hint}</div>}
-                      {e.details && <div className="whitespace-pre-wrap"><span className="text-muted-foreground">details:</span> {e.details}</div>}
+                      <div>
+                        <span className="text-muted-foreground">time:</span>{" "}
+                        {new Date(e.time).toLocaleTimeString()}
+                      </div>
+                      <div className="break-all">
+                        <span className="text-muted-foreground">url:</span> {e.url}
+                      </div>
+                      {e.code && (
+                        <div>
+                          <span className="text-muted-foreground">code:</span> {e.code}
+                        </div>
+                      )}
+                      <div className="whitespace-pre-wrap">
+                        <span className="text-muted-foreground">message:</span> {e.message}
+                      </div>
+                      {e.hint && (
+                        <div className="whitespace-pre-wrap">
+                          <span className="text-muted-foreground">hint:</span> {e.hint}
+                        </div>
+                      )}
+                      {e.details && (
+                        <div className="whitespace-pre-wrap">
+                          <span className="text-muted-foreground">details:</span> {e.details}
+                        </div>
+                      )}
                       <div className="pt-1 text-muted-foreground">
-                        {e.kind === "rls" && "Likely cause: SELECT/INSERT/UPDATE RLS policy filtered or rejected this row. Check policy USING / WITH CHECK."}
-                        {e.kind === "permission" && "Likely cause: missing GRANT on table or EXECUTE on function for role 'authenticated' or 'anon'."}
-                        {e.kind === "auth" && "Likely cause: no/expired bearer token. Sign in or refresh session."}
+                        {e.kind === "rls" &&
+                          "Likely cause: SELECT/INSERT/UPDATE RLS policy filtered or rejected this row. Check policy USING / WITH CHECK."}
+                        {e.kind === "permission" &&
+                          "Likely cause: missing GRANT on table or EXECUTE on function for role 'authenticated' or 'anon'."}
+                        {e.kind === "auth" &&
+                          "Likely cause: no/expired bearer token. Sign in or refresh session."}
                       </div>
                     </div>
                   )}

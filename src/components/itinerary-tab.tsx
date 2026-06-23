@@ -1,7 +1,21 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plane, BedDouble, Ticket, Wallet, Sparkles, CalendarDays, MapPin, ExternalLink, List, LayoutGrid, GripVertical, Trash2, CalendarClock } from "lucide-react";
+import {
+  Plane,
+  BedDouble,
+  Ticket,
+  Wallet,
+  Sparkles,
+  CalendarDays,
+  MapPin,
+  ExternalLink,
+  List,
+  LayoutGrid,
+  GripVertical,
+  Trash2,
+  CalendarClock,
+} from "lucide-react";
 import { addDays, differenceInCalendarDays, format, parseISO, isValid } from "date-fns";
 import { TripEventsStrip } from "@/components/trip-events-strip";
 import { track } from "@/lib/analytics";
@@ -37,8 +51,8 @@ type Kind = "flight" | "stay" | "ticket" | "cost" | "event";
 type Item = {
   id: string;
   kind: Kind;
-  date: Date | null;        // primary anchor date
-  endDate?: Date | null;    // for stays / multi-day events
+  date: Date | null; // primary anchor date
+  endDate?: Date | null; // for stays / multi-day events
   title: string;
   subtitle?: string;
   meta?: string;
@@ -74,28 +88,40 @@ export function ItineraryTab({
   const { data: flights = [] } = useQuery({
     queryKey: ["flights", destinationId],
     queryFn: async () => {
-      const { data } = await supabase.from("trip_flights").select("*").eq("destination_id", destinationId);
+      const { data } = await supabase
+        .from("trip_flights")
+        .select("*")
+        .eq("destination_id", destinationId);
       return data ?? [];
     },
   });
   const { data: stays = [] } = useQuery({
     queryKey: ["stays", destinationId],
     queryFn: async () => {
-      const { data } = await supabase.from("trip_stays").select("*").eq("destination_id", destinationId);
+      const { data } = await supabase
+        .from("trip_stays")
+        .select("*")
+        .eq("destination_id", destinationId);
       return data ?? [];
     },
   });
   const { data: tickets = [] } = useQuery({
     queryKey: ["tickets", destinationId],
     queryFn: async () => {
-      const { data } = await supabase.from("trip_tickets").select("*").eq("destination_id", destinationId);
+      const { data } = await supabase
+        .from("trip_tickets")
+        .select("*")
+        .eq("destination_id", destinationId);
       return data ?? [];
     },
   });
   const { data: costs = [] } = useQuery({
     queryKey: ["costs", destinationId],
     queryFn: async () => {
-      const { data } = await supabase.from("trip_costs").select("*").eq("destination_id", destinationId);
+      const { data } = await supabase
+        .from("trip_costs")
+        .select("*")
+        .eq("destination_id", destinationId);
       return data ?? [];
     },
   });
@@ -183,7 +209,8 @@ export function ItineraryTab({
         date: null,
         title: t.name,
         subtitle: t.notes ?? undefined,
-        meta: t.price_cents != null ? `${(t.price_cents / 100).toFixed(2)} ${t.currency}` : undefined,
+        meta:
+          t.price_cents != null ? `${(t.price_cents / 100).toFixed(2)} ${t.currency}` : undefined,
         href: t.url,
       });
     }
@@ -208,7 +235,12 @@ export function ItineraryTab({
         endDate: de,
         title: e.name,
         subtitle: [e.city, e.country].filter(Boolean).join(", "),
-        meta: de && ds ? `${format(ds, "MMM d")} – ${format(de, "MMM d")}` : ds ? format(ds, "MMM d") : undefined,
+        meta:
+          de && ds
+            ? `${format(ds, "MMM d")} – ${format(de, "MMM d")}`
+            : ds
+              ? format(ds, "MMM d")
+              : undefined,
         href: e.url,
         matched,
       });
@@ -280,8 +312,8 @@ export function ItineraryTab({
     startDate && endDate
       ? `${format(parseISO(startDate), "MMM d")} – ${format(parseISO(endDate), "MMM d, yyyy")}`
       : endDate
-      ? `Ends ${format(parseISO(endDate), "MMM d, yyyy")}`
-      : null;
+        ? `Ends ${format(parseISO(endDate), "MMM d, yyyy")}`
+        : null;
 
   const hasDayView = days.length > 0;
 
@@ -292,14 +324,17 @@ export function ItineraryTab({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [movePopoverOpen, setMovePopoverOpen] = useState(false);
 
-  const selectionCtx: SelectionCtxValue = useMemo(() => ({
-    enabled: true,
-    isSelected: (id: string) => bulk.isSelected(id),
-    toggle: (id: string, shift: boolean) => {
-      if (shift) bulk.toggleRange(id, orderedItemIds);
-      else bulk.toggle(id);
-    },
-  }), [bulk, orderedItemIds]);
+  const selectionCtx: SelectionCtxValue = useMemo(
+    () => ({
+      enabled: true,
+      isSelected: (id: string) => bulk.isSelected(id),
+      toggle: (id: string, shift: boolean) => {
+        if (shift) bulk.toggleRange(id, orderedItemIds);
+        else bulk.toggle(id);
+      },
+    }),
+    [bulk, orderedItemIds],
+  );
 
   const deletePlan = useMemo(() => {
     const willApply: { id: string; label: string }[] = [];
@@ -322,13 +357,31 @@ export function ItineraryTab({
       }
       const byKind: Record<string, number> = {};
       const ops: PromiseLike<{ error: unknown }>[] = [];
-      if (groups.f.length) { byKind.flight = groups.f.length; ops.push(supabase.from("trip_flights").delete().in("id", groups.f)); }
-      if (groups.s.length) { byKind.stay = groups.s.length; ops.push(supabase.from("trip_stays").delete().in("id", groups.s)); }
-      if (groups.t.length) { byKind.ticket = groups.t.length; ops.push(supabase.from("trip_tickets").delete().in("id", groups.t)); }
-      if (groups.c.length) { byKind.cost = groups.c.length; ops.push(supabase.from("trip_costs").delete().in("id", groups.c)); }
+      if (groups.f.length) {
+        byKind.flight = groups.f.length;
+        ops.push(supabase.from("trip_flights").delete().in("id", groups.f));
+      }
+      if (groups.s.length) {
+        byKind.stay = groups.s.length;
+        ops.push(supabase.from("trip_stays").delete().in("id", groups.s));
+      }
+      if (groups.t.length) {
+        byKind.ticket = groups.t.length;
+        ops.push(supabase.from("trip_tickets").delete().in("id", groups.t));
+      }
+      if (groups.c.length) {
+        byKind.cost = groups.c.length;
+        ops.push(supabase.from("trip_costs").delete().in("id", groups.c));
+      }
       if (groups.e.length) {
         byKind.event = groups.e.length;
-        ops.push(supabase.from("trip_events").delete().eq("destination_id", destinationId).in("event_id", groups.e));
+        ops.push(
+          supabase
+            .from("trip_events")
+            .delete()
+            .eq("destination_id", destinationId)
+            .in("event_id", groups.e),
+        );
       }
       const results = await Promise.all(ops);
       for (const r of results) {
@@ -341,7 +394,14 @@ export function ItineraryTab({
     onSuccess: (n) => {
       setConfirmDelete(false);
       bulk.clear();
-      for (const k of ["flights", "stays", "tickets", "costs", "trip-events-full", "itinerary-order"]) {
+      for (const k of [
+        "flights",
+        "stays",
+        "tickets",
+        "costs",
+        "trip-events-full",
+        "itinerary-order",
+      ]) {
         qc.invalidateQueries({ queryKey: [k, destinationId] });
       }
       toast.success(`Removed ${n} item${n === 1 ? "" : "s"}`);
@@ -365,10 +425,9 @@ export function ItineraryTab({
         sort_order: next++,
       }));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase.from("trip_itinerary_order" as any) as any).upsert(
-        rows,
-        { onConflict: "destination_id,item_key" },
-      );
+      const { error } = await (supabase.from("trip_itinerary_order" as any) as any).upsert(rows, {
+        onConflict: "destination_id,item_key",
+      });
       if (error) throw error;
       track("bulk_move_day", { count: rows.length }, destinationId);
       return rows.length;
@@ -393,10 +452,16 @@ export function ItineraryTab({
             </div>
             {hasDayView && (
               <div className="flex items-center gap-1 rounded-full border border-border/60 bg-background/40 p-0.5 text-xs">
-                <button onClick={() => setView("days")} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${view === "days" ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}>
+                <button
+                  onClick={() => setView("days")}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${view === "days" ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}
+                >
                   <LayoutGrid className="size-3.5" /> Days
                 </button>
-                <button onClick={() => setView("list")} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${view === "list" ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}>
+                <button
+                  onClick={() => setView("list")}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${view === "list" ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}
+                >
                   <List className="size-3.5" /> List
                 </button>
               </div>
@@ -408,7 +473,15 @@ export function ItineraryTab({
           </p>
         </section>
 
-        <TripEventsStrip destinationId={destinationId} me={me} region={region} country={country} startDate={startDate} endDate={endDate} variant="full" />
+        <TripEventsStrip
+          destinationId={destinationId}
+          me={me}
+          region={region}
+          country={country}
+          startDate={startDate}
+          endDate={endDate}
+          variant="full"
+        />
 
         {items.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
@@ -461,7 +534,9 @@ export function ItineraryTab({
                               className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted disabled:opacity-50"
                             >
                               <span>Day {idx + 1}</span>
-                              <span className="text-xs text-muted-foreground">{format(d, "EEE, MMM d")}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {format(d, "EEE, MMM d")}
+                              </span>
                             </button>
                           </li>
                         );
@@ -522,11 +597,15 @@ function DayView({
             <li key={k} className="relative">
               <span className="absolute -left-[31px] top-1 size-3 rounded-full border-2 border-primary bg-background" />
               <div className="flex items-baseline gap-2">
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Day {idx + 1}</span>
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Day {idx + 1}
+                </span>
                 <span className="text-sm font-medium">{format(d, "EEE, MMM d")}</span>
               </div>
               {list.length === 0 ? (
-                <p className="mt-1 text-xs italic text-muted-foreground">Free day — what should we do?</p>
+                <p className="mt-1 text-xs italic text-muted-foreground">
+                  Free day — what should we do?
+                </p>
               ) : (
                 <DayList items={list} dayKey={k} onReorder={onReorder} />
               )}
@@ -537,9 +616,13 @@ function DayView({
 
       {(undated.length > 0 || outside.length > 0) && (
         <section className="rounded-2xl border border-dashed border-border/60 bg-background/30 p-4">
-          <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Not on a trip day</h3>
+          <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Not on a trip day
+          </h3>
           <ul className="mt-2 space-y-2">
-            {[...outside, ...undated].map((it) => <ItemRow key={it.id} it={it} />)}
+            {[...outside, ...undated].map((it) => (
+              <ItemRow key={it.id} it={it} />
+            ))}
           </ul>
         </section>
       )}
@@ -562,7 +645,11 @@ function DayList({
 
   const ids = order ?? items.map((i) => i.id);
   // Resync when upstream items change (only if no active drag).
-  if (!dragId && order && (order.length !== items.length || order.some((id, i) => items[i]?.id !== id))) {
+  if (
+    !dragId &&
+    order &&
+    (order.length !== items.length || order.some((id, i) => items[i]?.id !== id))
+  ) {
     // Defer the reset so React doesn't warn about state updates during render.
     queueMicrotask(() => setOrder(null));
   }
@@ -598,21 +685,28 @@ function DayList({
               e.dataTransfer.dropEffect = "move";
               if (overId !== id) setOverId(id);
             }}
-            onDragLeave={() => { if (overId === id) setOverId(null); }}
+            onDragLeave={() => {
+              if (overId === id) setOverId(null);
+            }}
             onDrop={(e) => {
               e.preventDefault();
               const from = e.dataTransfer.getData("text/plain") || dragId;
               if (from && from !== id) {
                 move(from, id);
                 const next = [...ids];
-                const fi = next.indexOf(from); next.splice(fi, 1);
-                const ti = next.indexOf(id); next.splice(ti, 0, from);
+                const fi = next.indexOf(from);
+                next.splice(fi, 1);
+                const ti = next.indexOf(id);
+                next.splice(ti, 0, from);
                 onReorder(dk, next);
               }
               setDragId(null);
               setOverId(null);
             }}
-            onDragEnd={() => { setDragId(null); setOverId(null); }}
+            onDragEnd={() => {
+              setDragId(null);
+              setOverId(null);
+            }}
             className={`${dragId === id ? "opacity-50" : ""} ${overId === id && dragId !== id ? "ring-2 ring-primary/40 rounded-xl" : ""}`}
           >
             <ItemRow it={it} dayKey={dk} draggable />
@@ -651,7 +745,9 @@ function ListView({ items }: { items: Item[] }) {
               {dated ? format(parseISO(key), "EEE, MMM d, yyyy") : "Undated"}
             </div>
             <ul className="mt-2 space-y-2">
-              {list.map((it) => <ItemRow key={it.id} it={it} />)}
+              {list.map((it) => (
+                <ItemRow key={it.id} it={it} />
+              ))}
             </ul>
           </li>
         );
@@ -660,7 +756,15 @@ function ListView({ items }: { items: Item[] }) {
   );
 }
 
-function ItemRow({ it, dayKey: dk, draggable = false }: { it: Item; dayKey?: string; draggable?: boolean }) {
+function ItemRow({
+  it,
+  dayKey: dk,
+  draggable = false,
+}: {
+  it: Item;
+  dayKey?: string;
+  draggable?: boolean;
+}) {
   const { Icon, label, tone } = kindMeta[it.kind];
   const sel = useContext(SelectionCtx);
   const checked = sel?.isSelected(it.id) ?? false;
@@ -671,7 +775,9 @@ function ItemRow({ it, dayKey: dk, draggable = false }: { it: Item; dayKey?: str
     else bandLabel = "Staying";
   }
   const content = (
-    <div className={`flex items-start gap-3 rounded-xl border p-3 text-sm transition ${checked ? "border-primary/60 bg-primary/10" : it.matched ? "border-primary/60 bg-primary/10" : "border-border/60 bg-card"}`}>
+    <div
+      className={`flex items-start gap-3 rounded-xl border p-3 text-sm transition ${checked ? "border-primary/60 bg-primary/10" : it.matched ? "border-primary/60 bg-primary/10" : "border-border/60 bg-card"}`}
+    >
       {sel?.enabled && (
         <Checkbox
           checked={checked}
@@ -679,7 +785,9 @@ function ItemRow({ it, dayKey: dk, draggable = false }: { it: Item; dayKey?: str
             e.stopPropagation();
             sel.toggle(it.id, (e as unknown as MouseEvent).shiftKey);
           }}
-          onCheckedChange={() => { /* handled by onClick */ }}
+          onCheckedChange={() => {
+            /* handled by onClick */
+          }}
           aria-label={`Select ${it.title}`}
           className="mt-0.5"
         />
@@ -693,9 +801,13 @@ function ItemRow({ it, dayKey: dk, draggable = false }: { it: Item; dayKey?: str
       <Icon className={`mt-0.5 size-4 shrink-0 ${tone}`} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-background/60 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
+          <span className="rounded-full bg-background/60 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+            {label}
+          </span>
           {bandLabel && (
-            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] uppercase tracking-wide text-emerald-300">{bandLabel}</span>
+            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] uppercase tracking-wide text-emerald-300">
+              {bandLabel}
+            </span>
           )}
           <span className="font-medium">{it.title}</span>
           {it.href && (
@@ -704,7 +816,9 @@ function ItemRow({ it, dayKey: dk, draggable = false }: { it: Item; dayKey?: str
             </a>
           )}
           {it.matched && (
-            <span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">Matches this trip</span>
+            <span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+              Matches this trip
+            </span>
           )}
         </div>
         {it.subtitle && (

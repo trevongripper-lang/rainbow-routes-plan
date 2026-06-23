@@ -91,7 +91,10 @@ describe("PlanningProgressView accessibility", () => {
 
   it("announces ready when nothing is pending", () => {
     render(view(FULL));
-    expect(screen.getByRole("button")).toHaveAttribute("aria-label", expect.stringMatching(/ready to go/i));
+    expect(screen.getByRole("button")).toHaveAttribute(
+      "aria-label",
+      expect.stringMatching(/ready to go/i),
+    );
   });
 
   it("progressbar exposes 100 percent when ready", () => {

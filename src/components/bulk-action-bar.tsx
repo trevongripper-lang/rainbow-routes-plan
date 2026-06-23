@@ -42,7 +42,10 @@ export function BulkActionBar({
         </button>
         <span className="px-1 text-sm tabular-nums">
           <span className="font-medium">{count}</span>{" "}
-          <span className="text-muted-foreground">{noun}{count === 1 ? "" : "s"} selected</span>
+          <span className="text-muted-foreground">
+            {noun}
+            {count === 1 ? "" : "s"} selected
+          </span>
         </span>
         {leading}
         <div className="ml-1 flex flex-wrap items-center gap-1.5">

@@ -102,14 +102,14 @@ export function FlightsTab({ destinationId, me, startDate, endDate }: Props) {
     setForm((f) => {
       if (f.flight_date) return f;
       const mine = flights.filter((x) => x.user_id === me);
-      const hasOutbound =
-        startDate && mine.some((x) => x.flight_date === startDate);
+      const hasOutbound = startDate && mine.some((x) => x.flight_date === startDate);
       const next = hasOutbound ? endDate : startDate;
       return next ? { ...f, flight_date: next } : f;
     });
   }, [startDate, endDate, flights, me]);
 
-  const canSave = form.passenger_name.trim().length > 0 &&
+  const canSave =
+    form.passenger_name.trim().length > 0 &&
     (form.airline.trim().length > 0 || form.flight_number.trim().length > 0);
 
   const add = useMutation({
@@ -263,22 +263,20 @@ export function FlightsTab({ destinationId, me, startDate, endDate }: Props) {
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
-            {[
-              "DL123 Aug 14 JFK-LAX",
-              "BA 112 tomorrow LHR to JFK",
-              "United 45 next Friday",
-            ].map((example) => (
-              <button
-                key={example}
-                onClick={() => {
-                  setAiQuery(example);
-                  aiInputRef.current?.focus();
-                }}
-                className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-white/80 transition hover:bg-white/20 hover:text-white"
-              >
-                {example}
-              </button>
-            ))}
+            {["DL123 Aug 14 JFK-LAX", "BA 112 tomorrow LHR to JFK", "United 45 next Friday"].map(
+              (example) => (
+                <button
+                  key={example}
+                  onClick={() => {
+                    setAiQuery(example);
+                    aiInputRef.current?.focus();
+                  }}
+                  className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-white/80 transition hover:bg-white/20 hover:text-white"
+                >
+                  {example}
+                </button>
+              ),
+            )}
           </div>
 
           {!showForm && (
@@ -387,10 +385,7 @@ export function FlightsTab({ destinationId, me, startDate, endDate }: Props) {
             className="mt-4 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <ChevronDown
-              className={cn(
-                "size-3.5 transition-transform",
-                showBookingDetails && "rotate-180",
-              )}
+              className={cn("size-3.5 transition-transform", showBookingDetails && "rotate-180")}
             />
             {showBookingDetails ? "Hide" : "Add"} booking details (confirmation, notes)
           </button>
@@ -453,10 +448,7 @@ export function FlightsTab({ destinationId, me, startDate, endDate }: Props) {
                   const dep = findAirport(f.depart_airport);
                   const arr = findAirport(f.arrive_airport);
                   return (
-                    <li
-                      key={f.id}
-                      className="rounded-xl border border-border/60 bg-card p-4"
-                    >
+                    <li key={f.id} className="rounded-xl border border-border/60 bg-card p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
@@ -493,9 +485,7 @@ export function FlightsTab({ destinationId, me, startDate, endDate }: Props) {
                               Conf: <span className="font-mono">{f.confirmation}</span>
                             </div>
                           )}
-                          {f.notes && (
-                            <p className="mt-1 whitespace-pre-wrap text-sm">{f.notes}</p>
-                          )}
+                          {f.notes && <p className="mt-1 whitespace-pre-wrap text-sm">{f.notes}</p>}
                         </div>
                         {f.user_id === me && (
                           <button
@@ -516,10 +506,7 @@ export function FlightsTab({ destinationId, me, startDate, endDate }: Props) {
         </div>
       )}
 
-      <AlertDialog
-        open={!!pendingDelete}
-        onOpenChange={(o) => !o && setPendingDelete(null)}
-      >
+      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove this flight?</AlertDialogTitle>

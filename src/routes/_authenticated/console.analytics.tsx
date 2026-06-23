@@ -8,14 +8,26 @@ export const Route = createFileRoute("/_authenticated/console/analytics")({
   beforeLoad: async () => {
     const { data: userData } = await supabase.auth.getSession();
     if (!userData.session) throw notFound();
-    const { data } = await supabase.rpc("has_role", { _user_id: userData.session.user.id, _role: "admin" });
+    const { data } = await supabase.rpc("has_role", {
+      _user_id: userData.session.user.id,
+      _role: "admin",
+    });
     if (!data) throw notFound();
   },
   component: AnalyticsPage,
-  head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow" }, { title: "Analytics console" }] }),
+  head: () => ({
+    meta: [{ name: "robots", content: "noindex, nofollow" }, { title: "Analytics console" }],
+  }),
 });
 
-type Row = { id: string; event: string; props: Record<string, unknown>; created_at: string; user_id: string | null; destination_id: string | null };
+type Row = {
+  id: string;
+  event: string;
+  props: Record<string, unknown>;
+  created_at: string;
+  user_id: string | null;
+  destination_id: string | null;
+};
 
 function AnalyticsPage() {
   const { data: rows = [], isLoading } = useQuery({
@@ -76,9 +88,15 @@ function AnalyticsPage() {
           <section className="rounded-2xl border border-border/60 bg-card p-5">
             <h2 className="font-display text-lg">Events per day</h2>
             <div className="mt-4 flex h-40 items-end gap-1">
-              {stats.byDay.length === 0 && <p className="text-sm text-muted-foreground">No data yet.</p>}
+              {stats.byDay.length === 0 && (
+                <p className="text-sm text-muted-foreground">No data yet.</p>
+              )}
               {stats.byDay.map(([day, n]) => (
-                <div key={day} className="group flex flex-1 flex-col items-center justify-end gap-1" title={`${day}: ${n}`}>
+                <div
+                  key={day}
+                  className="group flex flex-1 flex-col items-center justify-end gap-1"
+                  title={`${day}: ${n}`}
+                >
                   <div
                     className="w-full rounded-t bg-primary/70 transition group-hover:bg-primary"
                     style={{ height: `${(n / maxDay) * 100}%`, minHeight: 2 }}

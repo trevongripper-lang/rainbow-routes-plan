@@ -32,10 +32,7 @@ export const Route = createFileRoute("/_authenticated/console/webhook-test")({
   },
   component: WebhookTestPage,
   head: () => ({
-    meta: [
-      { name: "robots", content: "noindex, nofollow" },
-      { title: "Webhook Health — Console" },
-    ],
+    meta: [{ name: "robots", content: "noindex, nofollow" }, { title: "Webhook Health — Console" }],
   }),
 });
 
@@ -101,13 +98,10 @@ function WebhookTestPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-4 py-10">
       <header>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground">
-          Console
-        </p>
+        <p className="text-xs uppercase tracking-widest text-muted-foreground">Console</p>
         <h1 className="font-display text-3xl">Webhook health</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Test your Paddle webhook endpoint and verify signature verification
-          is working.
+          Test your Paddle webhook endpoint and verify signature verification is working.
         </p>
       </header>
 
@@ -128,11 +122,7 @@ function WebhookTestPage() {
         <StatusCard
           icon={Activity}
           label="Latest event"
-          value={
-            events.data && events.data.length > 0
-              ? events.data[0].event_type
-              : "None yet"
-          }
+          value={events.data && events.data.length > 0 ? events.data[0].event_type : "None yet"}
           variant="neutral"
         />
       </div>
@@ -153,9 +143,9 @@ function WebhookTestPage() {
       <section className="rounded-2xl border border-border/60 bg-card/60 p-6">
         <h2 className="font-display text-xl">Send test event</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Generates a fake <code>transaction.completed</code> event, signs it
-          with your webhook secret, and POSTs it to the endpoint. A 200 means
-          signature verification passed and the event was accepted.
+          Generates a fake <code>transaction.completed</code> event, signs it with your webhook
+          secret, and POSTs it to the endpoint. A 200 means signature verification passed and the
+          event was accepted.
         </p>
         <div className="mt-4 flex items-center gap-3">
           <button
@@ -167,9 +157,7 @@ function WebhookTestPage() {
             {sendTest.isPending ? "Sending…" : "Send test event"}
           </button>
           {!secretOk && (
-            <span className="text-sm text-destructive">
-              Configure PADDLE_WEBHOOK_SECRET first.
-            </span>
+            <span className="text-sm text-destructive">Configure PADDLE_WEBHOOK_SECRET first.</span>
           )}
         </div>
 
@@ -197,13 +185,10 @@ function WebhookTestPage() {
       {/* Recent events */}
       <section className="rounded-2xl border border-border/60 bg-card/60 p-6">
         <h2 className="font-display text-xl">Recent webhook events</h2>
-        {events.isLoading && (
-          <p className="mt-3 text-sm text-muted-foreground">Loading…</p>
-        )}
+        {events.isLoading && <p className="mt-3 text-sm text-muted-foreground">Loading…</p>}
         {events.data && events.data.length === 0 && (
           <p className="mt-3 text-sm text-muted-foreground">
-            No events received yet. Send a test event above or wait for Paddle
-            to deliver one.
+            No events received yet. Send a test event above or wait for Paddle to deliver one.
           </p>
         )}
         {events.data && events.data.length > 0 && (
@@ -220,13 +205,8 @@ function WebhookTestPage() {
               </thead>
               <tbody>
                 {events.data.map((r) => (
-                  <tr
-                    key={r.event_id}
-                    className="border-t border-border/40"
-                  >
-                    <td className="py-2 pr-3 font-mono text-xs">
-                      {r.event_id}
-                    </td>
+                  <tr key={r.event_id} className="border-t border-border/40">
+                    <td className="py-2 pr-3 font-mono text-xs">{r.event_id}</td>
                     <td className="py-2 pr-3">{r.event_type}</td>
                     <td className="py-2 pr-3 whitespace-nowrap text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1">
@@ -243,9 +223,7 @@ function WebhookTestPage() {
                         "—"
                       )}
                     </td>
-                    <td className="py-2 pr-3 text-xs text-destructive">
-                      {r.error ?? "—"}
-                    </td>
+                    <td className="py-2 pr-3 text-xs text-destructive">{r.error ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -278,9 +256,7 @@ function StatusCard({
     <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/60 p-4">
       <Icon className={`size-5 ${color}`} />
       <div>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          {label}
-        </p>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
         <p className="text-sm font-medium">{value}</p>
       </div>
     </div>

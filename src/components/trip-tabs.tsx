@@ -7,7 +7,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { BedDouble, ExternalLink, Ticket, Wallet, Trash2, Plus, Users, ArrowRightLeft, Lock, MapPin, CalendarDays, Check } from "lucide-react";
+import {
+  BedDouble,
+  ExternalLink,
+  Ticket,
+  Wallet,
+  Trash2,
+  Plus,
+  Users,
+  ArrowRightLeft,
+  Lock,
+  MapPin,
+  CalendarDays,
+  Check,
+} from "lucide-react";
 import { toast } from "sonner";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Pie, PieChart, Cell, BarChart, Bar, XAxis, YAxis } from "recharts";
@@ -47,7 +60,11 @@ export function StaysTab({
   const { data: stays = [] } = useQuery({
     queryKey: ["stays", destinationId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("trip_stays").select("*").eq("destination_id", destinationId).order("check_in", { ascending: true, nullsFirst: false });
+      const { data, error } = await supabase
+        .from("trip_stays")
+        .select("*")
+        .eq("destination_id", destinationId)
+        .order("check_in", { ascending: true, nullsFirst: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -56,12 +73,18 @@ export function StaysTab({
   const { data: members = [] } = useQuery({
     queryKey: ["trip-members", destinationId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("trip_members").select("user_id, role").eq("destination_id", destinationId);
+      const { data, error } = await supabase
+        .from("trip_members")
+        .select("user_id, role")
+        .eq("destination_id", destinationId);
       if (error) throw error;
       return data ?? [];
     },
   });
-  const memberIds = useMemo(() => Array.from(new Set([me, ...members.map((m) => m.user_id)])), [members, me]);
+  const memberIds = useMemo(
+    () => Array.from(new Set([me, ...members.map((m) => m.user_id)])),
+    [members, me],
+  );
   const { data: profiles = [] } = useQuery({
     queryKey: ["stay-profiles", destinationId, memberIds.join(",")],
     queryFn: async () => {
@@ -122,14 +145,21 @@ export function StaysTab({
   });
 
   const del = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("trip_stays").delete().eq("id", id); if (error) throw error; },
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("trip_stays").delete().eq("id", id);
+      if (error) throw error;
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["stays", destinationId] }),
   });
 
   const addStayCost = useMutation({
-    mutationFn: async (s: typeof stays[number]) => {
-      if (!s.nightly_rate_cents || !s.check_in || !s.check_out) throw new Error("Need rate and dates");
-      const nights = Math.max(1, differenceInCalendarDays(parseISO(s.check_out), parseISO(s.check_in)));
+    mutationFn: async (s: (typeof stays)[number]) => {
+      if (!s.nightly_rate_cents || !s.check_in || !s.check_out)
+        throw new Error("Need rate and dates");
+      const nights = Math.max(
+        1,
+        differenceInCalendarDays(parseISO(s.check_out), parseISO(s.check_in)),
+      );
       const total = s.nightly_rate_cents * nights;
       const { error } = await supabase.from("trip_costs").insert({
         destination_id: destinationId,
@@ -144,7 +174,10 @@ export function StaysTab({
       });
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["costs", destinationId] }); toast.success("Added to costs"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["costs", destinationId] });
+      toast.success("Added to costs");
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
@@ -159,13 +192,25 @@ export function StaysTab({
     <div className="space-y-6">
       <section>
         <div className="flex items-center gap-2">
-          <BedDouble className="size-5 text-primary" /><h2 className="font-display text-2xl">Quick search</h2>
+          <BedDouble className="size-5 text-primary" />
+          <h2 className="font-display text-2xl">Quick search</h2>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">Pre-filled searches on third-party sites.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Pre-filled searches on third-party sites.
+        </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           {quick.map((l) => (
-            <a key={l.name} href={l.url} target="_blank" rel="noreferrer noopener" className="group flex items-center justify-between rounded-2xl border border-border/60 bg-card p-4 transition hover:border-primary/50">
-              <div><div className="font-medium">{l.name}</div><div className="text-xs text-muted-foreground">{l.tag}</div></div>
+            <a
+              key={l.name}
+              href={l.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="group flex items-center justify-between rounded-2xl border border-border/60 bg-card p-4 transition hover:border-primary/50"
+            >
+              <div>
+                <div className="font-medium">{l.name}</div>
+                <div className="text-xs text-muted-foreground">{l.tag}</div>
+              </div>
               <ExternalLink className="size-4 text-muted-foreground transition group-hover:text-primary" />
             </a>
           ))}
@@ -174,38 +219,134 @@ export function StaysTab({
 
       <section className="rounded-2xl border border-border/60 bg-card p-5">
         <h3 className="font-display text-lg">Add a stay</h3>
-        <p className="text-xs text-muted-foreground">Where, when, and how much — so it lands on the itinerary and split sheet.</p>
+        <p className="text-xs text-muted-foreground">
+          Where, when, and how much — so it lands on the itinerary and split sheet.
+        </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="sm:col-span-1"><Label className="text-xs">Name</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Casa Cupula" maxLength={120} /></div>
-          <div className="sm:col-span-1"><Label className="text-xs">Link</Label><Input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://..." maxLength={500} /></div>
-          <div><Label className="text-xs">Check-in</Label><Input type="date" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value })} /></div>
-          <div><Label className="text-xs">Check-out</Label><Input type="date" value={form.check_out} onChange={(e) => setForm({ ...form, check_out: e.target.value })} /></div>
-          <div className="sm:col-span-2"><Label className="text-xs">Address</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Zona Romántica, Puerto Vallarta" maxLength={300} /></div>
+          <div className="sm:col-span-1">
+            <Label className="text-xs">Name</Label>
+            <Input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="Casa Cupula"
+              maxLength={120}
+            />
+          </div>
+          <div className="sm:col-span-1">
+            <Label className="text-xs">Link</Label>
+            <Input
+              value={form.url}
+              onChange={(e) => setForm({ ...form, url: e.target.value })}
+              placeholder="https://..."
+              maxLength={500}
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Check-in</Label>
+            <Input
+              type="date"
+              value={form.check_in}
+              onChange={(e) => setForm({ ...form, check_in: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Check-out</Label>
+            <Input
+              type="date"
+              value={form.check_out}
+              onChange={(e) => setForm({ ...form, check_out: e.target.value })}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Label className="text-xs">Address</Label>
+            <Input
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="Zona Romántica, Puerto Vallarta"
+              maxLength={300}
+            />
+          </div>
           <div className="grid grid-cols-[1fr_5rem] gap-2">
-            <div><Label className="text-xs">Nightly rate</Label><Input type="number" min="0" step="0.01" value={form.nightly_rate} onChange={(e) => setForm({ ...form, nightly_rate: e.target.value })} placeholder="0.00" /></div>
-            <div><Label className="text-xs">Cur.</Label><Input value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })} maxLength={3} /></div>
+            <div>
+              <Label className="text-xs">Nightly rate</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.nightly_rate}
+                onChange={(e) => setForm({ ...form, nightly_rate: e.target.value })}
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Cur.</Label>
+              <Input
+                value={form.currency}
+                onChange={(e) =>
+                  setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })
+                }
+                maxLength={3}
+              />
+            </div>
           </div>
           <div>
             <Label className="text-xs">Booked by</Label>
-            <select value={form.booked_by} onChange={(e) => setForm({ ...form, booked_by: e.target.value })} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-              {memberIds.map((id) => <option key={id} value={id}>{id === me ? "Me" : nameOf(id)}</option>)}
+            <select
+              value={form.booked_by}
+              onChange={(e) => setForm({ ...form, booked_by: e.target.value })}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {memberIds.map((id) => (
+                <option key={id} value={id}>
+                  {id === me ? "Me" : nameOf(id)}
+                </option>
+              ))}
             </select>
           </div>
-          <div className="sm:col-span-2"><Label className="text-xs">Why it's the place</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} maxLength={500} placeholder="Rooftop pool, walk to everything..." /></div>
           <div className="sm:col-span-2">
-            <button type="button" onClick={() => setShowDetails((v) => !v)} className="text-xs text-muted-foreground hover:text-foreground">
+            <Label className="text-xs">Why it's the place</Label>
+            <Textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              rows={2}
+              maxLength={500}
+              placeholder="Rooftop pool, walk to everything..."
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <button
+              type="button"
+              onClick={() => setShowDetails((v) => !v)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
               {showDetails ? "− Hide booking details" : "+ Add booking details"}
             </button>
             {showDetails && (
-              <div className="mt-2"><Label className="text-xs">Confirmation #</Label><Input value={form.confirmation} onChange={(e) => setForm({ ...form, confirmation: e.target.value })} maxLength={120} /></div>
+              <div className="mt-2">
+                <Label className="text-xs">Confirmation #</Label>
+                <Input
+                  value={form.confirmation}
+                  onChange={(e) => setForm({ ...form, confirmation: e.target.value })}
+                  maxLength={120}
+                />
+              </div>
             )}
           </div>
         </div>
-        <div className="mt-3 flex justify-end"><Button onClick={() => add.mutate()} disabled={add.isPending || !form.title.trim()}><Plus className="mr-1 size-4" />Add stay</Button></div>
+        <div className="mt-3 flex justify-end">
+          <Button onClick={() => add.mutate()} disabled={add.isPending || !form.title.trim()}>
+            <Plus className="mr-1 size-4" />
+            Add stay
+          </Button>
+        </div>
       </section>
 
       <ul className="space-y-3">
-        {stays.length === 0 && <li className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No group picks yet.</li>}
+        {stays.length === 0 && (
+          <li className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            No group picks yet.
+          </li>
+        )}
         {stays.map((s) => {
           const ci = parseDate(s.check_in);
           const co = parseDate(s.check_out);
@@ -217,7 +358,16 @@ export function StaysTab({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h4 className="truncate font-medium">{s.title}</h4>
-                    {s.url && <a href={s.url} target="_blank" rel="noreferrer noopener" className="text-primary"><ExternalLink className="size-4" /></a>}
+                    {s.url && (
+                      <a
+                        href={s.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="text-primary"
+                      >
+                        <ExternalLink className="size-4" />
+                      </a>
+                    )}
                     {s.booked_by && (
                       <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] text-primary">
                         Booked by {s.booked_by === me ? "you" : nameOf(s.booked_by)}
@@ -235,10 +385,15 @@ export function StaysTab({
                   )}
                   {s.address && (
                     <div className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <MapPin className="size-3" /><span className="truncate">{s.address}</span>
+                      <MapPin className="size-3" />
+                      <span className="truncate">{s.address}</span>
                     </div>
                   )}
-                  {s.description && <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{s.description}</p>}
+                  {s.description && (
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
+                      {s.description}
+                    </p>
+                  )}
                   {(s.nightly_rate_cents != null || total != null) && (
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                       {s.nightly_rate_cents != null && (
@@ -264,11 +419,18 @@ export function StaysTab({
                     </div>
                   )}
                   {s.confirmation && (
-                    <div className="mt-1 text-[11px] text-muted-foreground">Conf #{s.confirmation}</div>
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      Conf #{s.confirmation}
+                    </div>
                   )}
                 </div>
                 {s.user_id === me && (
-                  <button onClick={() => del.mutate(s.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
+                  <button
+                    onClick={() => del.mutate(s.id)}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
                 )}
               </div>
             </li>
@@ -286,7 +448,11 @@ export function TicketsTab({ destinationId, me }: { destinationId: string; me: s
   const { data: tickets = [] } = useQuery({
     queryKey: ["tickets", destinationId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("trip_tickets").select("*").eq("destination_id", destinationId).order("created_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("trip_tickets")
+        .select("*")
+        .eq("destination_id", destinationId)
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -298,45 +464,120 @@ export function TicketsTab({ destinationId, me }: { destinationId: string; me: s
       if (!form.name.trim()) throw new Error("Name required");
       const cents = form.price ? Math.round(parseFloat(form.price) * 100) : null;
       const { error } = await supabase.from("trip_tickets").insert({
-        destination_id: destinationId, user_id: me,
-        name: form.name.trim(), url: form.url.trim() || null,
-        price_cents: cents, currency: form.currency, notes: form.notes.trim() || null,
+        destination_id: destinationId,
+        user_id: me,
+        name: form.name.trim(),
+        url: form.url.trim() || null,
+        price_cents: cents,
+        currency: form.currency,
+        notes: form.notes.trim() || null,
       });
       if (error) throw error;
     },
-    onSuccess: () => { setForm({ name: "", url: "", price: "", currency: "USD", notes: "" }); qc.invalidateQueries({ queryKey: ["tickets", destinationId] }); toast.success("Added"); },
+    onSuccess: () => {
+      setForm({ name: "", url: "", price: "", currency: "USD", notes: "" });
+      qc.invalidateQueries({ queryKey: ["tickets", destinationId] });
+      toast.success("Added");
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
   const del = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("trip_tickets").delete().eq("id", id); if (error) throw error; },
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("trip_tickets").delete().eq("id", id);
+      if (error) throw error;
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tickets", destinationId] }),
   });
 
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-border/60 bg-card p-5">
-        <div className="flex items-center gap-2"><Ticket className="size-5 text-primary" /><h3 className="font-display text-lg">Add a ticket / event link</h3></div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="sm:col-span-2"><Label className="text-xs">Event name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="XLSIOR opening party" maxLength={150} /></div>
-          <div><Label className="text-xs">Link</Label><Input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://..." maxLength={500} /></div>
-          <div className="grid grid-cols-[1fr_5rem] gap-2">
-            <div><Label className="text-xs">Price</Label><Input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0.00" /></div>
-            <div><Label className="text-xs">Cur.</Label><Input value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })} maxLength={3} /></div>
-          </div>
-          <div className="sm:col-span-2"><Label className="text-xs">Notes</Label><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} maxLength={300} placeholder="Sold out fast last year" /></div>
+        <div className="flex items-center gap-2">
+          <Ticket className="size-5 text-primary" />
+          <h3 className="font-display text-lg">Add a ticket / event link</h3>
         </div>
-        <div className="mt-3 flex justify-end"><Button onClick={() => add.mutate()} disabled={add.isPending || !form.name.trim()}><Plus className="mr-1 size-4" />Add ticket</Button></div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Label className="text-xs">Event name</Label>
+            <Input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="XLSIOR opening party"
+              maxLength={150}
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Link</Label>
+            <Input
+              value={form.url}
+              onChange={(e) => setForm({ ...form, url: e.target.value })}
+              placeholder="https://..."
+              maxLength={500}
+            />
+          </div>
+          <div className="grid grid-cols-[1fr_5rem] gap-2">
+            <div>
+              <Label className="text-xs">Price</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Cur.</Label>
+              <Input
+                value={form.currency}
+                onChange={(e) =>
+                  setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })
+                }
+                maxLength={3}
+              />
+            </div>
+          </div>
+          <div className="sm:col-span-2">
+            <Label className="text-xs">Notes</Label>
+            <Input
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              maxLength={300}
+              placeholder="Sold out fast last year"
+            />
+          </div>
+        </div>
+        <div className="mt-3 flex justify-end">
+          <Button onClick={() => add.mutate()} disabled={add.isPending || !form.name.trim()}>
+            <Plus className="mr-1 size-4" />
+            Add ticket
+          </Button>
+        </div>
       </section>
 
       <ul className="space-y-3">
-        {tickets.length === 0 && <li className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No tickets shared yet.</li>}
+        {tickets.length === 0 && (
+          <li className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            No tickets shared yet.
+          </li>
+        )}
         {tickets.map((t) => (
           <li key={t.id} className="rounded-xl border border-border/60 bg-card p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h4 className="truncate font-medium">{t.name}</h4>
-                  {t.url && <a href={t.url} target="_blank" rel="noreferrer noopener" className="text-primary"><ExternalLink className="size-4" /></a>}
+                  {t.url && (
+                    <a
+                      href={t.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="text-primary"
+                    >
+                      <ExternalLink className="size-4" />
+                    </a>
+                  )}
                   {t.price_cents != null && (
                     <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">
                       {(t.price_cents / 100).toFixed(2)} {t.currency}
@@ -346,7 +587,12 @@ export function TicketsTab({ destinationId, me }: { destinationId: string; me: s
                 {t.notes && <p className="mt-1 text-sm text-muted-foreground">{t.notes}</p>}
               </div>
               {t.user_id === me && (
-                <button onClick={() => del.mutate(t.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
+                <button
+                  onClick={() => del.mutate(t.id)}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="size-4" />
+                </button>
               )}
             </div>
           </li>
@@ -358,19 +604,41 @@ export function TicketsTab({ destinationId, me }: { destinationId: string; me: s
 
 /* -------------------------- COSTS -------------------------- */
 
-const CATEGORIES = ["Flights", "Lodging", "Food & drink", "Tickets & events", "Transport", "Other"] as const;
+const CATEGORIES = [
+  "Flights",
+  "Lodging",
+  "Food & drink",
+  "Tickets & events",
+  "Transport",
+  "Other",
+] as const;
 
 const FREE_HEADCOUNT_MAX = 5;
 const PRO_HEADCOUNT_MAX = 100;
 
-export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwner, defaultCurrency = "USD" }: { destinationId: string; me: string; headcount: number; isOwner: boolean; defaultCurrency?: string }) {
+export function CostsTab({
+  destinationId,
+  me,
+  headcount: initialHeadcount,
+  isOwner,
+  defaultCurrency = "USD",
+}: {
+  destinationId: string;
+  me: string;
+  headcount: number;
+  isOwner: boolean;
+  defaultCurrency?: string;
+}) {
   const qc = useQueryClient();
 
   // Fetch trip members — this is the canonical headcount source
   const { data: members = [] } = useQuery({
     queryKey: ["trip-members", destinationId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("trip_members").select("user_id, role").eq("destination_id", destinationId);
+      const { data, error } = await supabase
+        .from("trip_members")
+        .select("user_id, role")
+        .eq("destination_id", destinationId);
       if (error) throw error;
       return data ?? [];
     },
@@ -387,7 +655,11 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
   const { data: ownerProfile } = useQuery({
     queryKey: ["owner-profile", destinationId],
     queryFn: async () => {
-      const { data: d } = await supabase.from("destinations").select("user_id").eq("id", destinationId).maybeSingle();
+      const { data: d } = await supabase
+        .from("destinations")
+        .select("user_id")
+        .eq("id", destinationId)
+        .maybeSingle();
       if (!d) return null;
       const { data: p } = await supabase.rpc("get_public_profiles", { _ids: [d.user_id] });
       const row = (p ?? [])[0] as { is_pro: boolean } | undefined;
@@ -400,7 +672,11 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
   const { data: costs = [] } = useQuery({
     queryKey: ["costs", destinationId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("trip_costs").select("*").eq("destination_id", destinationId).order("created_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("trip_costs")
+        .select("*")
+        .eq("destination_id", destinationId)
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -426,26 +702,41 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     },
   });
   const pmap = useMemo(() => new Map(profiles.map((p) => [p.id, p])), [profiles]);
-  const nameOf = (id: string | null | undefined) => (id ? (pmap.get(id)?.display_name ?? "Someone") : "Someone");
+  const nameOf = (id: string | null | undefined) =>
+    id ? (pmap.get(id)?.display_name ?? "Someone") : "Someone";
 
   const saveHeadcount = useMutation({
     mutationFn: async (n: number) => {
       if (n < 1 || n > headcountMax) {
         if (!isPro && n > FREE_HEADCOUNT_MAX) {
-          throw new Error(`Free plan supports up to ${FREE_HEADCOUNT_MAX} people. Upgrade to Pro for larger crews.`);
+          throw new Error(
+            `Free plan supports up to ${FREE_HEADCOUNT_MAX} people. Upgrade to Pro for larger crews.`,
+          );
         }
         throw new Error(`Group size must be between 1 and ${headcountMax}.`);
       }
-      const { error } = await supabase.from("destinations").update({ headcount: n }).eq("id", destinationId);
+      const { error } = await supabase
+        .from("destinations")
+        .update({ headcount: n })
+        .eq("id", destinationId);
       if (error) {
         const msg = error.message?.toLowerCase() ?? "";
-        if (error.code === "23514" || msg.includes("destinations_headcount_free_plan_max") || msg.includes("check constraint")) {
-          throw new Error(`Free plan supports up to ${FREE_HEADCOUNT_MAX} people per trip. Upgrade for larger crews.`);
+        if (
+          error.code === "23514" ||
+          msg.includes("destinations_headcount_free_plan_max") ||
+          msg.includes("check constraint")
+        ) {
+          throw new Error(
+            `Free plan supports up to ${FREE_HEADCOUNT_MAX} people per trip. Upgrade for larger crews.`,
+          );
         }
         throw error;
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["trip", destinationId] }); toast.success("Group size updated"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["trip", destinationId] });
+      toast.success("Group size updated");
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't update group size"),
   });
 
@@ -474,9 +765,14 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
         throw new Error("Pick at least one person to split with");
       }
       const { error } = await supabase.from("trip_costs").insert({
-        destination_id: destinationId, user_id: me, category: form.category,
-        label: form.label.trim(), amount_cents: cents, currency: form.currency,
-        is_shared, note: form.note.trim() || null,
+        destination_id: destinationId,
+        user_id: me,
+        category: form.category,
+        label: form.label.trim(),
+        amount_cents: cents,
+        currency: form.currency,
+        is_shared,
+        note: form.note.trim() || null,
         paid_by: form.paid_by || me,
         cost_date: form.cost_date || null,
         split_mode: form.split_mode,
@@ -484,11 +780,18 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
       });
       if (error) throw error;
     },
-    onSuccess: () => { setForm({ ...form, label: "", amount: "", note: "" }); qc.invalidateQueries({ queryKey: ["costs", destinationId] }); toast.success("Added"); },
+    onSuccess: () => {
+      setForm({ ...form, label: "", amount: "", note: "" });
+      qc.invalidateQueries({ queryKey: ["costs", destinationId] });
+      toast.success("Added");
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
   const del = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("trip_costs").delete().eq("id", id); if (error) throw error; },
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("trip_costs").delete().eq("id", id);
+      if (error) throw error;
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["costs", destinationId] }),
   });
 
@@ -514,7 +817,14 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
   }, [bulk.ids, costs, me, isOwner]);
 
   const settlePlan = useMemo(() => {
-    const willApply: { id: string; label: string; from: string; to: string; cents: number; currency: string }[] = [];
+    const willApply: {
+      id: string;
+      label: string;
+      from: string;
+      to: string;
+      cents: number;
+      currency: string;
+    }[] = [];
     const skipped: { id: string; label: string; reason: string }[] = [];
     for (const id of bulk.ids) {
       const c = costs.find((x) => x.id === id);
@@ -528,9 +838,11 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
         skipped.push({ id, label: c.label, reason: "You paid this one" });
         continue;
       }
-      const splitIds: string[] = Array.isArray((c as { split_member_ids?: string[] }).split_member_ids) && (c as { split_member_ids?: string[] }).split_member_ids!.length > 0
-        ? (c as { split_member_ids: string[] }).split_member_ids
-        : memberIds;
+      const splitIds: string[] =
+        Array.isArray((c as { split_member_ids?: string[] }).split_member_ids) &&
+        (c as { split_member_ids?: string[] }).split_member_ids!.length > 0
+          ? (c as { split_member_ids: string[] }).split_member_ids
+          : memberIds;
       if (!splitIds.includes(me)) {
         skipped.push({ id, label: c.label, reason: "You're not in the split" });
         continue;
@@ -539,7 +851,10 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
       willApply.push({
         id,
         label: `${c.label} → pay ${nameOf(payer)} ${fmtCents(share, c.currency)}`,
-        from: me, to: payer, cents: share, currency: c.currency,
+        from: me,
+        to: payer,
+        cents: share,
+        currency: c.currency,
       });
     }
     return { willApply, skipped };
@@ -605,9 +920,16 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
   });
 
   const markSettled = useMutation({
-    mutationFn: async (args: { from: string; to: string; cents: number; currency: string; note?: string }) => {
+    mutationFn: async (args: {
+      from: string;
+      to: string;
+      cents: number;
+      currency: string;
+      note?: string;
+    }) => {
       if (args.cents <= 0) throw new Error("Nothing to settle");
-      if (me !== args.from && me !== args.to) throw new Error("Only the payer or receiver can mark this settled");
+      if (me !== args.from && me !== args.to)
+        throw new Error("Only the payer or receiver can mark this settled");
       const { error } = await supabase.from("trip_settlements").insert({
         destination_id: destinationId,
         from_user: args.from,
@@ -619,7 +941,10 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
       });
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["settlements", destinationId] }); toast.success("Marked settled"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["settlements", destinationId] });
+      toast.success("Marked settled");
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
@@ -647,7 +972,13 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     const rows = Array.from(byCat.entries()).map(([cat, v]) => {
       const pp = v.shared / n + v.perPerson;
       totalPerPerson += pp;
-      return { category: cat, sharedCents: v.shared, perPersonCents: v.perPerson, perPersonShareCents: pp, currency: v.currency };
+      return {
+        category: cat,
+        sharedCents: v.shared,
+        perPersonCents: v.perPerson,
+        perPersonShareCents: pp,
+        currency: v.currency,
+      };
     });
     return { rows, totalPerPerson, currency };
   }, [costs, headcount, defaultCurrency]);
@@ -655,7 +986,8 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
   // ---- Settle-up: who paid vs who owes ----
   const settle = useMemo(() => {
     const n = Math.max(1, headcount);
-    const currency = costs.find((c) => c.is_shared)?.currency ?? costs[0]?.currency ?? defaultCurrency;
+    const currency =
+      costs.find((c) => c.is_shared)?.currency ?? costs[0]?.currency ?? defaultCurrency;
     // Sum what each member paid AND each member's owed share
     const paid = new Map<string, number>();
     const owed = new Map<string, number>();
@@ -666,9 +998,11 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
       paid.set(payer, (paid.get(payer) ?? 0) + c.amount_cents);
       totalShared += c.amount_cents;
       // Determine who shares this cost
-      const splitIds: string[] = Array.isArray((c as { split_member_ids?: string[] }).split_member_ids) && (c as { split_member_ids?: string[] }).split_member_ids!.length > 0
-        ? (c as { split_member_ids: string[] }).split_member_ids
-        : memberIds;
+      const splitIds: string[] =
+        Array.isArray((c as { split_member_ids?: string[] }).split_member_ids) &&
+        (c as { split_member_ids?: string[] }).split_member_ids!.length > 0
+          ? (c as { split_member_ids: string[] }).split_member_ids
+          : memberIds;
       const share = c.amount_cents / Math.max(1, splitIds.length);
       for (const uid of splitIds) {
         owed.set(uid, (owed.get(uid) ?? 0) + share);
@@ -678,13 +1012,21 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
     const known = Array.from(new Set([...memberIds, ...paid.keys(), ...owed.keys()]));
     // Net = paid - owed (positive = is owed; negative = owes)
     const net = known.map((id) => ({ id, net: (paid.get(id) ?? 0) - (owed.get(id) ?? 0) }));
-    const creditors = net.filter((x) => x.net > 1).sort((a, b) => b.net - a.net).map((x) => ({ ...x }));
-    const debtors = net.filter((x) => x.net < -1).sort((a, b) => a.net - b.net).map((x) => ({ ...x }));
+    const creditors = net
+      .filter((x) => x.net > 1)
+      .sort((a, b) => b.net - a.net)
+      .map((x) => ({ ...x }));
+    const debtors = net
+      .filter((x) => x.net < -1)
+      .sort((a, b) => a.net - b.net)
+      .map((x) => ({ ...x }));
     const transfers: { from: string; to: string; cents: number }[] = [];
-    let i = 0, j = 0;
+    let i = 0,
+      j = 0;
     while (i < debtors.length && j < creditors.length) {
       const amt = Math.min(-debtors[i].net, creditors[j].net);
-      if (amt > 1) transfers.push({ from: debtors[i].id, to: creditors[j].id, cents: Math.round(amt) });
+      if (amt > 1)
+        transfers.push({ from: debtors[i].id, to: creditors[j].id, cents: Math.round(amt) });
       debtors[i].net += amt;
       creditors[j].net -= amt;
       if (Math.abs(debtors[i].net) < 1) i++;
@@ -702,12 +1044,21 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
       <section className="rounded-2xl border border-border/60 bg-card p-5">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2"><Wallet className="size-5 text-primary" /><h3 className="font-display text-lg">Per-person estimate</h3></div>
-            <p className="text-xs text-muted-foreground">Shared costs split by group size; per-person costs counted once.</p>
+            <div className="flex items-center gap-2">
+              <Wallet className="size-5 text-primary" />
+              <h3 className="font-display text-lg">Per-person estimate</h3>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Shared costs split by group size; per-person costs counted once.
+            </p>
           </div>
           <div className="text-right">
-            <div className="font-display text-3xl text-primary">{summary.totalPerPerson ? fmt(summary.totalPerPerson, summary.currency) : "—"}</div>
-            <div className="text-xs text-muted-foreground">per person · {headcount} {headcount === 1 ? "person" : "people"}</div>
+            <div className="font-display text-3xl text-primary">
+              {summary.totalPerPerson ? fmt(summary.totalPerPerson, summary.currency) : "—"}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              per person · {headcount} {headcount === 1 ? "person" : "people"}
+            </div>
           </div>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -739,7 +1090,10 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
               />
               <button
                 type="button"
-                onClick={() => { setAutoFromMembers(true); setHeadcount(memberCount); }}
+                onClick={() => {
+                  setAutoFromMembers(true);
+                  setHeadcount(memberCount);
+                }}
                 className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
               >
                 Use crew count
@@ -747,15 +1101,27 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
             </>
           )}
           {isOwner && headcount !== initialHeadcount && (
-            <Button size="sm" variant="secondary" onClick={() => saveHeadcount.mutate(headcount)} disabled={saveHeadcount.isPending}>Save</Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => saveHeadcount.mutate(headcount)}
+              disabled={saveHeadcount.isPending}
+            >
+              Save
+            </Button>
           )}
           {isPro ? (
             <span className="inline-flex items-center gap-1 text-[11px] text-primary">
               ✦ Pro · unlimited crew
             </span>
           ) : (
-            <span className={`inline-flex items-center gap-1 text-[11px] ${atFreeCap ? "text-amber-400" : "text-muted-foreground"}`}>
-              <Lock className="size-3" /> Free plan · up to {FREE_HEADCOUNT_MAX} people · <a href="/pricing" className="text-primary hover:underline">Upgrade</a>
+            <span
+              className={`inline-flex items-center gap-1 text-[11px] ${atFreeCap ? "text-amber-400" : "text-muted-foreground"}`}
+            >
+              <Lock className="size-3" /> Free plan · up to {FREE_HEADCOUNT_MAX} people ·{" "}
+              <a href="/pricing" className="text-primary hover:underline">
+                Upgrade
+              </a>
             </span>
           )}
         </div>
@@ -764,33 +1130,45 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
             {summary.rows.map((r) => (
               <li key={r.category} className="flex items-center justify-between px-4 py-2 text-sm">
                 <span className="text-muted-foreground">{r.category}</span>
-                <span className="font-medium tabular-nums">{fmt(r.perPersonShareCents, r.currency)}<span className="text-xs text-muted-foreground"> /person</span></span>
+                <span className="font-medium tabular-nums">
+                  {fmt(r.perPersonShareCents, r.currency)}
+                  <span className="text-xs text-muted-foreground"> /person</span>
+                </span>
               </li>
             ))}
           </ul>
         )}
       </section>
 
-      {summary.rows.length > 0 && (
-        <CostCharts rows={summary.rows} currency={summary.currency} />
-      )}
+      {summary.rows.length > 0 && <CostCharts rows={summary.rows} currency={summary.currency} />}
 
       {/* Settle up */}
       <section className="rounded-2xl border border-border/60 bg-card p-5">
-        <div className="flex items-center gap-2"><ArrowRightLeft className="size-5 text-primary" /><h3 className="font-display text-lg">Settle up</h3></div>
-        <p className="text-xs text-muted-foreground">Who owes whom, based on shared costs and who paid.</p>
+        <div className="flex items-center gap-2">
+          <ArrowRightLeft className="size-5 text-primary" />
+          <h3 className="font-display text-lg">Settle up</h3>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Who owes whom, based on shared costs and who paid.
+        </p>
         {settle.totalShared === 0 ? (
-          <p className="mt-4 text-sm text-muted-foreground">Log a shared cost and tag who paid to see settlements.</p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Log a shared cost and tag who paid to see settlements.
+          </p>
         ) : (
           <>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-border/60 bg-background/40 p-3">
                 <div className="text-xs text-muted-foreground">Fair share / person</div>
-                <div className="font-display text-xl tabular-nums">{fmt(settle.fairShare, settle.currency)}</div>
+                <div className="font-display text-xl tabular-nums">
+                  {fmt(settle.fairShare, settle.currency)}
+                </div>
               </div>
               <div className="rounded-xl border border-border/60 bg-background/40 p-3">
                 <div className="text-xs text-muted-foreground">Total shared</div>
-                <div className="font-display text-xl tabular-nums">{fmt(settle.totalShared, settle.currency)}</div>
+                <div className="font-display text-xl tabular-nums">
+                  {fmt(settle.totalShared, settle.currency)}
+                </div>
               </div>
             </div>
             {(() => {
@@ -808,17 +1186,28 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
               });
               const allDone = remaining.every((r) => r.remaining <= 0);
               if (allDone) {
-                return <p className="mt-4 text-sm text-emerald-400">All squared up among known payers ✨</p>;
+                return (
+                  <p className="mt-4 text-sm text-emerald-400">
+                    All squared up among known payers ✨
+                  </p>
+                );
               }
               return (
                 <ul className="mt-4 space-y-2">
                   {remaining.map((t, idx) => {
                     if (t.remaining <= 0) {
                       return (
-                        <li key={idx} className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-2 text-sm">
+                        <li
+                          key={idx}
+                          className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-2 text-sm"
+                        >
                           <span className="inline-flex items-center gap-2">
                             <Check className="size-4 text-emerald-400" />
-                            <span><span className="font-medium">{nameOf(t.from)}</span> <span className="text-muted-foreground">paid</span> <span className="font-medium">{nameOf(t.to)}</span></span>
+                            <span>
+                              <span className="font-medium">{nameOf(t.from)}</span>{" "}
+                              <span className="text-muted-foreground">paid</span>{" "}
+                              <span className="font-medium">{nameOf(t.to)}</span>
+                            </span>
                           </span>
                           <span className="text-xs text-emerald-400">Settled</span>
                         </li>
@@ -826,23 +1215,40 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
                     }
                     const canMark = me === t.from || me === t.to;
                     return (
-                      <li key={idx} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-background/40 px-4 py-2 text-sm">
+                      <li
+                        key={idx}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-background/40 px-4 py-2 text-sm"
+                      >
                         <span className="min-w-0">
-                          <span className="font-medium">{nameOf(t.from)}</span> <span className="text-muted-foreground">pays</span> <span className="font-medium">{nameOf(t.to)}</span>
+                          <span className="font-medium">{nameOf(t.from)}</span>{" "}
+                          <span className="text-muted-foreground">pays</span>{" "}
+                          <span className="font-medium">{nameOf(t.to)}</span>
                           {t.already > 0 && (
-                            <span className="ml-2 text-[11px] text-muted-foreground">({fmt(t.already, settle.currency)} already paid)</span>
+                            <span className="ml-2 text-[11px] text-muted-foreground">
+                              ({fmt(t.already, settle.currency)} already paid)
+                            </span>
                           )}
                         </span>
                         <div className="flex items-center gap-3">
-                          <span className="font-medium tabular-nums">{fmt(t.remaining, settle.currency)}</span>
+                          <span className="font-medium tabular-nums">
+                            {fmt(t.remaining, settle.currency)}
+                          </span>
                           {canMark && (
                             <Button
                               size="sm"
                               variant="secondary"
                               disabled={markSettled.isPending}
-                              onClick={() => markSettled.mutate({ from: t.from, to: t.to, cents: t.remaining, currency: settle.currency })}
+                              onClick={() =>
+                                markSettled.mutate({
+                                  from: t.from,
+                                  to: t.to,
+                                  cents: t.remaining,
+                                  currency: settle.currency,
+                                })
+                              }
                             >
-                              <Check className="mr-1 size-3.5" />Mark settled
+                              <Check className="mr-1 size-3.5" />
+                              Mark settled
                             </Button>
                           )}
                         </div>
@@ -854,16 +1260,23 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
             })()}
             {settlements.length > 0 && (
               <div className="mt-4">
-                <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Settlement history</h4>
+                <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Settlement history
+                </h4>
                 <ul className="mt-2 space-y-1.5">
                   {settlements.map((s) => (
-                    <li key={s.id} className="flex items-center justify-between rounded-lg border border-border/40 bg-background/30 px-3 py-1.5 text-xs">
+                    <li
+                      key={s.id}
+                      className="flex items-center justify-between rounded-lg border border-border/40 bg-background/30 px-3 py-1.5 text-xs"
+                    >
                       <span>
                         <span className="font-medium">{nameOf(s.from_user)}</span>
                         <span className="text-muted-foreground"> → </span>
                         <span className="font-medium">{nameOf(s.to_user)}</span>
                         <span className="ml-2 tabular-nums">{fmt(s.amount_cents, s.currency)}</span>
-                        <span className="ml-2 text-muted-foreground">· {format(parseISO(s.settled_at), "MMM d")}</span>
+                        <span className="ml-2 text-muted-foreground">
+                          · {format(parseISO(s.settled_at), "MMM d")}
+                        </span>
                       </span>
                       {s.created_by === me && (
                         <button
@@ -888,17 +1301,27 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-display text-lg">Log a cost</h3>
           <div className="flex flex-wrap gap-1.5">
-            {([
-              { label: "Dinner", category: "Food & drink" },
-              { label: "Drinks", category: "Food & drink" },
-              { label: "Activity", category: "Tickets & events" },
-              { label: "Taxi", category: "Transport" },
-              { label: "Groceries", category: "Food & drink" },
-            ] as const).map((q) => (
+            {(
+              [
+                { label: "Dinner", category: "Food & drink" },
+                { label: "Drinks", category: "Food & drink" },
+                { label: "Activity", category: "Tickets & events" },
+                { label: "Taxi", category: "Transport" },
+                { label: "Groceries", category: "Food & drink" },
+              ] as const
+            ).map((q) => (
               <button
                 key={q.label}
                 type="button"
-                onClick={() => setForm({ ...form, category: q.category, label: q.label, is_shared: true, paid_by: me })}
+                onClick={() =>
+                  setForm({
+                    ...form,
+                    category: q.category,
+                    label: q.label,
+                    is_shared: true,
+                    paid_by: me,
+                  })
+                }
                 className="rounded-full border border-border/60 bg-background/40 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-primary"
               >
                 + {q.label}
@@ -906,43 +1329,93 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
             ))}
           </div>
         </div>
-        <p className="mt-1 text-[11px] text-muted-foreground">Quick-add picks a category and marks it shared — split is auto-calculated from your crew of {memberCount}.</p>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Quick-add picks a category and marks it shared — split is auto-calculated from your crew
+          of {memberCount}.
+        </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
             <Label className="text-xs">Category</Label>
-            <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+            <select
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
             </select>
           </div>
-          <div><Label className="text-xs">What</Label><Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="Airbnb 5 nights" maxLength={120} /></div>
+          <div>
+            <Label className="text-xs">What</Label>
+            <Input
+              value={form.label}
+              onChange={(e) => setForm({ ...form, label: e.target.value })}
+              placeholder="Airbnb 5 nights"
+              maxLength={120}
+            />
+          </div>
           <div className="grid grid-cols-[1fr_5rem] gap-2">
-            <div><Label className="text-xs">Amount</Label><Input type="number" min="0" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" /></div>
-            <div><Label className="text-xs">Cur.</Label><Input value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })} maxLength={3} /></div>
+            <div>
+              <Label className="text-xs">Amount</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Cur.</Label>
+              <Input
+                value={form.currency}
+                onChange={(e) =>
+                  setForm({ ...form, currency: e.target.value.toUpperCase().slice(0, 3) })
+                }
+                maxLength={3}
+              />
+            </div>
           </div>
           <div>
             <Label className="text-xs">Who paid</Label>
-            <select value={form.paid_by} onChange={(e) => setForm({ ...form, paid_by: e.target.value })} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+            <select
+              value={form.paid_by}
+              onChange={(e) => setForm({ ...form, paid_by: e.target.value })}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
               {memberIds.map((id) => (
-                <option key={id} value={id}>{id === me ? "Me" : nameOf(id)}</option>
+                <option key={id} value={id}>
+                  {id === me ? "Me" : nameOf(id)}
+                </option>
               ))}
             </select>
           </div>
           <div>
             <Label className="text-xs">When</Label>
-            <Input type="date" value={form.cost_date} onChange={(e) => setForm({ ...form, cost_date: e.target.value })} />
+            <Input
+              type="date"
+              value={form.cost_date}
+              onChange={(e) => setForm({ ...form, cost_date: e.target.value })}
+            />
           </div>
           <div className="sm:col-span-2">
             <Label className="text-xs">Split</Label>
             <div className="mt-1 flex flex-wrap gap-1.5">
-              {([
-                { v: "equal_all", label: `Equal · all ${memberIds.length}` },
-                { v: "equal_some", label: "Pick people" },
-                { v: "per_person", label: "Per-person (no split)" },
-              ] as const).map((opt) => (
+              {(
+                [
+                  { v: "equal_all", label: `Equal · all ${memberIds.length}` },
+                  { v: "equal_some", label: "Pick people" },
+                  { v: "per_person", label: "Per-person (no split)" },
+                ] as const
+              ).map((opt) => (
                 <button
                   key={opt.v}
                   type="button"
-                  onClick={() => setForm({ ...form, split_mode: opt.v, is_shared: opt.v !== "per_person" })}
+                  onClick={() =>
+                    setForm({ ...form, split_mode: opt.v, is_shared: opt.v !== "per_person" })
+                  }
                   className={`rounded-full border px-2.5 py-1 text-xs transition ${form.split_mode === opt.v ? "border-primary bg-primary/15 text-primary" : "border-border/60 bg-background/40 text-muted-foreground hover:border-primary/50"}`}
                 >
                   {opt.label}
@@ -954,12 +1427,16 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
                 {memberIds.map((id) => {
                   const checked = form.split_member_ids.includes(id);
                   return (
-                    <label key={id} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-background/60 px-2 py-1 text-xs">
+                    <label
+                      key={id}
+                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-background/60 px-2 py-1 text-xs"
+                    >
                       <Checkbox
                         checked={checked}
                         onCheckedChange={(v) => {
                           const set = new Set(form.split_member_ids);
-                          if (v) set.add(id); else set.delete(id);
+                          if (v) set.add(id);
+                          else set.delete(id);
                           setForm({ ...form, split_member_ids: Array.from(set) });
                         }}
                       />
@@ -970,13 +1447,29 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
               </div>
             )}
           </div>
-          <div className="sm:col-span-2"><Label className="text-xs">Note</Label><Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} maxLength={300} /></div>
+          <div className="sm:col-span-2">
+            <Label className="text-xs">Note</Label>
+            <Input
+              value={form.note}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+              maxLength={300}
+            />
+          </div>
         </div>
-        <div className="mt-3 flex justify-end"><Button onClick={() => add.mutate()} disabled={add.isPending}><Plus className="mr-1 size-4" />Add cost</Button></div>
+        <div className="mt-3 flex justify-end">
+          <Button onClick={() => add.mutate()} disabled={add.isPending}>
+            <Plus className="mr-1 size-4" />
+            Add cost
+          </Button>
+        </div>
       </section>
 
       <ul className="space-y-2">
-        {costs.length === 0 && <li className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No costs logged yet.</li>}
+        {costs.length === 0 && (
+          <li className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            No costs logged yet.
+          </li>
+        )}
         {costs.map((c) => {
           const checked = bulk.isSelected(c.id);
           return (
@@ -994,18 +1487,27 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
                       bulk.toggle(c.id);
                     }
                   }}
-                  onCheckedChange={() => { /* handled by onClick for shift support */ }}
+                  onCheckedChange={() => {
+                    /* handled by onClick for shift support */
+                  }}
                   aria-label={`Select ${c.label}`}
                   className="mt-0.5"
                 />
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-background/60 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">{c.category}</span>
+                    <span className="rounded-full bg-background/60 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {c.category}
+                    </span>
                     <span className="font-medium">{c.label}</span>
-                    <span className={`text-[10px] ${c.is_shared ? "text-primary" : "text-muted-foreground"}`}>
+                    <span
+                      className={`text-[10px] ${c.is_shared ? "text-primary" : "text-muted-foreground"}`}
+                    >
                       {c.is_shared ? "shared" : "per-person"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">· paid by {(c.paid_by ?? c.user_id) === me ? "you" : nameOf(c.paid_by ?? c.user_id)}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      · paid by{" "}
+                      {(c.paid_by ?? c.user_id) === me ? "you" : nameOf(c.paid_by ?? c.user_id)}
+                    </span>
                   </div>
                   {c.note && <p className="mt-0.5 text-xs text-muted-foreground">{c.note}</p>}
                 </div>
@@ -1013,7 +1515,12 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
               <div className="flex items-center gap-3">
                 <span className="font-medium tabular-nums">{fmt(c.amount_cents, c.currency)}</span>
                 {(c.user_id === me || isOwner) && (
-                  <button onClick={() => del.mutate(c.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
+                  <button
+                    onClick={() => del.mutate(c.id)}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
                 )}
               </div>
             </li>
@@ -1026,8 +1533,19 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
         noun="cost"
         onClear={bulk.clear}
         actions={[
-          { label: "Mark settled", icon: Check, onClick: () => setConfirmSettle(true), disabled: settlePlan.willApply.length === 0 },
-          { label: "Delete", icon: Trash2, destructive: true, onClick: () => setConfirmDelete(true), disabled: deletePlan.willApply.length === 0 },
+          {
+            label: "Mark settled",
+            icon: Check,
+            onClick: () => setConfirmSettle(true),
+            disabled: settlePlan.willApply.length === 0,
+          },
+          {
+            label: "Delete",
+            icon: Trash2,
+            destructive: true,
+            onClick: () => setConfirmDelete(true),
+            disabled: deletePlan.willApply.length === 0,
+          },
         ]}
       />
 
@@ -1056,12 +1574,24 @@ export function CostsTab({ destinationId, me, headcount: initialHeadcount, isOwn
   );
 }
 
-
 /* -------------------------- COST CHARTS -------------------------- */
 
-type CostRow = { category: string; sharedCents: number; perPersonCents: number; perPersonShareCents: number; currency: string };
+type CostRow = {
+  category: string;
+  sharedCents: number;
+  perPersonCents: number;
+  perPersonShareCents: number;
+  currency: string;
+};
 
-const CAT_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--secondary))", "hsl(var(--muted-foreground))", "hsl(var(--destructive))", "hsl(var(--ring))"];
+const CAT_COLORS = [
+  "hsl(var(--primary))",
+  "hsl(var(--accent))",
+  "hsl(var(--secondary))",
+  "hsl(var(--muted-foreground))",
+  "hsl(var(--destructive))",
+  "hsl(var(--ring))",
+];
 
 function CostCharts({ rows, currency }: { rows: CostRow[]; currency: string }) {
   const totalShared = rows.reduce((a, r) => a + r.sharedCents, 0);
@@ -1069,12 +1599,24 @@ function CostCharts({ rows, currency }: { rows: CostRow[]; currency: string }) {
   const totalTrip = totalShared + totalPerPerson;
 
   const pieData = rows
-    .map((r, i) => ({ name: r.category, value: (r.sharedCents + r.perPersonCents) / 100, fill: CAT_COLORS[i % CAT_COLORS.length] }))
+    .map((r, i) => ({
+      name: r.category,
+      value: (r.sharedCents + r.perPersonCents) / 100,
+      fill: CAT_COLORS[i % CAT_COLORS.length],
+    }))
     .filter((d) => d.value > 0);
 
-  const barData = rows.map((r) => ({ category: r.category, perPerson: Math.round(r.perPersonShareCents) / 100 }));
+  const barData = rows.map((r) => ({
+    category: r.category,
+    perPerson: Math.round(r.perPersonShareCents) / 100,
+  }));
 
-  const chartConfig = Object.fromEntries(rows.map((r, i) => [r.category, { label: r.category, color: CAT_COLORS[i % CAT_COLORS.length] }]));
+  const chartConfig = Object.fromEntries(
+    rows.map((r, i) => [
+      r.category,
+      { label: r.category, color: CAT_COLORS[i % CAT_COLORS.length] },
+    ]),
+  );
 
   const fmt = (cents: number) => `${(cents / 100).toFixed(2)} ${currency}`;
 
@@ -1106,7 +1648,14 @@ function CostCharts({ rows, currency }: { rows: CostRow[]; currency: string }) {
           <ChartContainer config={chartConfig} className="mt-2 h-56 w-full">
             <PieChart>
               <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-              <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={45} outerRadius={80} paddingAngle={2}>
+              <Pie
+                data={pieData}
+                dataKey="value"
+                nameKey="name"
+                innerRadius={45}
+                outerRadius={80}
+                paddingAngle={2}
+              >
                 {pieData.map((d, i) => (
                   <Cell key={i} fill={d.fill} />
                 ))}

@@ -5,7 +5,18 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowUp, Download, FileDown, LogOut, MapPin, MessageCircle, Search, Sparkles, Star, Trash2 } from "lucide-react";
+import {
+  ArrowUp,
+  Download,
+  FileDown,
+  LogOut,
+  MapPin,
+  MessageCircle,
+  Search,
+  Sparkles,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { PageHero } from "@/components/page-hero";
 import { toast } from "sonner";
 import { closeExpiredTrips } from "@/lib/trips-maintenance.functions";
@@ -33,11 +44,23 @@ export const Route = createFileRoute("/_authenticated/trips/")({
 });
 
 type DestRow = {
-  id: string; user_id: string; title: string; region: string; country: string | null;
+  id: string;
+  user_id: string;
+  title: string;
+  region: string;
+  country: string | null;
   city: string | null;
-  description: string | null; image_url: string | null; best_months: string | null; created_at: string;
-  is_past: boolean; start_date: string | null; end_date: string | null;
-  vibes: string[] | null; budget: string | null; best_time: string | null; trip_length: string | null;
+  description: string | null;
+  image_url: string | null;
+  best_months: string | null;
+  created_at: string;
+  is_past: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  vibes: string[] | null;
+  budget: string | null;
+  best_time: string | null;
+  trip_length: string | null;
 };
 
 async function fetchTrips() {
@@ -55,7 +78,9 @@ async function fetchTrips() {
     if (v.user_id === me) myVotes[v.destination_id] = true;
   });
   const commentCounts: Record<string, number> = {};
-  (comments ?? []).forEach((c) => { commentCounts[c.destination_id] = (commentCounts[c.destination_id] ?? 0) + 1; });
+  (comments ?? []).forEach((c) => {
+    commentCounts[c.destination_id] = (commentCounts[c.destination_id] ?? 0) + 1;
+  });
 
   const enriched = ((dests ?? []) as DestRow[]).map((d) => ({
     ...d,
@@ -76,7 +101,20 @@ const tripsQueryOptions = queryOptions({
 function seasonLabel(iso: string | null): string {
   if (!iso) return "";
   const m = new Date(iso).getUTCMonth();
-  const names = ["winter", "winter", "spring", "spring", "spring", "early summer", "summer", "late summer", "early autumn", "autumn", "late autumn", "winter"];
+  const names = [
+    "winter",
+    "winter",
+    "spring",
+    "spring",
+    "spring",
+    "early summer",
+    "summer",
+    "late summer",
+    "early autumn",
+    "autumn",
+    "late autumn",
+    "winter",
+  ];
   const monthName = new Date(iso).toLocaleString(undefined, { month: "short" });
   return `${monthName} · ${names[m]}`;
 }
@@ -104,13 +142,19 @@ function TripsPage() {
   useEffect(() => {
     let cancelled = false;
     closeExpiredTrips()
-      .then((r) => { if (!cancelled && r?.closed) qc.invalidateQueries({ queryKey: ["trips"] }); })
+      .then((r) => {
+        if (!cancelled && r?.closed) qc.invalidateQueries({ queryKey: ["trips"] });
+      })
       .catch(() => {});
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [qc]);
 
   // Clear selection when switching tabs.
-  useEffect(() => { sel.clear(); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    sel.clear();
+  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const q = query.trim().toLowerCase();
   const filtered = (data ?? [])
@@ -118,7 +162,9 @@ function TripsPage() {
     .filter((d) => {
       if (!q) return true;
       const hay = [d.title, d.region, d.country, d.city, d.description, ...(d.vibes ?? [])]
-        .filter(Boolean).join(" ").toLowerCase();
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
       return hay.includes(q);
     });
 
@@ -151,7 +197,9 @@ function TripsPage() {
       const results = await Promise.allSettled(
         willApply.map((w) => supabase.from("destinations").delete().eq("id", w.id)),
       );
-      const failed = results.filter((r) => r.status === "rejected" || (r.value as { error?: unknown }).error).length;
+      const failed = results.filter(
+        (r) => r.status === "rejected" || (r.value as { error?: unknown }).error,
+      ).length;
       const ok = results.length - failed;
       if (ok) toast.success(`Deleted ${ok} trip${ok === 1 ? "" : "s"}`);
       if (failed) toast.error(`${failed} failed to delete`);
@@ -174,7 +222,9 @@ function TripsPage() {
           supabase.from("trip_members").delete().eq("destination_id", w.id).eq("user_id", myId),
         ),
       );
-      const failed = results.filter((r) => r.status === "rejected" || (r.value as { error?: unknown }).error).length;
+      const failed = results.filter(
+        (r) => r.status === "rejected" || (r.value as { error?: unknown }).error,
+      ).length;
       const ok = results.length - failed;
       if (ok) toast.success(`Left ${ok} trip${ok === 1 ? "" : "s"}`);
       if (failed) toast.error(`${failed} failed`);
@@ -193,7 +243,9 @@ function TripsPage() {
     try {
       await exportTripsPdf(selectedTrips);
       track("bulk_export", { format: "pdf", count: selectedTrips.length });
-      toast.success(`Exported ${selectedTrips.length} trip${selectedTrips.length === 1 ? "" : "s"} to PDF`);
+      toast.success(
+        `Exported ${selectedTrips.length} trip${selectedTrips.length === 1 ? "" : "s"} to PDF`,
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "PDF export failed");
     } finally {
@@ -207,7 +259,9 @@ function TripsPage() {
     try {
       await exportTripsIcs(selectedTrips);
       track("bulk_export", { format: "ics", count: selectedTrips.length });
-      toast.success(`Exported ${selectedTrips.length} trip${selectedTrips.length === 1 ? "" : "s"} to calendar`);
+      toast.success(
+        `Exported ${selectedTrips.length} trip${selectedTrips.length === 1 ? "" : "s"} to calendar`,
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Calendar export failed");
     } finally {
@@ -242,7 +296,10 @@ function TripsPage() {
           ))}
         </div>
         <div className="relative w-full max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
           <input
             type="search"
             value={query}
@@ -254,7 +311,9 @@ function TripsPage() {
         </div>
       </div>
       {q && (
-        <p className="text-xs text-muted-foreground">{filtered.length} match{filtered.length === 1 ? "" : "es"} for "{query}"</p>
+        <p className="text-xs text-muted-foreground">
+          {filtered.length} match{filtered.length === 1 ? "" : "es"} for "{query}"
+        </p>
       )}
 
       <div className="grid gap-5 md:grid-cols-2">
@@ -300,8 +359,19 @@ function TripsPage() {
         actions={[
           { label: "Export PDF", icon: FileDown, onClick: runExportPdf, pending: working },
           { label: "Export calendar", icon: Download, onClick: runExportIcs, pending: working },
-          { label: "Leave", icon: LogOut, onClick: () => setConfirmKind("leave"), pending: working },
-          { label: "Delete", icon: Trash2, onClick: () => setConfirmKind("delete"), destructive: true, pending: working },
+          {
+            label: "Leave",
+            icon: LogOut,
+            onClick: () => setConfirmKind("leave"),
+            pending: working,
+          },
+          {
+            label: "Delete",
+            icon: Trash2,
+            onClick: () => setConfirmKind("delete"),
+            destructive: true,
+            pending: working,
+          },
         ]}
       />
 
@@ -326,7 +396,6 @@ function TripsPage() {
   );
 }
 
-
 function TripCard({
   d,
   selected,
@@ -345,10 +414,16 @@ function TripCard({
       if (!s.session) throw new Error("Not signed in");
       const uid = s.session.user.id;
       if (d.voted) {
-        const { error } = await supabase.from("votes").delete().eq("destination_id", d.id).eq("user_id", uid);
+        const { error } = await supabase
+          .from("votes")
+          .delete()
+          .eq("destination_id", d.id)
+          .eq("user_id", uid);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("votes").insert({ destination_id: d.id, user_id: uid });
+        const { error } = await supabase
+          .from("votes")
+          .insert({ destination_id: d.id, user_id: uid });
         if (error) throw error;
       }
     },
@@ -361,7 +436,9 @@ function TripCard({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Vote failed"),
   });
 
-  const [imgState, setImgState] = useState<"loading" | "loaded" | "error">(d.image_url ? "loading" : "error");
+  const [imgState, setImgState] = useState<"loading" | "loaded" | "error">(
+    d.image_url ? "loading" : "error",
+  );
   const dateSubtitle = seasonLabel(d.start_date);
   const past = isEffectivelyPast(d);
 
@@ -385,7 +462,9 @@ function TripCard({
   return (
     <article
       className={`group relative overflow-hidden rounded-2xl border bg-card shadow-[var(--shadow-soft)] transition ${
-        selected ? "border-primary ring-2 ring-primary/40" : "border-border/60 hover:border-primary/40"
+        selected
+          ? "border-primary ring-2 ring-primary/40"
+          : "border-border/60 hover:border-primary/40"
       }`}
     >
       {/* Selection checkbox — always visible once anything is selected, otherwise on hover */}
@@ -404,7 +483,9 @@ function TripCard({
 
       <Link to="/trips/$id" params={{ id: d.id }} className="block">
         <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-          {d.image_url && imgState === "loading" && <Skeleton className="absolute inset-0 size-full rounded-none" />}
+          {d.image_url && imgState === "loading" && (
+            <Skeleton className="absolute inset-0 size-full rounded-none" />
+          )}
           {d.image_url && imgState !== "error" && (
             <img
               src={d.image_url}
@@ -421,12 +502,15 @@ function TripCard({
               style={{ background: cover.bg }}
               aria-hidden
             >
-              <span className="font-display text-6xl font-bold text-white/90 drop-shadow-sm">{cover.initial}</span>
+              <span className="font-display text-6xl font-bold text-white/90 drop-shadow-sm">
+                {cover.initial}
+              </span>
               <p className="px-4 font-display text-base text-white/85">{d.title}</p>
             </div>
           )}
           <div className="absolute left-12 top-3 rounded-full bg-background/80 px-2.5 py-1 text-xs backdrop-blur">
-            <MapPin className="mr-1 inline size-3 text-primary" />{d.city ? `${d.city}, ${d.region}` : d.region}
+            <MapPin className="mr-1 inline size-3 text-primary" />
+            {d.city ? `${d.city}, ${d.region}` : d.region}
           </div>
           {past && (
             <div className="absolute right-3 top-3 rounded-full bg-accent/90 px-2.5 py-1 text-xs font-medium text-accent-foreground backdrop-blur">
@@ -437,7 +521,13 @@ function TripCard({
       </Link>
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
-          <Link to="/trips/$id" params={{ id: d.id }} className="font-display text-xl hover:text-primary">{d.title}</Link>
+          <Link
+            to="/trips/$id"
+            params={{ id: d.id }}
+            className="font-display text-xl hover:text-primary"
+          >
+            {d.title}
+          </Link>
           {past ? (
             <Link
               to="/trips/$id"
@@ -468,13 +558,26 @@ function TripCard({
         {d.vibes && d.vibes.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {d.vibes.slice(0, 3).map((v) => (
-              <span key={v} className="rounded-full bg-muted px-2 py-0.5 text-[11px] capitalize text-muted-foreground">{v}</span>
+              <span
+                key={v}
+                className="rounded-full bg-muted px-2 py-0.5 text-[11px] capitalize text-muted-foreground"
+              >
+                {v}
+              </span>
             ))}
-            {d.vibes.length > 3 && <span className="text-[11px] text-muted-foreground">+{d.vibes.length - 3}</span>}
+            {d.vibes.length > 3 && (
+              <span className="text-[11px] text-muted-foreground">+{d.vibes.length - 3}</span>
+            )}
           </div>
         )}
-        {d.description && <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{d.description}</p>}
-        <Link to="/trips/$id" params={{ id: d.id }} className="mt-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+        {d.description && (
+          <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{d.description}</p>
+        )}
+        <Link
+          to="/trips/$id"
+          params={{ id: d.id }}
+          className="mt-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+        >
           <MessageCircle className="size-3.5" /> {d.comments} in chatter
         </Link>
       </div>

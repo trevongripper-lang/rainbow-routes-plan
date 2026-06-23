@@ -28,10 +28,7 @@ export const Route = createFileRoute("/_authenticated/console/events")({
   },
   component: EventsAdminPage,
   head: () => ({
-    meta: [
-      { name: "robots", content: "noindex, nofollow" },
-      { title: "Console — Events" },
-    ],
+    meta: [{ name: "robots", content: "noindex, nofollow" }, { title: "Console — Events" }],
   }),
 });
 
@@ -93,7 +90,8 @@ function EventsAdminPage() {
       <div>
         <h1 className="font-display text-2xl">Events — Smart Add</h1>
         <p className="text-sm text-muted-foreground">
-          Paste a URL. Tribe extracts the name, dates, location, image, and description. Review and save.
+          Paste a URL. Tribe extracts the name, dates, location, image, and description. Review and
+          save.
         </p>
       </div>
 
@@ -115,7 +113,13 @@ function EventsAdminPage() {
             />
           </div>
           <Button onClick={() => void onExtract()} disabled={busy || !url.trim()}>
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <><Sparkles className="mr-2 size-4" /> Extract</>}
+            {busy ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <>
+                <Sparkles className="mr-2 size-4" /> Extract
+              </>
+            )}
           </Button>
         </div>
       </section>
@@ -131,12 +135,19 @@ function EventsAdminPage() {
 
           {draft.image_url && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={draft.image_url} alt="" className="aspect-video w-full rounded-lg object-cover" />
+            <img
+              src={draft.image_url}
+              alt=""
+              className="aspect-video w-full rounded-lg object-cover"
+            />
           )}
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Name" className="sm:col-span-2">
-              <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+              <Input
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              />
             </Field>
             <Field label="Start date">
               <Input
@@ -153,19 +164,34 @@ function EventsAdminPage() {
               />
             </Field>
             <Field label="City">
-              <Input value={draft.city} onChange={(e) => setDraft({ ...draft, city: e.target.value })} />
+              <Input
+                value={draft.city}
+                onChange={(e) => setDraft({ ...draft, city: e.target.value })}
+              />
             </Field>
             <Field label="Region">
-              <Input value={draft.region} onChange={(e) => setDraft({ ...draft, region: e.target.value })} />
+              <Input
+                value={draft.region}
+                onChange={(e) => setDraft({ ...draft, region: e.target.value })}
+              />
             </Field>
             <Field label="Country" className="sm:col-span-2">
-              <Input value={draft.country} onChange={(e) => setDraft({ ...draft, country: e.target.value })} />
+              <Input
+                value={draft.country}
+                onChange={(e) => setDraft({ ...draft, country: e.target.value })}
+              />
             </Field>
             <Field label="Tags (comma-separated)" className="sm:col-span-2">
-              <Input value={draft.tags} onChange={(e) => setDraft({ ...draft, tags: e.target.value })} />
+              <Input
+                value={draft.tags}
+                onChange={(e) => setDraft({ ...draft, tags: e.target.value })}
+              />
             </Field>
             <Field label="URL" className="sm:col-span-2">
-              <Input value={draft.url} onChange={(e) => setDraft({ ...draft, url: e.target.value })} />
+              <Input
+                value={draft.url}
+                onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+              />
             </Field>
             <Field label="Description" className="sm:col-span-2">
               <Textarea
@@ -183,12 +209,22 @@ function EventsAdminPage() {
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setDraft(null)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setDraft(null)}>
+              Cancel
+            </Button>
             <Button
               onClick={() => save.mutate()}
-              disabled={save.isPending || !draft.name || !draft.start_date || !draft.city || !draft.country}
+              disabled={
+                save.isPending || !draft.name || !draft.start_date || !draft.city || !draft.country
+              }
             >
-              {save.isPending ? <Loader2 className="size-4 animate-spin" /> : <><Save className="mr-2 size-4" /> Save event</>}
+              {save.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <>
+                  <Save className="mr-2 size-4" /> Save event
+                </>
+              )}
             </Button>
           </div>
         </section>
@@ -210,7 +246,12 @@ function EventsAdminPage() {
                   </div>
                 </div>
                 {e.url && (
-                  <a href={e.url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
+                  <a
+                    href={e.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-primary hover:underline"
+                  >
                     link
                   </a>
                 )}
@@ -226,7 +267,15 @@ function EventsAdminPage() {
   );
 }
 
-function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+function Field({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <div className={className}>
       <Label className="mb-1.5 block text-xs">{label}</Label>

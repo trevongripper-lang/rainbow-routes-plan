@@ -5,13 +5,7 @@ import { netForUser, type CostRow, type SettlementRow } from "./trip-balances";
 
 export type PlanningStatus = "done" | "partial" | "todo";
 
-export type PlanningKey =
-  | "destination"
-  | "dates"
-  | "people"
-  | "stay"
-  | "travel"
-  | "money";
+export type PlanningKey = "destination" | "dates" | "people" | "stay" | "travel" | "money";
 
 export type PlanningItem = {
   key: PlanningKey;
@@ -85,8 +79,8 @@ export function computePlanningItems(input: PlanningInput): PlanningItem[] {
   const stayHint = input.stayNotNeeded
     ? "Not needed"
     : input.staysCount > 0
-    ? `${input.staysCount} booked`
-    : "Not handled";
+      ? `${input.staysCount} booked`
+      : "Not handled";
 
   // Travel — per-member coverage (booked or opted out)
   const travelDenom = Math.max(1, input.memberCount);
@@ -116,16 +110,62 @@ export function computePlanningItems(input: PlanningInput): PlanningItem[] {
   }
 
   return [
-    { key: "destination", label: "Destination picked", weight: W.destination, earned: W.destination, status: "done", hint: "Decided" },
-    { key: "dates", label: "Dates locked", weight: W.dates, earned: datesEarned, status: statusFor(datesEarned, W.dates), hint: datesHint },
-    { key: "people", label: "People confirmed", weight: W.people, earned: peopleEarned, status: statusFor(peopleEarned, W.people), hint: peopleHint },
-    { key: "stay", label: "Stay handled", weight: W.stay, earned: stayEarned, status: statusFor(stayEarned, W.stay), hint: stayHint },
-    { key: "travel", label: "Travel handled", weight: W.travel, earned: travelEarned, status: statusFor(travelEarned, W.travel), hint: travelHint },
-    { key: "money", label: "Money handled", weight: W.money, earned: moneyEarned, status: statusFor(moneyEarned, W.money), hint: moneyHint },
+    {
+      key: "destination",
+      label: "Destination picked",
+      weight: W.destination,
+      earned: W.destination,
+      status: "done",
+      hint: "Decided",
+    },
+    {
+      key: "dates",
+      label: "Dates locked",
+      weight: W.dates,
+      earned: datesEarned,
+      status: statusFor(datesEarned, W.dates),
+      hint: datesHint,
+    },
+    {
+      key: "people",
+      label: "People confirmed",
+      weight: W.people,
+      earned: peopleEarned,
+      status: statusFor(peopleEarned, W.people),
+      hint: peopleHint,
+    },
+    {
+      key: "stay",
+      label: "Stay handled",
+      weight: W.stay,
+      earned: stayEarned,
+      status: statusFor(stayEarned, W.stay),
+      hint: stayHint,
+    },
+    {
+      key: "travel",
+      label: "Travel handled",
+      weight: W.travel,
+      earned: travelEarned,
+      status: statusFor(travelEarned, W.travel),
+      hint: travelHint,
+    },
+    {
+      key: "money",
+      label: "Money handled",
+      weight: W.money,
+      earned: moneyEarned,
+      status: statusFor(moneyEarned, W.money),
+      hint: moneyHint,
+    },
   ];
 }
 
-export function computeWeightedScore(items: PlanningItem[]): { earned: number; total: number; pct: number } {
+export function computeWeightedScore(items: PlanningItem[]): {
+  earned: number;
+  total: number;
+  pct: number;
+} {
   const earned = items.reduce((s, i) => s + i.earned, 0);
   const total = items.reduce((s, i) => s + i.weight, 0);
   const pct = total === 0 ? 0 : Math.round((earned / total) * 100);

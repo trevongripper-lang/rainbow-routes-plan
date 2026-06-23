@@ -27,7 +27,9 @@ export function Chatter({ destinationId, me }: { destinationId: string; me: stri
     queryKey: ["trip-members-profiles", destinationId],
     queryFn: async (): Promise<Profile[]> => {
       const { data: rows } = await supabase
-        .from("trip_members").select("user_id").eq("destination_id", destinationId);
+        .from("trip_members")
+        .select("user_id")
+        .eq("destination_id", destinationId);
       const ids = (rows ?? []).map((r) => r.user_id);
       if (ids.length === 0) return [];
       const { data: profs } = await supabase.rpc("get_public_profiles", { _ids: ids });
@@ -106,17 +108,32 @@ export function Chatter({ destinationId, me }: { destinationId: string; me: stri
           const replies = repliesByParent.get(c.id) ?? [];
           return (
             <li key={c.id} className="rounded-xl border border-border/60 bg-card p-4">
-              <CommentRow comment={c} memberMap={memberMap} me={me} onDelete={() => del.mutate(c.id)} />
+              <CommentRow
+                comment={c}
+                memberMap={memberMap}
+                me={me}
+                onDelete={() => del.mutate(c.id)}
+              />
               {replies.length > 0 && (
                 <ul className="mt-3 space-y-3 border-l-2 border-primary/30 pl-4">
                   {replies.map((r) => (
                     <li key={r.id} className="rounded-lg bg-background/40 p-3">
-                      <CommentRow comment={r} memberMap={memberMap} me={me} onDelete={() => del.mutate(r.id)} />
+                      <CommentRow
+                        comment={r}
+                        memberMap={memberMap}
+                        me={me}
+                        onDelete={() => del.mutate(r.id)}
+                      />
                     </li>
                   ))}
                 </ul>
               )}
-              <ReplyToggle destinationId={destinationId} me={me} members={members} parentId={c.id} />
+              <ReplyToggle
+                destinationId={destinationId}
+                me={me}
+                members={members}
+                parentId={c.id}
+              />
             </li>
           );
         })}
@@ -126,8 +143,16 @@ export function Chatter({ destinationId, me }: { destinationId: string; me: stri
 }
 
 function CommentRow({
-  comment, memberMap, me, onDelete,
-}: { comment: Comment; memberMap: Map<string, Profile>; me: string; onDelete: () => void }) {
+  comment,
+  memberMap,
+  me,
+  onDelete,
+}: {
+  comment: Comment;
+  memberMap: Map<string, Profile>;
+  me: string;
+  onDelete: () => void;
+}) {
   const author = memberMap.get(comment.user_id);
   const isMine = comment.user_id === me;
   const youMentioned = (comment.mentions ?? []).includes(me);
@@ -140,10 +165,16 @@ function CommentRow({
         <span className="text-foreground">{author?.display_name ?? "Someone"}</span>
         <span>· {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}</span>
         {youMentioned && (
-          <span className="ml-1 rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">@you</span>
+          <span className="ml-1 rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+            @you
+          </span>
         )}
         {isMine && (
-          <button onClick={onDelete} className="ml-auto text-muted-foreground hover:text-destructive" aria-label="Delete">
+          <button
+            onClick={onDelete}
+            className="ml-auto text-muted-foreground hover:text-destructive"
+            aria-label="Delete"
+          >
             <Trash2 className="size-3.5" />
           </button>
         )}
@@ -156,7 +187,9 @@ function CommentRow({
 function renderBody(body: string, memberMap: Map<string, Profile>) {
   // Highlight @Name tokens that resolve to a known member
   const names = new Set(
-    Array.from(memberMap.values()).map((m) => (m.display_name ?? "").toLowerCase()).filter(Boolean),
+    Array.from(memberMap.values())
+      .map((m) => (m.display_name ?? "").toLowerCase())
+      .filter(Boolean),
   );
   const parts = body.split(/(@[\w][\w \-]*)/g);
   return parts.map((p, i) => {
@@ -167,7 +200,9 @@ function renderBody(body: string, memberMap: Map<string, Profile>) {
       if (hit) {
         return (
           <span key={i}>
-            <span className="rounded bg-primary/15 px-1 text-primary">@{p.slice(1, 1 + hit.length)}</span>
+            <span className="rounded bg-primary/15 px-1 text-primary">
+              @{p.slice(1, 1 + hit.length)}
+            </span>
             {p.slice(1 + hit.length)}
           </span>
         );
@@ -177,7 +212,12 @@ function renderBody(body: string, memberMap: Map<string, Profile>) {
   });
 }
 
-function ReplyToggle(props: { destinationId: string; me: string; members: Profile[]; parentId: string }) {
+function ReplyToggle(props: {
+  destinationId: string;
+  me: string;
+  members: Profile[];
+  parentId: string;
+}) {
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
@@ -204,7 +244,12 @@ function ReplyToggle(props: { destinationId: string; me: string; members: Profil
 }
 
 function Composer({
-  destinationId, me, members, parentId, autoFocus, onDone,
+  destinationId,
+  me,
+  members,
+  parentId,
+  autoFocus,
+  onDone,
 }: {
   destinationId: string;
   me: string;
@@ -245,7 +290,10 @@ function Composer({
     const caret = textareaRef.current?.selectionStart ?? body.length;
     const before = body.slice(0, caret);
     const after = body.slice(caret);
-    const replaced = before.replace(/(^|\s)@([\w \-]{0,30})$/, (_m, pre) => `${pre}@${p.display_name ?? "user"} `);
+    const replaced = before.replace(
+      /(^|\s)@([\w \-]{0,30})$/,
+      (_m, pre) => `${pre}@${p.display_name ?? "user"} `,
+    );
     const newBody = replaced + after;
     setBody(newBody);
     setShowPicker(false);
@@ -281,7 +329,10 @@ function Composer({
 
   return (
     <form
-      onSubmit={(e) => { e.preventDefault(); submit.mutate(); }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit.mutate();
+      }}
       className="relative mt-4 space-y-2"
     >
       <Textarea
@@ -289,12 +340,16 @@ function Composer({
         autoFocus={autoFocus}
         value={body}
         onChange={(e) => onChangeBody(e.target.value)}
-        placeholder={parentId ? "Write a reply… (@ to mention)" : "Add to the chatter… (@ to mention)"}
+        placeholder={
+          parentId ? "Write a reply… (@ to mention)" : "Add to the chatter… (@ to mention)"
+        }
         rows={parentId ? 2 : 3}
       />
       {showPicker && matches.length > 0 && (
         <div className="absolute bottom-12 left-2 z-10 w-56 overflow-hidden rounded-lg border border-border/60 bg-popover shadow-xl">
-          <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Mention</div>
+          <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+            Mention
+          </div>
           {matches.map((m) => (
             <button
               key={m.id}
@@ -311,8 +366,16 @@ function Composer({
         </div>
       )}
       <div className="flex justify-end gap-2">
-        {onDone && <Button type="button" variant="ghost" size="sm" onClick={onDone}>Cancel</Button>}
-        <Button type="submit" size={parentId ? "sm" : "default"} disabled={submit.isPending || !body.trim()}>
+        {onDone && (
+          <Button type="button" variant="ghost" size="sm" onClick={onDone}>
+            Cancel
+          </Button>
+        )}
+        <Button
+          type="submit"
+          size={parentId ? "sm" : "default"}
+          disabled={submit.isPending || !body.trim()}
+        >
           {parentId ? "Reply" : "Post"}
         </Button>
       </div>

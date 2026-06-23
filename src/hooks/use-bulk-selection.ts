@@ -20,32 +20,35 @@ export function useBulkSelection<T extends string>() {
     lastClicked.current = id;
   }, []);
 
-  const toggleRange = useCallback((id: T, orderedIds: T[]) => {
-    const anchor = lastClicked.current;
-    if (!anchor || anchor === id) {
+  const toggleRange = useCallback(
+    (id: T, orderedIds: T[]) => {
+      const anchor = lastClicked.current;
+      if (!anchor || anchor === id) {
+        setSelected((prev) => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          return next;
+        });
+        lastClicked.current = id;
+        return;
+      }
+      const a = orderedIds.indexOf(anchor);
+      const b = orderedIds.indexOf(id);
+      if (a === -1 || b === -1) {
+        toggle(id);
+        return;
+      }
+      const [lo, hi] = a < b ? [a, b] : [b, a];
       setSelected((prev) => {
         const next = new Set(prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
+        for (let i = lo; i <= hi; i++) next.add(orderedIds[i]);
         return next;
       });
       lastClicked.current = id;
-      return;
-    }
-    const a = orderedIds.indexOf(anchor);
-    const b = orderedIds.indexOf(id);
-    if (a === -1 || b === -1) {
-      toggle(id);
-      return;
-    }
-    const [lo, hi] = a < b ? [a, b] : [b, a];
-    setSelected((prev) => {
-      const next = new Set(prev);
-      for (let i = lo; i <= hi; i++) next.add(orderedIds[i]);
-      return next;
-    });
-    lastClicked.current = id;
-  }, [toggle]);
+    },
+    [toggle],
+  );
 
   const selectAll = useCallback((ids: T[]) => {
     setSelected(new Set(ids));

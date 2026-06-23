@@ -62,7 +62,10 @@ export function NotificationsBell() {
   });
 
   const tripIds = useMemo(
-    () => Array.from(new Set(notifs.map((n) => n.destination_id).filter((id): id is string => id !== null))),
+    () =>
+      Array.from(
+        new Set(notifs.map((n) => n.destination_id).filter((id): id is string => id !== null)),
+      ),
     [notifs],
   );
   const { data: trips = [] } = useQuery({
@@ -196,7 +199,10 @@ export function NotificationsBell() {
       {g.kinds.length > 1 && (
         <div className="mt-1 flex flex-wrap gap-1">
           {g.kinds.slice(0, 4).map((k) => (
-            <span key={k} className="rounded-full bg-card px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            <span
+              key={k}
+              className="rounded-full bg-card px-1.5 py-0.5 text-[10px] text-muted-foreground"
+            >
               {KIND_LABEL[k] ?? k}
             </span>
           ))}

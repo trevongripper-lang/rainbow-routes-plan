@@ -4,14 +4,14 @@ Reframe Planning Progress from "data entered" to "commitment made." Six items, o
 
 ## New model — 6 items, commitment-framed
 
-| # | Label | Weight | Done when | Partial credit |
-|---|---|---|---|---|
-| 1 | Destination picked | 10 | Trip exists | — |
-| 2 | Dates locked | 15 | `start_date` AND `end_date` set AND `dates_locked = true` on the trip | 7 if both dates set but not locked; 3 if only one date set |
-| 3 | People confirmed | 15 | Every `trip_members` row has `status = 'confirmed'`, AND total confirmed ≥ `headcount` | proportional: `confirmed / headcount × 15` |
-| 4 | Stay handled | 15 | ≥ 1 row in `trip_stays` OR organizer toggled `stay_not_needed = true` | — |
-| 5 | Travel handled | 25 | Each member either has a flight with non-empty `confirmation` OR `travel_status = 'not_needed'` (per-member) | proportional: `(booked + opted_out) / members × 25` |
-| 6 | Money handled | 20 | Viewer's net = 0 AND at least one settlement exists, OR organizer toggled `no_shared_costs = true` | 10 if any settlement exists but net ≠ 0; **0** when no costs and no toggle (key fix) |
+| #   | Label              | Weight | Done when                                                                                                    | Partial credit                                                                       |
+| --- | ------------------ | ------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| 1   | Destination picked | 10     | Trip exists                                                                                                  | —                                                                                    |
+| 2   | Dates locked       | 15     | `start_date` AND `end_date` set AND `dates_locked = true` on the trip                                        | 7 if both dates set but not locked; 3 if only one date set                           |
+| 3   | People confirmed   | 15     | Every `trip_members` row has `status = 'confirmed'`, AND total confirmed ≥ `headcount`                       | proportional: `confirmed / headcount × 15`                                           |
+| 4   | Stay handled       | 15     | ≥ 1 row in `trip_stays` OR organizer toggled `stay_not_needed = true`                                        | —                                                                                    |
+| 5   | Travel handled     | 25     | Each member either has a flight with non-empty `confirmation` OR `travel_status = 'not_needed'` (per-member) | proportional: `(booked + opted_out) / members × 25`                                  |
+| 6   | Money handled      | 20     | Viewer's net = 0 AND at least one settlement exists, OR organizer toggled `no_shared_costs = true`           | 10 if any settlement exists but net ≠ 0; **0** when no costs and no toggle (key fix) |
 
 Total = 100.
 

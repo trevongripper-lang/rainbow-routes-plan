@@ -8,10 +8,7 @@ import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/join/$token")({
   head: () => ({
-    meta: [
-      { title: "Join a trip — Tribe Trips" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Join a trip — Tribe Trips" }, { name: "robots", content: "noindex" }],
   }),
   component: JoinPage,
 });
@@ -62,14 +59,21 @@ function JoinPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't join"),
   });
 
-  if (isLoading) return <div className="grid min-h-screen place-items-center text-muted-foreground">Loading invite…</div>;
+  if (isLoading)
+    return (
+      <div className="grid min-h-screen place-items-center text-muted-foreground">
+        Loading invite…
+      </div>
+    );
   if (!data) {
     return (
       <div className="grid min-h-screen place-items-center bg-background px-6 text-center">
         <div>
           <h1 className="font-display text-3xl">Invite not found</h1>
           <p className="mt-2 text-muted-foreground">This link is invalid or has been revoked.</p>
-          <Link to="/" className="mt-6 inline-block text-primary hover:underline">Go home</Link>
+          <Link to="/" className="mt-6 inline-block text-primary hover:underline">
+            Go home
+          </Link>
         </div>
       </div>
     );
@@ -79,7 +83,11 @@ function JoinPage() {
     <div className="grid min-h-screen place-items-center bg-background px-6 py-12">
       <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border/60 bg-card shadow-2xl">
         {data.image_url ? (
-          <img src={data.image_url} alt={data.title} className="aspect-[16/9] w-full object-cover" />
+          <img
+            src={data.image_url}
+            alt={data.title}
+            className="aspect-[16/9] w-full object-cover"
+          />
         ) : (
           <div className="aspect-[16/9] w-full" style={{ background: "var(--gradient-hero)" }} />
         )}
@@ -87,22 +95,33 @@ function JoinPage() {
           <p className="text-xs uppercase tracking-wide text-primary">You're invited</p>
           <h1 className="mt-1 font-display text-3xl">{data.title}</h1>
           <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <MapPin className="size-4 text-primary" /> {data.region}{data.country ? ` · ${data.country}` : ""}
+            <MapPin className="size-4 text-primary" /> {data.region}
+            {data.country ? ` · ${data.country}` : ""}
           </p>
 
           {data.expired ? (
-            <p className="mt-6 rounded-md bg-destructive/15 px-3 py-2 text-sm text-destructive">This invite has expired.</p>
+            <p className="mt-6 rounded-md bg-destructive/15 px-3 py-2 text-sm text-destructive">
+              This invite has expired.
+            </p>
           ) : data.used ? (
-            <p className="mt-6 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">This invite has already been used.</p>
+            <p className="mt-6 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+              This invite has already been used.
+            </p>
           ) : signedIn === false ? (
             <div className="mt-6 space-y-3">
               <p className="text-sm text-muted-foreground">Sign in to join this trip.</p>
               <Button asChild className="w-full">
-                <Link to="/auth" search={{ redirect: `/join/${token}` } as never}>Sign in to join</Link>
+                <Link to="/auth" search={{ redirect: `/join/${token}` } as never}>
+                  Sign in to join
+                </Link>
               </Button>
             </div>
           ) : (
-            <Button onClick={() => accept.mutate()} disabled={accept.isPending} className="mt-6 w-full">
+            <Button
+              onClick={() => accept.mutate()}
+              disabled={accept.isPending}
+              className="mt-6 w-full"
+            >
               {accept.isPending ? "Joining…" : "Join trip"}
             </Button>
           )}

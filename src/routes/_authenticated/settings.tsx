@@ -6,7 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Search, CheckCircle2, XCircle, ShieldCheck, Loader2, ExternalLink, Plane, Sparkles } from "lucide-react";
+import {
+  Search,
+  CheckCircle2,
+  XCircle,
+  ShieldCheck,
+  Loader2,
+  ExternalLink,
+  Plane,
+  Sparkles,
+} from "lucide-react";
 import { getIntegrationsStatus, testSerpstack } from "@/lib/integrations.functions";
 import { lookupFlight } from "@/lib/flight-lookup.functions";
 import { runRlsSmokeTests, type SmokeCheck } from "@/lib/rls-smoke.functions";
@@ -110,8 +119,8 @@ function SettingsPage() {
                 )}
               </div>
               <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-                Real-time Google search results used as a fallback to verify flight info
-                when the schedule API doesn't return a match.
+                Real-time Google search results used as a fallback to verify flight info when the
+                schedule API doesn't return a match.
               </p>
             </div>
           </div>
@@ -129,8 +138,8 @@ function SettingsPage() {
             </div>
             <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
               <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-emerald-500" />
-              Keys are stored server-side as encrypted secrets and never sent to the browser.
-              To rotate or change the key, update it from your project's secrets manager.
+              Keys are stored server-side as encrypted secrets and never sent to the browser. To
+              rotate or change the key, update it from your project's secrets manager.
             </p>
           </div>
 
@@ -226,9 +235,7 @@ function SettingsPage() {
               )}
             </Button>
             {flightElapsed !== null && !flightTesting && (
-              <span className="text-xs text-muted-foreground">
-                Completed in {flightElapsed} ms
-              </span>
+              <span className="text-xs text-muted-foreground">Completed in {flightElapsed} ms</span>
             )}
           </div>
 
@@ -306,28 +313,44 @@ function RlsSmokeSection() {
           <div>
             <h2 className="font-display text-lg">RLS smoke tests</h2>
             <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-              Runs a read against every table and helper function as the signed-in user.
-              Run this after any database migration to catch revoked GRANTs / EXECUTE
-              before users do.
+              Runs a read against every table and helper function as the signed-in user. Run this
+              after any database migration to catch revoked GRANTs / EXECUTE before users do.
             </p>
           </div>
         </div>
         <Button onClick={onRun} disabled={loading}>
-          {loading ? <><Loader2 className="mr-1.5 size-4 animate-spin" /> Running...</> : "Run smoke tests"}
+          {loading ? (
+            <>
+              <Loader2 className="mr-1.5 size-4 animate-spin" /> Running...
+            </>
+          ) : (
+            "Run smoke tests"
+          )}
         </Button>
       </div>
 
-      {err && <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{err}</div>}
+      {err && (
+        <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {err}
+        </div>
+      )}
 
       {data && (
         <div className="mt-5 space-y-3">
           <div className="flex flex-wrap gap-2 text-xs">
-            <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600">
+            <Badge
+              variant="outline"
+              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+            >
               {passed.length} passing
             </Badge>
             <Badge
               variant="outline"
-              className={failed.length ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-border text-muted-foreground"}
+              className={
+                failed.length
+                  ? "border-destructive/30 bg-destructive/10 text-destructive"
+                  : "border-border text-muted-foreground"
+              }
             >
               {failed.length} failing
             </Badge>
@@ -336,9 +359,13 @@ function RlsSmokeSection() {
 
           {failed.length > 0 && (
             <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-destructive">Failures</div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-destructive">
+                Failures
+              </div>
               <ul className="space-y-2">
-                {failed.map((c) => <SmokeRow key={`${c.kind}:${c.name}`} c={c} />)}
+                {failed.map((c) => (
+                  <SmokeRow key={`${c.kind}:${c.name}`} c={c} />
+                ))}
               </ul>
             </div>
           )}
@@ -348,7 +375,9 @@ function RlsSmokeSection() {
               All checks ({data.checks.length})
             </summary>
             <ul className="mt-2 space-y-1.5">
-              {data.checks.map((c) => <SmokeRow key={`${c.kind}:${c.name}`} c={c} />)}
+              {data.checks.map((c) => (
+                <SmokeRow key={`${c.kind}:${c.name}`} c={c} />
+              ))}
             </ul>
           </details>
         </div>
@@ -360,12 +389,23 @@ function RlsSmokeSection() {
 function SmokeRow({ c }: { c: SmokeCheck }) {
   return (
     <li className="flex items-start gap-2 text-xs">
-      {c.ok ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-500" /> : <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />}
-      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase">{c.kind}</span>
+      {c.ok ? (
+        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-500" />
+      ) : (
+        <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+      )}
+      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase">
+        {c.kind}
+      </span>
       <span className="font-mono">{c.name}</span>
-      <span className="ml-auto text-muted-foreground">{c.ms}ms{c.status ? ` · ${c.status}` : ""}</span>
+      <span className="ml-auto text-muted-foreground">
+        {c.ms}ms{c.status ? ` · ${c.status}` : ""}
+      </span>
       {!c.ok && c.message && (
-        <span className="ml-2 max-w-md truncate text-destructive" title={c.message}>{c.code ? `[${c.code}] ` : ""}{c.message}</span>
+        <span className="ml-2 max-w-md truncate text-destructive" title={c.message}>
+          {c.code ? `[${c.code}] ` : ""}
+          {c.message}
+        </span>
       )}
     </li>
   );
@@ -375,15 +415,23 @@ function Field({ label, value }: { label: string; value?: string }) {
   return (
     <div>
       <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</dt>
-      <dd className="font-mono">{value && value.trim() ? value : <span className="text-muted-foreground">—</span>}</dd>
+      <dd className="font-mono">
+        {value && value.trim() ? value : <span className="text-muted-foreground">—</span>}
+      </dd>
     </div>
   );
 }
 
 function ProviderBadge({ source }: { source?: "ai" | "aviationstack" | "serpstack" }) {
   const map = {
-    aviationstack: { label: "AviationStack", className: "bg-blue-500/15 text-blue-600 border-blue-500/30" },
-    serpstack: { label: "Serpstack", className: "bg-purple-500/15 text-purple-600 border-purple-500/30" },
+    aviationstack: {
+      label: "AviationStack",
+      className: "bg-blue-500/15 text-blue-600 border-blue-500/30",
+    },
+    serpstack: {
+      label: "Serpstack",
+      className: "bg-purple-500/15 text-purple-600 border-purple-500/30",
+    },
     ai: { label: "AI only", className: "bg-amber-500/15 text-amber-600 border-amber-500/30" },
   } as const;
   const cfg = map[source ?? "ai"];

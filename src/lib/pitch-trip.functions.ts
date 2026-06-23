@@ -70,7 +70,11 @@ export const createPitchTrip = createServerFn({ method: "POST" })
       .single();
 
     if (error) {
-      const detail = [error.message, (error as { details?: string }).details, (error as { hint?: string }).hint]
+      const detail = [
+        error.message,
+        (error as { details?: string }).details,
+        (error as { hint?: string }).hint,
+      ]
         .filter(Boolean)
         .join(" — ");
       throw new Error(detail || "Failed to create trip");

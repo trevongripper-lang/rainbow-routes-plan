@@ -21,13 +21,10 @@ export type GeocodeCandidate = {
 
 function parseFeature(f: MapboxFeature): GeocodeCandidate {
   const ctx = f.context || [];
-  const pick = (prefix: string) =>
-    ctx.find((c) => c.id.startsWith(prefix))?.text ?? null;
+  const pick = (prefix: string) => ctx.find((c) => c.id.startsWith(prefix))?.text ?? null;
   const selfType = f.place_type?.[0] ?? "";
   const city =
-    selfType === "place" || selfType === "locality"
-      ? f.text
-      : pick("place") ?? pick("locality");
+    selfType === "place" || selfType === "locality" ? f.text : (pick("place") ?? pick("locality"));
   const region = selfType === "region" ? f.text : pick("region");
   const country = selfType === "country" ? f.text : pick("country");
   return {
@@ -43,7 +40,9 @@ function parseFeature(f: MapboxFeature): GeocodeCandidate {
 export const geocodeSearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { query: string }) => ({
-    query: String(data?.query ?? "").trim().slice(0, 200),
+    query: String(data?.query ?? "")
+      .trim()
+      .slice(0, 200),
   }))
   .handler(async ({ data }) => {
     const token = process.env.MAPBOX_TOKEN;
@@ -101,7 +100,11 @@ export const geocodeDestination = createServerFn({ method: "POST" })
         longitude: parsed.longitude,
         // Backfill missing city/region/country so the data is self-consistent.
         ...(dest.city ? {} : parsed.city ? { city: parsed.city } : {}),
-        ...(dest.region && dest.region !== "—" ? {} : parsed.region ? { region: parsed.region } : {}),
+        ...(dest.region && dest.region !== "—"
+          ? {}
+          : parsed.region
+            ? { region: parsed.region }
+            : {}),
         ...(dest.country ? {} : parsed.country ? { country: parsed.country } : {}),
       })
       .eq("id", destinationId);

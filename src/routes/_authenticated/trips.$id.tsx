@@ -1,5 +1,11 @@
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { useSuspenseQuery, useMutation, useQueryClient, useQuery, queryOptions } from "@tanstack/react-query";
+import {
+  useSuspenseQuery,
+  useMutation,
+  useQueryClient,
+  useQuery,
+  queryOptions,
+} from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -38,7 +44,18 @@ async function fetchTrip(id: string) {
   if (!dest) return null;
   const me = session.session?.user?.id;
   const votes = (dest as { votes: { user_id: string }[] }).votes ?? [];
-  const comments = (dest as { comments: { id: string; user_id: string; body: string; created_at: string; destination_id: string }[] }).comments ?? [];
+  const comments =
+    (
+      dest as {
+        comments: {
+          id: string;
+          user_id: string;
+          body: string;
+          created_at: string;
+          destination_id: string;
+        }[];
+      }
+    ).comments ?? [];
   const authorIds = Array.from(new Set([dest.user_id, ...comments.map((c) => c.user_id)]));
   const { data: profiles } = await supabase.rpc("get_public_profiles", { _ids: authorIds });
   const pmap = new Map((profiles ?? []).map((p) => [p.id, p]));
@@ -60,13 +77,20 @@ const tripQueryOptions = (id: string) =>
   });
 
 export const Route = createFileRoute("/_authenticated/trips/$id")({
-  loader: ({ params, context }) =>
-    context.queryClient.ensureQueryData(tripQueryOptions(params.id)),
+  loader: ({ params, context }) => context.queryClient.ensureQueryData(tripQueryOptions(params.id)),
   head: ({ loaderData }) => {
-    const img = (loaderData as { dest?: { image_url?: string | null } } | null | undefined)?.dest?.image_url;
+    const img = (loaderData as { dest?: { image_url?: string | null } } | null | undefined)?.dest
+      ?.image_url;
     return {
       links: img
-        ? [{ rel: "preload", as: "image", href: img, fetchpriority: "high" } as { rel: string; as: string; href: string; fetchpriority: string }]
+        ? [
+            { rel: "preload", as: "image", href: img, fetchpriority: "high" } as {
+              rel: string;
+              as: string;
+              href: string;
+              fetchpriority: string;
+            },
+          ]
         : [],
     };
   },
@@ -82,7 +106,14 @@ export const Route = createFileRoute("/_authenticated/trips/$id")({
 async function fetchRatingData(id: string, me: string | undefined) {
   const [{ data: agg }, mine] = await Promise.all([
     supabase.rpc("get_trip_rating_aggregate", { _destination_id: id }),
-    me ? supabase.from("trip_ratings").select("*").eq("destination_id", id).eq("user_id", me).maybeSingle() : Promise.resolve({ data: null }),
+    me
+      ? supabase
+          .from("trip_ratings")
+          .select("*")
+          .eq("destination_id", id)
+          .eq("user_id", me)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
   const a = (agg as any)?.[0] ?? { avg_rating: null, rating_count: 0, feedbacks: [] };
   return { agg: a, mine: (mine as any)?.data ?? null };
@@ -94,7 +125,9 @@ function TripDetail() {
   const tab = (search as Record<string, unknown>)?.tab as string | undefined;
   const activeTab = tab || "overview";
   useEffect(() => {
-    void import("@/lib/analytics").then(({ track }) => track("trip_tab_view", { tab: activeTab }, id));
+    void import("@/lib/analytics").then(({ track }) =>
+      track("trip_tab_view", { tab: activeTab }, id),
+    );
   }, [activeTab, id]);
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -119,7 +152,10 @@ function TripDetail() {
         await supabase.from("votes").insert({ destination_id: id, user_id: data.me });
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["trip", id] }); qc.invalidateQueries({ queryKey: ["trips"] }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["trip", id] });
+      qc.invalidateQueries({ queryKey: ["trips"] });
+    },
   });
 
   const saveDates = useMutation({
@@ -131,19 +167,31 @@ function TripDetail() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["trip", id] }); toast.success("Trip dates saved"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["trip", id] });
+      toast.success("Trip dates saved");
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
   const deleteTrip = useMutation({
-    mutationFn: async () => { const { error } = await supabase.from("destinations").delete().eq("id", id); if (error) throw error; },
-    onSuccess: () => { toast.success("Deleted"); navigate({ to: "/trips" }); },
+    mutationFn: async () => {
+      const { error } = await supabase.from("destinations").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Deleted");
+      navigate({ to: "/trips" });
+    },
   });
 
   const togglePast = useMutation({
     mutationFn: async () => {
       if (!data) return;
-      const { error } = await supabase.from("destinations").update({ is_past: !data.dest.is_past }).eq("id", id);
+      const { error } = await supabase
+        .from("destinations")
+        .update({ is_past: !data.dest.is_past })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -176,11 +224,15 @@ function TripDetail() {
         />
       )}
 
-
       {isOverview ? (
         <header className="overflow-hidden rounded-3xl border border-border/60 bg-card">
           {dest.image_url ? (
-            <img src={dest.image_url} alt={dest.title} className="aspect-[16/8] w-full object-cover" fetchPriority="high" />
+            <img
+              src={dest.image_url}
+              alt={dest.title}
+              className="aspect-[16/8] w-full object-cover"
+              fetchPriority="high"
+            />
           ) : (
             <div className="aspect-[16/8] w-full" style={{ background: "var(--gradient-hero)" }} />
           )}
@@ -188,12 +240,21 @@ function TripDetail() {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <MapPin className="size-3.5 text-primary" /> {dest.region}{dest.country ? ` · ${dest.country}` : ""}
-                  {dest.is_past && <span className="ml-1 rounded-full bg-accent/30 px-2 py-0.5 text-accent-foreground">Past trip</span>}
+                  <MapPin className="size-3.5 text-primary" /> {dest.region}
+                  {dest.country ? ` · ${dest.country}` : ""}
+                  {dest.is_past && (
+                    <span className="ml-1 rounded-full bg-accent/30 px-2 py-0.5 text-accent-foreground">
+                      Past trip
+                    </span>
+                  )}
                 </div>
                 <h1 className="mt-2 font-display text-4xl md:text-5xl">{dest.title}</h1>
-                <p className="mt-2 text-sm text-muted-foreground">Pitched by {author?.display_name ?? "someone"}</p>
-                <div className="mt-3"><AttendeesCard destinationId={id} /></div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Pitched by {author?.display_name ?? "someone"}
+                </p>
+                <div className="mt-3">
+                  <AttendeesCard destinationId={id} />
+                </div>
               </div>
               {!dest.is_past && (
                 <button
@@ -216,7 +277,11 @@ function TripDetail() {
                 AI Flight Lookup
               </Link>
             </div>
-            {dest.description && <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">{dest.description}</p>}
+            {dest.description && (
+              <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
+                {dest.description}
+              </p>
+            )}
             {isOwner && (
               <div className="mt-5 flex flex-wrap items-end gap-3">
                 <InviteModal destinationId={id} isOwner={isOwner} />
@@ -241,7 +306,8 @@ function TripDetail() {
                       className="w-full sm:w-40"
                     />
                   </div>
-                  {(startDateDraft !== ((dest as { start_date?: string | null }).start_date ?? "") ||
+                  {(startDateDraft !==
+                    ((dest as { start_date?: string | null }).start_date ?? "") ||
                     endDateDraft !== (dest.end_date ?? "")) && (
                     <Button
                       size="sm"
@@ -261,10 +327,24 @@ function TripDetail() {
             )}
             {isOwner && (
               <div className="mt-4 flex flex-wrap gap-4 text-xs">
-                <button onClick={() => togglePast.mutate()} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
-                  {dest.is_past ? <><RotateCcw className="size-3.5" /> Override: reopen trip</> : <><Archive className="size-3.5" /> Override: mark as past now</>}
+                <button
+                  onClick={() => togglePast.mutate()}
+                  className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+                >
+                  {dest.is_past ? (
+                    <>
+                      <RotateCcw className="size-3.5" /> Override: reopen trip
+                    </>
+                  ) : (
+                    <>
+                      <Archive className="size-3.5" /> Override: mark as past now
+                    </>
+                  )}
                 </button>
-                <button onClick={() => deleteTrip.mutate()} className="inline-flex items-center gap-1.5 text-destructive hover:underline">
+                <button
+                  onClick={() => deleteTrip.mutate()}
+                  className="inline-flex items-center gap-1.5 text-destructive hover:underline"
+                >
                   <Trash2 className="size-3.5" /> Delete this pitch
                 </button>
               </div>
@@ -274,7 +354,11 @@ function TripDetail() {
       ) : (
         <header className="relative overflow-hidden rounded-2xl border border-border/60 bg-card">
           {dest.image_url && (
-            <img src={dest.image_url} alt="" className="absolute inset-0 size-full object-cover opacity-30" />
+            <img
+              src={dest.image_url}
+              alt=""
+              className="absolute inset-0 size-full object-cover opacity-30"
+            />
           )}
           <div className="absolute inset-0 bg-gradient-to-r from-card via-card/80 to-card/40" />
           <div className="relative flex flex-wrap items-center justify-between gap-3 px-5 py-3">
@@ -282,9 +366,14 @@ function TripDetail() {
               <h1 className="truncate font-display text-xl md:text-2xl">{dest.title}</h1>
               <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <MapPin className="size-3 text-primary" />
-                {dest.region}{dest.country ? ` · ${dest.country}` : ""}
+                {dest.region}
+                {dest.country ? ` · ${dest.country}` : ""}
                 {dest.end_date && <span> · {dest.end_date}</span>}
-                {dest.is_past && <span className="ml-1 rounded-full bg-accent/30 px-2 py-0.5 text-accent-foreground">Past</span>}
+                {dest.is_past && (
+                  <span className="ml-1 rounded-full bg-accent/30 px-2 py-0.5 text-accent-foreground">
+                    Past
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -295,16 +384,25 @@ function TripDetail() {
         </header>
       )}
 
-      <Tabs value={activeTab} onValueChange={(v) => navigate({ to: "/trips/$id", params: { id }, search: { tab: v } })} className="w-full">
-
-
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => navigate({ to: "/trips/$id", params: { id }, search: { tab: v } })}
+        className="w-full"
+      >
         <TabsContent value="overview" className="mt-6">
           {me ? (
             <div className="space-y-6">
               <SmartAdd destinationId={id} me={me} />
 
               <PollsPanel destinationId={id} me={me} />
-              <TripEventsStrip destinationId={id} me={me} region={dest.region} country={dest.country} startDate={(dest as { start_date?: string | null }).start_date ?? null} endDate={dest.end_date} />
+              <TripEventsStrip
+                destinationId={id}
+                me={me}
+                region={dest.region}
+                country={dest.country}
+                startDate={(dest as { start_date?: string | null }).start_date ?? null}
+                endDate={dest.end_date}
+              />
               <Chatter destinationId={id} me={me} />
             </div>
           ) : null}
@@ -322,20 +420,55 @@ function TripDetail() {
                 me={me}
               />
             </TabsContent>
-            <TabsContent value="flights" className="mt-6"><FlightsTab destinationId={id} me={me} startDate={(dest as { start_date?: string | null }).start_date ?? null} endDate={dest.end_date} /></TabsContent>
-            <TabsContent value="stays" className="mt-6"><StaysTab destinationId={id} me={me} title={dest.title} country={dest.country} startDate={(dest as { start_date?: string | null }).start_date ?? null} endDate={dest.end_date} /></TabsContent>
+            <TabsContent value="flights" className="mt-6">
+              <FlightsTab
+                destinationId={id}
+                me={me}
+                startDate={(dest as { start_date?: string | null }).start_date ?? null}
+                endDate={dest.end_date}
+              />
+            </TabsContent>
+            <TabsContent value="stays" className="mt-6">
+              <StaysTab
+                destinationId={id}
+                me={me}
+                title={dest.title}
+                country={dest.country}
+                startDate={(dest as { start_date?: string | null }).start_date ?? null}
+                endDate={dest.end_date}
+              />
+            </TabsContent>
             <TabsContent value="tickets" className="mt-6">
               <div className="space-y-6">
-                <TripEventsStrip destinationId={id} me={me} region={dest.region} country={dest.country} startDate={(dest as { start_date?: string | null }).start_date ?? null} endDate={dest.end_date} />
+                <TripEventsStrip
+                  destinationId={id}
+                  me={me}
+                  region={dest.region}
+                  country={dest.country}
+                  startDate={(dest as { start_date?: string | null }).start_date ?? null}
+                  endDate={dest.end_date}
+                />
                 <TicketsTab destinationId={id} me={me} />
               </div>
             </TabsContent>
-            <TabsContent value="costs" className="mt-6"><CostsTab destinationId={id} me={me} headcount={dest.headcount ?? 2} isOwner={isOwner} defaultCurrency={(dest as { default_currency?: string | null }).default_currency ?? "USD"} /></TabsContent>
+            <TabsContent value="costs" className="mt-6">
+              <CostsTab
+                destinationId={id}
+                me={me}
+                headcount={dest.headcount ?? 2}
+                isOwner={isOwner}
+                defaultCurrency={
+                  (dest as { default_currency?: string | null }).default_currency ?? "USD"
+                }
+              />
+            </TabsContent>
           </>
         )}
 
         {dest.is_past && me && (
-          <TabsContent value="ratings" className="mt-6"><RatingsSection destinationId={id} me={me} /></TabsContent>
+          <TabsContent value="ratings" className="mt-6">
+            <RatingsSection destinationId={id} me={me} />
+          </TabsContent>
         )}
       </Tabs>
     </div>
@@ -364,7 +497,12 @@ function RatingsSection({ destinationId, me }: { destinationId: string; me: stri
     mutationFn: async () => {
       if (!stars) throw new Error("Pick a star rating first");
       const { error } = await supabase.from("trip_ratings").upsert(
-        { destination_id: destinationId, user_id: me, rating: stars, feedback: feedback.trim() || null },
+        {
+          destination_id: destinationId,
+          user_id: me,
+          rating: stars,
+          feedback: feedback.trim() || null,
+        },
         { onConflict: "destination_id,user_id" },
       );
       if (error) throw error;
@@ -385,12 +523,19 @@ function RatingsSection({ destinationId, me }: { destinationId: string; me: stri
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="font-display text-2xl">How was the trip?</h2>
-          <p className="text-sm text-muted-foreground">Ratings & feedback are aggregated and anonymous.</p>
+          <p className="text-sm text-muted-foreground">
+            Ratings & feedback are aggregated and anonymous.
+          </p>
         </div>
         {count > 0 && (
           <div className="text-right">
-            <div className="font-display text-3xl text-primary">{avg.toFixed(1)}<span className="text-base text-muted-foreground">/5</span></div>
-            <div className="text-xs text-muted-foreground">{count} {count === 1 ? "rating" : "ratings"}</div>
+            <div className="font-display text-3xl text-primary">
+              {avg.toFixed(1)}
+              <span className="text-base text-muted-foreground">/5</span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {count} {count === 1 ? "rating" : "ratings"}
+            </div>
           </div>
         )}
       </div>
@@ -406,7 +551,9 @@ function RatingsSection({ destinationId, me }: { destinationId: string; me: stri
               onClick={() => setStars(n)}
               className="p-1"
             >
-              <Star className={`size-7 transition ${(hover || stars) >= n ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+              <Star
+                className={`size-7 transition ${(hover || stars) >= n ? "fill-primary text-primary" : "text-muted-foreground"}`}
+              />
             </button>
           ))}
         </div>
@@ -434,7 +581,10 @@ function RatingsSection({ destinationId, me }: { destinationId: string; me: stri
         ) : (
           <ul className="mt-2 space-y-2">
             {feedbacks.map((f, i) => (
-              <li key={i} className="rounded-xl border border-border/60 bg-background/40 p-4 text-sm italic text-muted-foreground">
+              <li
+                key={i}
+                className="rounded-xl border border-border/60 bg-background/40 p-4 text-sm italic text-muted-foreground"
+              >
                 &ldquo;{f}&rdquo;
               </li>
             ))}

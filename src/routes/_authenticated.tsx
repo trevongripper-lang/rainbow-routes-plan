@@ -1,9 +1,34 @@
-import { createFileRoute, redirect, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  redirect,
+  Outlet,
+  Link,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { getTripTabLinkProps } from "@/lib/trip-tab-link";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Compass, CalendarDays, User2, LogOut, Map as MapIcon, X, MessageSquare, BedDouble, Ticket, Wallet, Star, ChevronRight, List, Plane, Sparkles, Settings as SettingsIcon, type LucideIcon } from "lucide-react";
+import {
+  Compass,
+  CalendarDays,
+  User2,
+  LogOut,
+  Map as MapIcon,
+  X,
+  MessageSquare,
+  BedDouble,
+  Ticket,
+  Wallet,
+  Star,
+  ChevronRight,
+  List,
+  Plane,
+  Sparkles,
+  Settings as SettingsIcon,
+  type LucideIcon,
+} from "lucide-react";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { InstallAppBanner } from "@/components/install-app-banner";
 import { useMe } from "@/hooks/use-me";
@@ -89,10 +114,7 @@ function AppShell() {
         tripsActive={tripsActive}
       />
 
-      <SidebarInset
-        className="min-w-0"
-        style={{ background: "var(--gradient-hero)" }}
-      >
+      <SidebarInset className="min-w-0" style={{ background: "var(--gradient-hero)" }}>
         <header className="sticky top-0 z-20 border-b border-border/60 bg-background/60 backdrop-blur">
           <div className="flex h-14 items-center justify-between px-4">
             <div className="flex items-center gap-3">
@@ -105,7 +127,11 @@ function AppShell() {
 
             <div className="flex items-center gap-1">
               <NotificationsBell />
-              <button onClick={signOut} className="rounded-full p-2 text-muted-foreground hover:text-foreground" title="Sign out">
+              <button
+                onClick={signOut}
+                className="rounded-full p-2 text-muted-foreground hover:text-foreground"
+                title="Sign out"
+              >
                 <LogOut className="size-4" />
               </button>
             </div>
@@ -166,7 +192,11 @@ function AppSidebar({
     <Sidebar collapsible="icon" className="border-r border-sidebar-border/60">
       <SidebarHeader className="border-b border-sidebar-border/60 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
-          <Link to="/trips" onClick={closeMobile} className="flex items-center gap-2 font-display text-lg text-sidebar-foreground">
+          <Link
+            to="/trips"
+            onClick={closeMobile}
+            className="flex items-center gap-2 font-display text-lg text-sidebar-foreground"
+          >
             <span className="inline-block size-2.5 rounded-full bg-primary" />
             <span>Tribe Trips</span>
           </Link>
@@ -188,10 +218,19 @@ function AppSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               {/* Trips group with expandable sub-menu */}
-              <Collapsible open={tripsOpen} onOpenChange={setTripsOpen} className="group/collapsible">
+              <Collapsible
+                open={tripsOpen}
+                onOpenChange={setTripsOpen}
+                className="group/collapsible"
+              >
                 <SidebarMenuItem>
                   <div className="flex items-center">
-                    <SidebarMenuButton asChild isActive={tripsActive} tooltip="Trips" className="flex-1">
+                    <SidebarMenuButton
+                      asChild
+                      isActive={tripsActive}
+                      tooltip="Trips"
+                      className="flex-1"
+                    >
                       <Link to="/trips" onClick={closeMobile} className="flex items-center gap-2">
                         <Compass className="size-4" />
                         <span>Trips</span>
@@ -201,51 +240,53 @@ function AppSidebar({
                       aria-label="Toggle trip menu"
                       className="ml-1 rounded-md p-1.5 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     >
-                      <ChevronRight className={`size-4 transition-transform ${tripsOpen ? "rotate-90" : ""}`} />
+                      <ChevronRight
+                        className={`size-4 transition-transform ${tripsOpen ? "rotate-90" : ""}`}
+                      />
                     </CollapsibleTrigger>
                   </div>
                   <CollapsibleContent>
                     <SidebarMenuSub>
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton asChild isActive={pathname === "/trips"}>
-                          <Link to="/trips" onClick={closeMobile} className="flex items-center gap-2">
+                          <Link
+                            to="/trips"
+                            onClick={closeMobile}
+                            className="flex items-center gap-2"
+                          >
                             <List className="size-4" />
                             <span>My Trips</span>
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
-                      {tripId
-                        ? tabItems.map((tab) => {
-                            const linkProps = getTripTabLinkProps(tripId, tab.key);
-                            if (!linkProps.hasTrip) return null;
-                            return (
-                              <SidebarMenuSubItem key={tab.key}>
-                                <SidebarMenuSubButton
-                                  asChild
-                                  isActive={currentTab === tab.key}
+                      {tripId ? (
+                        tabItems.map((tab) => {
+                          const linkProps = getTripTabLinkProps(tripId, tab.key);
+                          if (!linkProps.hasTrip) return null;
+                          return (
+                            <SidebarMenuSubItem key={tab.key}>
+                              <SidebarMenuSubButton asChild isActive={currentTab === tab.key}>
+                                <Link
+                                  to={linkProps.to}
+                                  params={linkProps.params}
+                                  search={linkProps.search}
+                                  onClick={closeMobile}
+                                  className="flex items-center gap-2"
                                 >
-                                  <Link
-                                    to={linkProps.to}
-                                    params={linkProps.params}
-                                    search={linkProps.search}
-                                    onClick={closeMobile}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <tab.icon className="size-4" />
-                                    <span>{tab.label}</span>
-                                  </Link>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            );
-                          })
-                        : (
-                          <SidebarMenuSubItem>
-                            <div className="px-2 py-1.5 text-xs text-sidebar-foreground/60">
-                              Open a trip to see its sections here.
-                            </div>
-                          </SidebarMenuSubItem>
-                        )}
-
+                                  <tab.icon className="size-4" />
+                                  <span>{tab.label}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          );
+                        })
+                      ) : (
+                        <SidebarMenuSubItem>
+                          <div className="px-2 py-1.5 text-xs text-sidebar-foreground/60">
+                            Open a trip to see its sections here.
+                          </div>
+                        </SidebarMenuSubItem>
+                      )}
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </SidebarMenuItem>
@@ -281,14 +322,20 @@ function ProUpsell() {
   const { data: me } = useMe();
   if ((me as { plus_status?: string } | null)?.plus_status === "active") {
     return (
-      <Link to="/me" className="mx-1 flex items-center gap-2 rounded-xl border border-amber-400/50 bg-amber-500/10 px-3 py-2 text-xs text-sidebar-foreground">
+      <Link
+        to="/me"
+        className="mx-1 flex items-center gap-2 rounded-xl border border-amber-400/50 bg-amber-500/10 px-3 py-2 text-xs text-sidebar-foreground"
+      >
         <Sparkles className="size-3.5 text-amber-400" /> Organizer Plus
       </Link>
     );
   }
   if (me?.is_pro) {
     return (
-      <Link to="/me" className="mx-1 flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-3 py-2 text-xs text-sidebar-foreground">
+      <Link
+        to="/me"
+        className="mx-1 flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-3 py-2 text-xs text-sidebar-foreground"
+      >
         <span className="inline-block size-1.5 rounded-full bg-primary" /> Pro · unlimited
       </Link>
     );

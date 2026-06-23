@@ -8,12 +8,12 @@ export type RlResult = { allowed: boolean; retryAfter: number };
 type Scope = "login" | "reset" | "signup" | "chatter";
 
 const LIMITS: Record<Scope, Array<{ window: number; max: number }>> = {
-  login: [{ window: 900, max: 5 }],          // 5 per 15 min
-  reset: [{ window: 3600, max: 3 }],         // 3 per hour
-  signup: [{ window: 3600, max: 5 }],        // 5 per hour
+  login: [{ window: 900, max: 5 }], // 5 per 15 min
+  reset: [{ window: 3600, max: 3 }], // 3 per hour
+  signup: [{ window: 3600, max: 5 }], // 5 per hour
   chatter: [
-    { window: 60, max: 10 },                  // 10 per minute
-    { window: 3600, max: 60 },                // 60 per hour
+    { window: 60, max: 10 }, // 10 per minute
+    { window: 3600, max: 60 }, // 60 per hour
   ],
 };
 
@@ -35,11 +35,9 @@ function normEmail(e: string | undefined): string {
 }
 
 async function hit(key: string, windowSeconds: number, max: number): Promise<RlResult> {
-  const sb = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } },
-  );
+  const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
   const { data, error } = await sb.rpc("rl_hit", {
     _key: key,
     _window_seconds: windowSeconds,
@@ -81,23 +79,20 @@ export const rlCheckPublic = createServerFn({ method: "POST" })
  */
 export const postChatterComment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: {
-    destinationId: string;
-    body: string;
-    parentId: string | null;
-    mentions: string[];
-  }) => {
-    const body = (d?.body ?? "").trim();
-    if (!body) throw new Error("Empty message");
-    if (body.length > 4000) throw new Error("Message too long");
-    if (!d.destinationId) throw new Error("Missing trip");
-    return {
-      destinationId: d.destinationId,
-      body,
-      parentId: d.parentId ?? null,
-      mentions: Array.isArray(d.mentions) ? d.mentions.slice(0, 20) : [],
-    };
-  })
+  .inputValidator(
+    (d: { destinationId: string; body: string; parentId: string | null; mentions: string[] }) => {
+      const body = (d?.body ?? "").trim();
+      if (!body) throw new Error("Empty message");
+      if (body.length > 4000) throw new Error("Message too long");
+      if (!d.destinationId) throw new Error("Missing trip");
+      return {
+        destinationId: d.destinationId,
+        body,
+        parentId: d.parentId ?? null,
+        mentions: Array.isArray(d.mentions) ? d.mentions.slice(0, 20) : [],
+      };
+    },
+  )
   .handler(async ({ data, context }) => {
     const uid = context.userId;
     for (const l of LIMITS.chatter) {

@@ -36,7 +36,12 @@ function Landing() {
           Tribe Trips
         </div>
         <nav className="flex items-center gap-2 text-sm">
-          <Link to="/pricing" className="rounded-full px-4 py-2 text-muted-foreground hover:text-foreground">Pricing</Link>
+          <Link
+            to="/pricing"
+            className="rounded-full px-4 py-2 text-muted-foreground hover:text-foreground"
+          >
+            Pricing
+          </Link>
           <Link
             to="/auth"
             className="rounded-full border border-border/60 bg-card/40 px-4 py-2 backdrop-blur hover:bg-card/70"
@@ -57,9 +62,8 @@ function Landing() {
         </h1>
 
         <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-          Plan whatever trip you want — pitch destinations, upvote favorites,
-          chatter about logistics, and surface regional pride, circuit, and
-          beach events all in one cozy place.
+          Plan whatever trip you want — pitch destinations, upvote favorites, chatter about
+          logistics, and surface regional pride, circuit, and beach events all in one cozy place.
         </p>
 
         <div className="mt-10 flex flex-wrap items-center gap-3">
@@ -89,12 +93,11 @@ function Landing() {
                 How it works
               </p>
               <h2 className="font-display text-3xl leading-tight md:text-5xl">
-                From first idea to{" "}
-                <em className="text-accent not-italic">boarding pass</em>.
+                From first idea to <em className="text-accent not-italic">boarding pass</em>.
               </h2>
               <p className="mt-4 max-w-md text-muted-foreground">
-                No more scattered group chats, lost links, or "wait, which
-                Airbnb?" Tribe Trips keeps every decision in one cozy place.
+                No more scattered group chats, lost links, or "wait, which Airbnb?" Tribe Trips
+                keeps every decision in one cozy place.
               </p>
             </div>
             <img
@@ -158,11 +161,11 @@ function Landing() {
                   <span className="absolute right-5 top-5 font-display text-4xl text-muted-foreground/15 transition-colors group-hover:text-primary/30">
                     {step.num}
                   </span>
-                  <step.icon className={`size-6 ${step.color} transition-transform duration-300 group-hover:scale-110`} />
+                  <step.icon
+                    className={`size-6 ${step.color} transition-transform duration-300 group-hover:scale-110`}
+                  />
                   <h3 className="mt-4 font-display text-xl">{step.title}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {step.body}
-                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
                 </div>
               </Reveal>
             ))}
@@ -215,8 +218,8 @@ function Landing() {
                 Ready to plan your next adventure?
               </h3>
               <p className="mt-4 max-w-md text-muted-foreground">
-                Create your first trip, invite your crew, and start pitching
-                destinations in under a minute.
+                Create your first trip, invite your crew, and start pitching destinations in under a
+                minute.
               </p>
               <Link
                 to="/auth"
@@ -240,9 +243,7 @@ function Landing() {
             <span className="inline-block size-2 rounded-full bg-primary" />
             Tribe Trips
           </div>
-          <p className="text-xs text-muted-foreground">
-            Built for the community. Travel together.
-          </p>
+          <p className="text-xs text-muted-foreground">Built for the community. Travel together.</p>
         </div>
       </footer>
     </div>

@@ -88,8 +88,7 @@ export const enrichUrl = createServerFn({ method: "POST" })
     try {
       const res = await fetch(data.url, {
         headers: {
-          "user-agent":
-            "Mozilla/5.0 (compatible; TribeTripsBot/1.0; +https://tribetrips.app)",
+          "user-agent": "Mozilla/5.0 (compatible; TribeTripsBot/1.0; +https://tribetrips.app)",
           accept: "text/html,application/xhtml+xml",
         },
         redirect: "follow",
@@ -104,11 +103,7 @@ export const enrichUrl = createServerFn({ method: "POST" })
       pickMeta(html, ["og:title", "twitter:title"]) ||
       html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() ||
       null;
-    const description = pickMeta(html, [
-      "og:description",
-      "twitter:description",
-      "description",
-    ]);
+    const description = pickMeta(html, ["og:description", "twitter:description", "description"]);
     const image = pickMeta(html, ["og:image", "twitter:image", "twitter:image:src"]);
     const site_name = pickMeta(html, ["og:site_name", "application-name"]);
 
@@ -153,7 +148,17 @@ export const enrichUrl = createServerFn({ method: "POST" })
     }
     if (!currency) currency = pickMeta(html, ["product:price:currency", "og:price:currency"]);
 
-    return { ...fallback, title, description, image, site_name, price, currency, start_date, end_date };
+    return {
+      ...fallback,
+      title,
+      description,
+      image,
+      site_name,
+      price,
+      currency,
+      start_date,
+      end_date,
+    };
   });
 
 // ---------- AI smart-add classifier ----------

@@ -1,14 +1,26 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Copy, Link as LinkIcon, Mail, UserPlus, Check, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-export function InviteModal({ destinationId, isOwner = false }: { destinationId: string; isOwner?: boolean }) {
+export function InviteModal({
+  destinationId,
+  isOwner = false,
+}: {
+  destinationId: string;
+  isOwner?: boolean;
+}) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -70,7 +82,9 @@ export function InviteModal({ destinationId, isOwner = false }: { destinationId:
     await navigator.clipboard.writeText(url);
     setEmail("");
     qc.invalidateQueries({ queryKey: ["trip-members", destinationId] });
-    toast.success(`Invite for ${trimmed} created — link copied. Email sending will activate once your email domain is verified.`);
+    toast.success(
+      `Invite for ${trimmed} created — link copied. Email sending will activate once your email domain is verified.`,
+    );
   };
 
   return (
@@ -91,27 +105,44 @@ export function InviteModal({ destinationId, isOwner = false }: { destinationId:
               Get your tribe out of the text thread and off to the next adventure.
             </p>
             <Label className="mt-3 block text-xs">Shareable link</Label>
-            <p className="mt-1 text-xs text-muted-foreground">Anyone signed in with this link can join.</p>
-            <Button onClick={onCopyLink} disabled={createInvite.isPending} variant="outline" className="mt-2 w-full justify-start gap-2">
+            <p className="mt-1 text-xs text-muted-foreground">
+              Anyone signed in with this link can join.
+            </p>
+            <Button
+              onClick={onCopyLink}
+              disabled={createInvite.isPending}
+              variant="outline"
+              className="mt-2 w-full justify-start gap-2"
+            >
               {copied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
               {copied ? "Copied!" : "Create & copy invite link"}
             </Button>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs flex items-center gap-1.5"><Mail className="size-3" /> Invite by email</Label>
+            <Label className="text-xs flex items-center gap-1.5">
+              <Mail className="size-3" /> Invite by email
+            </Label>
             <div className="flex gap-2">
               <Input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="friend@example.com"
-                onKeyDown={(e) => { if (e.key === "Enter") onEmailInvite(); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onEmailInvite();
+                }}
               />
-              <Button onClick={onEmailInvite} disabled={createInvite.isPending || !email.includes("@")}>Send</Button>
+              <Button
+                onClick={onEmailInvite}
+                disabled={createInvite.isPending || !email.includes("@")}
+              >
+                Send
+              </Button>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Creates an invite link and copies it. Email delivery activates once a verified sender domain is configured.
+              Creates an invite link and copies it. Email delivery activates once a verified sender
+              domain is configured.
             </p>
           </div>
 
@@ -124,11 +155,20 @@ export function InviteModal({ destinationId, isOwner = false }: { destinationId:
                     {(m.profile?.display_name ?? "?").slice(0, 1).toUpperCase()}
                   </div>
                   <span className="flex-1 truncate">{m.profile?.display_name ?? "Member"}</span>
-                  {m.role === "owner" && <span className="rounded-full bg-accent/30 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-accent-foreground">Owner</span>}
+                  {m.role === "owner" && (
+                    <span className="rounded-full bg-accent/30 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-accent-foreground">
+                      Owner
+                    </span>
+                  )}
                   {isOwner && m.role !== "owner" && (
                     <button
                       onClick={async () => {
-                        if (!confirm(`Remove ${m.profile?.display_name ?? "this member"} from the trip?`)) return;
+                        if (
+                          !confirm(
+                            `Remove ${m.profile?.display_name ?? "this member"} from the trip?`,
+                          )
+                        )
+                          return;
                         const { error } = await supabase
                           .from("trip_members")
                           .delete()
@@ -153,7 +193,11 @@ export function InviteModal({ destinationId, isOwner = false }: { destinationId:
 
           <div className="rounded-md border border-border/60 bg-background/40 p-3 text-xs text-muted-foreground">
             <LinkIcon className="mr-1 inline size-3" />
-            Free plan trips are capped at 5 people total. <a href="/pricing" className="text-primary hover:underline">Upgrade to Pro</a> for unlimited crews.
+            Free plan trips are capped at 5 people total.{" "}
+            <a href="/pricing" className="text-primary hover:underline">
+              Upgrade to Pro
+            </a>{" "}
+            for unlimited crews.
           </div>
         </div>
       </DialogContent>
