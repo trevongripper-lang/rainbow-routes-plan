@@ -20,6 +20,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { deleteMyAccount } from "@/lib/account.functions";
+import { InstallAppButton } from "@/components/install-app-banner";
+import { Smartphone } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/me")({
   loader: ({ context }) =>
