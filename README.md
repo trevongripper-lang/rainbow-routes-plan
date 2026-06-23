@@ -6,7 +6,7 @@ This is a **web app** that also installs to a phone home screen as a PWA. No App
 
 ## Links
 
-- **GitHub repository:** _<add your repo URL here, e.g._ `https://github.com/<org>/<repo>` _>_
+- **GitHub repository:** https://github.com/trevongripper-lang/rainbow-routes-plan
 - **Live (published):** https://rainbow-routes-plan.lovable.app
 - **Preview (editor):** https://id-preview--938ee2e4-e28c-4f9a-80fb-c8ac6ff9fb0b.lovable.app
 
