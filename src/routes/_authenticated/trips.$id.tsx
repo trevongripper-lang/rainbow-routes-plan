@@ -496,17 +496,15 @@ function RatingsSection({ destinationId, me }: { destinationId: string; me: stri
   const save = useMutation({
     mutationFn: async () => {
       if (!stars) throw new Error("Pick a star rating first");
-      const { error } = await supabase
-        .from("trip_ratings")
-        .upsert(
-          {
-            destination_id: destinationId,
-            user_id: me,
-            rating: stars,
-            feedback: feedback.trim() || null,
-          },
-          { onConflict: "destination_id,user_id" },
-        );
+      const { error } = await supabase.from("trip_ratings").upsert(
+        {
+          destination_id: destinationId,
+          user_id: me,
+          rating: stars,
+          feedback: feedback.trim() || null,
+        },
+        { onConflict: "destination_id,user_id" },
+      );
       if (error) throw error;
     },
     onSuccess: () => {
