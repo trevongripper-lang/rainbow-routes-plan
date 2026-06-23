@@ -11,8 +11,8 @@ export function track(
   destinationId?: string | null,
 ) {
   try {
-    void supabase.auth.getUser().then(({ data }) => {
-      const user_id = data.user?.id ?? null;
+    void supabase.auth.getSession().then(({ data }) => {
+      const user_id = data.session?.user.id ?? null;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       void (supabase.from("analytics_events" as any) as any)
         .insert({
