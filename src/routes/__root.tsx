@@ -154,6 +154,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <InstallAppBanner />
       <Toaster theme="dark" position="top-center" richColors />
       {import.meta.env.DEV && <RlsDebugPanel />}
     </QueryClientProvider>
