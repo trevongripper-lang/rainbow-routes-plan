@@ -240,9 +240,58 @@ export type Database = {
         }
         Relationships: []
       }
+      event_reports: {
+        Row: {
+          created_at: string
+          destination_id: string | null
+          event_id: string
+          id: string
+          note: string | null
+          reason: string
+          resolved: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          destination_id?: string | null
+          event_id: string
+          id?: string
+          note?: string | null
+          reason: string
+          resolved?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          destination_id?: string | null
+          event_id?: string
+          id?: string
+          note?: string | null
+          reason?: string
+          resolved?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_reports_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_reports_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           city: string
+          confidence_notes: string | null
           country: string
           description: string | null
           end_date: string | null
@@ -251,12 +300,15 @@ export type Database = {
           longitude: number | null
           name: string
           region: string
+          source_url: string | null
           start_date: string
           tags: string | null
           url: string | null
+          verified: boolean
         }
         Insert: {
           city: string
+          confidence_notes?: string | null
           country: string
           description?: string | null
           end_date?: string | null
@@ -265,12 +317,15 @@ export type Database = {
           longitude?: number | null
           name: string
           region: string
+          source_url?: string | null
           start_date: string
           tags?: string | null
           url?: string | null
+          verified?: boolean
         }
         Update: {
           city?: string
+          confidence_notes?: string | null
           country?: string
           description?: string | null
           end_date?: string | null
@@ -279,9 +334,11 @@ export type Database = {
           longitude?: number | null
           name?: string
           region?: string
+          source_url?: string | null
           start_date?: string
           tags?: string | null
           url?: string | null
+          verified?: boolean
         }
         Relationships: []
       }
@@ -1221,11 +1278,13 @@ export type Database = {
           id: string
           latitude: number
           longitude: number
+          match_score: number
           name: string
           region: string
           start_date: string
           tags: string
           url: string
+          verified: boolean
         }[]
       }
       preview_trip_invite: {
