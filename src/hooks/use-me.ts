@@ -12,11 +12,13 @@ export function useMe() {
   return useQuery({
     queryKey: ["me", "profile"],
     queryFn: async (): Promise<MyProfile | null> => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return null;
+      const { data: s } = await supabase.auth.getSession();
+      if (!s.session) return null;
+      const userId = s.session.user.id;
       const { data: p } = await supabase
         .from("profiles")
         .select("id, display_name, avatar_url, is_pro")
+        .eq("id", userId)
         .eq("id", u.user.id)
         .maybeSingle();
       return (p as MyProfile | null) ?? {
