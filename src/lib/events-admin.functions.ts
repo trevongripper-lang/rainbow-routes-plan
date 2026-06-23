@@ -232,10 +232,16 @@ export const extractEventFromUrl = createServerFn({ method: "POST" })
       region: parsed.region || parsed.country || "",
       country: parsed.country || "",
       url: data.url,
+      source_url: data.url,
       image_url: ogImage ?? null,
       tags: parsed.tags || "",
       latitude,
       longitude,
+      verified: false,
+      confidence_notes:
+        latitude != null && longitude != null
+          ? "AI-extracted; coordinates resolved via Mapbox. Verify dates and location before publishing."
+          : "AI-extracted; NO coordinates resolved — event will not match by distance. Add lat/lng before publishing.",
     };
   });
 
