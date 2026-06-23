@@ -19,6 +19,8 @@ import {
 import { getIntegrationsStatus, testSerpstack } from "@/lib/integrations.functions";
 import { lookupFlight } from "@/lib/flight-lookup.functions";
 import { runRlsSmokeTests, type SmokeCheck } from "@/lib/rls-smoke.functions";
+import { InstallAppButton } from "@/components/install-app-banner";
+import { Smartphone } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
