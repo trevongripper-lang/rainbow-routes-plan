@@ -220,6 +220,18 @@ function AuthPage() {
         >
           {mode === "signin" ? "No account yet? Sign up" : "Have an account? Sign in"}
         </button>
+
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          By continuing you agree to our{" "}
+          <Link to="/terms" className="underline hover:text-foreground">
+            Terms
+          </Link>{" "}
+          and{" "}
+          <Link to="/privacy" className="underline hover:text-foreground">
+            Privacy Policy
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );
