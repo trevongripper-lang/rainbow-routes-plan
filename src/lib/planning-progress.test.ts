@@ -4,89 +4,156 @@ import {
   computeWeightedScore,
   pendingPlanningItems,
   nextBestAction,
+  type PlanningInput,
 } from "./planning-progress";
 
-function labels(items: { label: string }[]) {
-  return items.map((i) => i.label);
-}
-
-const FULL = {
+const FULL: PlanningInput = {
   startDate: "2026-07-01",
   endDate: "2026-07-08",
-  staysCount: 2,
-  flightsBooked: 4,
+  datesLocked: true,
   memberCount: 4,
+  confirmedCount: 4,
   headcount: 4,
-  ticketsCount: 3,
+  staysCount: 2,
+  stayNotNeeded: false,
+  travelHandledCount: 4,
   myNetCents: 0,
-  settlementsCount: 0,
+  settlementsCount: 1,
+  noSharedCosts: false,
+  hasSharedCosts: true,
 };
 
-describe("weighted planning progress", () => {
-  it("brand-new trip earns only Destination's 10 points", () => {
-    const items = computePlanningItems({
-      startDate: null, endDate: null, staysCount: 0, flightsBooked: 0,
-      memberCount: 1, headcount: 4, ticketsCount: 0, myNetCents: 0, settlementsCount: 0,
-    });
-    const { earned, total, pct } = computeWeightedScore(items);
-    expect(total).toBe(100);
-    // Destination 10 + Invites partial (1/4 of 10) = ~3
+const NEW_TRIP: PlanningInput = {
+  startDate: null,
+  endDate: null,
+  datesLocked: false,
+  memberCount: 1,
+  confirmedCount: 1,
+  headcount: 4,
+  staysCount: 0,
+  stayNotNeeded: false,
+  travelHandledCount: 0,
+  myNetCents: 0,
+  settlementsCount: 0,
+  noSharedCosts: false,
+  hasSharedCosts: false,
+};
+
+describe("commitment planning progress", () => {
+  it("brand-new trip: Money is NOT auto-done from emptiness (the fix)", () => {
+    const items = computePlanningItems(NEW_TRIP);
+    const money = items.find((i) => i.key === "money")!;
+    expect(money.status).toBe("todo");
+    expect(money.earned).toBe(0);
+    expect(money.hint).toBe("Not discussed");
+  });
+
+  it("no shared costs toggled → Money is done", () => {
+    const items = computePlanningItems({ ...NEW_TRIP, noSharedCosts: true });
+    const money = items.find((i) => i.key === "money")!;
+    expect(money.status).toBe("done");
+    expect(money.hint).toBe("No shared costs");
+  });
+
+  it("shared costs exist but unsettled → todo (Outstanding)", () => {
+    const items = computePlanningItems({ ...FULL, hasSharedCosts: true, myNetCents: 4200, settlementsCount: 0 });
+    const money = items.find((i) => i.key === "money")!;
+    expect(money.status).toBe("todo");
+    expect(money.hint).toBe("Outstanding");
+  });
+
+  it("shared costs with partial settlements → partial", () => {
+    const items = computePlanningItems({ ...FULL, hasSharedCosts: true, myNetCents: 4200, settlementsCount: 1 });
+    const money = items.find((i) => i.key === "money")!;
+    expect(money.status).toBe("partial");
+    expect(money.earned).toBe(10);
+  });
+
+  it("dates: both set but unlocked is only partial credit", () => {
+    const items = computePlanningItems({ ...NEW_TRIP, startDate: "2026-07-01", endDate: "2026-07-08", datesLocked: false });
+    const dates = items.find((i) => i.key === "dates")!;
+    expect(dates.status).toBe("partial");
+    expect(dates.earned).toBe(7);
+    expect(dates.hint).toMatch(/lock/i);
+  });
+
+  it("dates: locked earns full credit", () => {
+    const items = computePlanningItems({ ...NEW_TRIP, startDate: "2026-07-01", endDate: "2026-07-08", datesLocked: true });
+    const dates = items.find((i) => i.key === "dates")!;
+    expect(dates.status).toBe("done");
+    expect(dates.earned).toBe(15);
+  });
+
+  it("dates: only one date set → minimal credit", () => {
+    const items = computePlanningItems({ ...NEW_TRIP, startDate: "2026-07-01", endDate: null });
+    const dates = items.find((i) => i.key === "dates")!;
+    expect(dates.earned).toBe(3);
+    expect(dates.status).toBe("partial");
+  });
+
+  it("people: confirmations scale to headcount", () => {
+    const items = computePlanningItems({ ...FULL, confirmedCount: 2, headcount: 4 });
+    const people = items.find((i) => i.key === "people")!;
+    expect(people.earned).toBe(8);
+    expect(people.status).toBe("partial");
+    expect(people.hint).toBe("2 / 4 confirmed");
+  });
+
+  it("travel: per-member opt-out counts toward done", () => {
+    const items = computePlanningItems({ ...FULL, memberCount: 4, travelHandledCount: 4 });
+    const travel = items.find((i) => i.key === "travel")!;
+    expect(travel.status).toBe("done");
+    expect(travel.hint).toBe("4 / 4 handled");
+  });
+
+  it("travel: partial handling earns proportional credit", () => {
+    const items = computePlanningItems({ ...FULL, memberCount: 4, travelHandledCount: 2 });
+    const travel = items.find((i) => i.key === "travel")!;
+    expect(travel.earned).toBe(Math.round((2 / 4) * 25));
+    expect(travel.status).toBe("partial");
+  });
+
+  it("stay: opt-out earns full credit even with zero stays", () => {
+    const items = computePlanningItems({ ...NEW_TRIP, stayNotNeeded: true });
+    const stay = items.find((i) => i.key === "stay")!;
+    expect(stay.status).toBe("done");
+    expect(stay.hint).toBe("Not needed");
+  });
+
+  it("fully ready trip scores 100", () => {
+    expect(computeWeightedScore(computePlanningItems(FULL)).pct).toBe(100);
+    expect(nextBestAction(computePlanningItems(FULL))).toBeNull();
+  });
+
+  it("brand-new trip scores only Destination's 10", () => {
+    const items = computePlanningItems(NEW_TRIP);
+    const { earned, pct } = computeWeightedScore(items);
+    // Destination 10 + People partial (1/4 of 15 = 4) = ~14
     expect(earned).toBeGreaterThanOrEqual(10);
     expect(earned).toBeLessThan(20);
     expect(pct).toBe(earned);
   });
 
-  it("fully planned trip scores 100 and has no pending items", () => {
+  it("nextBestAction picks the highest-impact pending item", () => {
+    // Missing Travel (25) and Money (20) — Travel wins
+    const items = computePlanningItems({ ...FULL, travelHandledCount: 0, noSharedCosts: false, hasSharedCosts: false });
+    expect(nextBestAction(items)?.key).toBe("travel");
+  });
+
+  it("labels match the commitment frame", () => {
     const items = computePlanningItems(FULL);
-    const score = computeWeightedScore(items);
-    expect(score.pct).toBe(100);
-    expect(pendingPlanningItems(items)).toHaveLength(0);
-    expect(nextBestAction(items)).toBeNull();
+    expect(items.map((i) => i.label)).toEqual([
+      "Destination picked",
+      "Dates locked",
+      "People confirmed",
+      "Stay handled",
+      "Travel handled",
+      "Money handled",
+    ]);
   });
 
-  it("partial flights award proportional points", () => {
-    const items = computePlanningItems({ ...FULL, flightsBooked: 2 });
-    const flights = items.find((i) => i.key === "flights")!;
-    expect(flights.status).toBe("partial");
-    expect(flights.earned).toBe(Math.round((2 / 4) * 25));
-    expect(flights.hint).toBe("2 / 4 booked");
-  });
-
-  it("only one date earns half credit (partial)", () => {
-    const items = computePlanningItems({ ...FULL, startDate: "2026-07-01", endDate: null });
-    const dates = items.find((i) => i.key === "dates")!;
-    expect(dates.status).toBe("partial");
-    expect(dates.earned).toBe(5);
-  });
-
-  it("invites scale by headcount target", () => {
-    const items = computePlanningItems({ ...FULL, memberCount: 2, headcount: 4 });
-    const invites = items.find((i) => i.key === "invites")!;
-    expect(invites.earned).toBe(5);
-    expect(invites.status).toBe("partial");
-  });
-
-  it("balances: settled is done, in-progress settlement is partial, outstanding-no-settlement is todo", () => {
-    const settled = computePlanningItems({ ...FULL, myNetCents: 0 }).find((i) => i.key === "balances")!;
-    expect(settled.status).toBe("done");
-
-    const partial = computePlanningItems({ ...FULL, myNetCents: 4200, settlementsCount: 1 }).find((i) => i.key === "balances")!;
-    expect(partial.status).toBe("partial");
-    expect(partial.earned).toBe(8); // round(15 * 0.5)
-
-    const todo = computePlanningItems({ ...FULL, myNetCents: 4200, settlementsCount: 0 }).find((i) => i.key === "balances")!;
-    expect(todo.status).toBe("todo");
-    expect(todo.earned).toBe(0);
-  });
-
-  it("nextBestAction picks the highest remaining-weight pending item", () => {
-    // Missing only Flights (25) and Activities (15) → Flights wins.
-    const items = computePlanningItems({ ...FULL, flightsBooked: 0, ticketsCount: 0 });
-    expect(nextBestAction(items)?.key).toBe("flights");
-  });
-
-  it("pending list omits fully-earned items", () => {
-    const items = computePlanningItems({ ...FULL, flightsBooked: 0 });
-    expect(labels(pendingPlanningItems(items))).toEqual(["Flights"]);
+  it("pending list excludes fully-earned items", () => {
+    const items = computePlanningItems({ ...FULL, travelHandledCount: 0 });
+    expect(pendingPlanningItems(items).map((i) => i.key)).toEqual(["travel"]);
   });
 });
