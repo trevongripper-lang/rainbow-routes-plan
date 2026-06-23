@@ -11,10 +11,13 @@ export type EventDraft = {
   region: string;
   country: string;
   url: string;
+  source_url: string;
   image_url: string | null;
   tags: string;
   latitude: number | null;
   longitude: number | null;
+  verified: boolean;
+  confidence_notes: string;
 };
 
 async function assertAdmin(ctx: {
@@ -229,10 +232,16 @@ export const extractEventFromUrl = createServerFn({ method: "POST" })
       region: parsed.region || parsed.country || "",
       country: parsed.country || "",
       url: data.url,
+      source_url: data.url,
       image_url: ogImage ?? null,
       tags: parsed.tags || "",
       latitude,
       longitude,
+      verified: false,
+      confidence_notes:
+        latitude != null && longitude != null
+          ? "AI-extracted; coordinates resolved via Mapbox. Verify dates and location before publishing."
+          : "AI-extracted; NO coordinates resolved — event will not match by distance. Add lat/lng before publishing.",
     };
   });
 
@@ -250,9 +259,12 @@ const SaveInput = z.object({
   region: z.string().min(1).max(120),
   country: z.string().min(1).max(120),
   url: z.string().url().max(2000).optional().or(z.literal("")),
+  source_url: z.string().url().max(2000).optional().or(z.literal("")),
   tags: z.string().max(200).optional().default(""),
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
+  verified: z.boolean().optional().default(false),
+  confidence_notes: z.string().max(500).optional().default(""),
 });
 
 export const createEvent = createServerFn({ method: "POST" })
@@ -271,9 +283,12 @@ export const createEvent = createServerFn({ method: "POST" })
         region: data.region,
         country: data.country,
         url: data.url || null,
+        source_url: data.source_url || data.url || null,
         tags: data.tags || null,
         latitude: data.latitude ?? null,
         longitude: data.longitude ?? null,
+        verified: data.verified ?? false,
+        confidence_notes: data.confidence_notes || null,
       })
       .select("id")
       .single();
@@ -287,9 +302,24 @@ export const listAdminEvents = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { data, error } = await context.supabase
       .from("events")
-      .select("id, name, city, country, start_date, end_date, url")
+      .select(
+        "id, name, city, country, start_date, end_date, url, source_url, verified, confidence_notes, latitude, longitude",
+      )
       .order("start_date", { ascending: false })
       .limit(50);
     if (error) throw new Error(error.message);
-    return data ?? [];
+    // Reports count per event (best-effort; ignore failure)
+    const ids = (data ?? []).map((e) => e.id);
+    let reportCounts: Record<string, number> = {};
+    if (ids.length > 0) {
+      const { data: reports } = await context.supabase
+        .from("event_reports")
+        .select("event_id")
+        .in("event_id", ids);
+      reportCounts = (reports ?? []).reduce<Record<string, number>>((acc, r) => {
+        acc[r.event_id] = (acc[r.event_id] ?? 0) + 1;
+        return acc;
+      }, {});
+    }
+    return (data ?? []).map((e) => ({ ...e, reports_count: reportCounts[e.id] ?? 0 }));
   });
