@@ -7,7 +7,7 @@ type BIPEvent = Event & {
 };
 
 const SNOOZE_KEY = "tribe.install.snoozed_until";
-const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const SNOOZE_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 
 // --- platform detection -----------------------------------------------------
 

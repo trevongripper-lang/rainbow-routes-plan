@@ -20,6 +20,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { deleteMyAccount } from "@/lib/account.functions";
+import { InstallAppButton } from "@/components/install-app-banner";
+import { Smartphone } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/me")({
   loader: ({ context }) =>
@@ -108,6 +110,24 @@ function MePage() {
       />
 
       <CreditsPanel />
+
+      <section className="rounded-2xl border border-border/60 bg-card p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Smartphone className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-display text-lg">Install Tribe Trips</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Add to your home screen for a faster, full-screen experience. On iPhone, tap the
+                Share button in Safari → Add to Home Screen → Add.
+              </p>
+            </div>
+          </div>
+          <InstallAppButton />
+        </div>
+      </section>
 
       <section>
         <h2 className="font-display text-2xl">Your pitches</h2>

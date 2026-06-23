@@ -53,6 +53,27 @@ Run each before opening signups:
 - [ ] Android Chrome — install prompt, same flow as iPhone
 - [ ] Desktop Chrome + Safari — full flow including admin console (`/console/*`) if applicable
 
+### How testers install Tribe Trips on iPhone
+
+iOS Safari does **not** show a native install prompt — Apple requires a manual
+flow. Tell testers:
+
+1. Open Tribe Trips in **Safari** (not Chrome or Firefox — iOS only allows
+   Safari to install web apps).
+2. Tap the **Share** button (square with an up arrow) in Safari's bottom
+   toolbar.
+3. Scroll the share sheet and choose **Add to Home Screen**.
+4. Tap **Add** in the top right. The Tribe Trips icon will appear on the home
+   screen and launch full-screen like a native app.
+
+If the install banner at the top of the app was dismissed, the same
+instructions are always available under **Profile → Install Tribe Trips** and
+**Settings → Install app**. The banner re-appears after 14 days.
+
+Android Chrome, Edge, and desktop Chromium browsers show a native install
+prompt via the in-app **Install** button; desktop Safari and Firefox do not
+support installable web apps and the button surfaces a clear message saying so.
+
 If any layout breaks on iPhone-sized widths, the fix usually lives in the responsive header patterns documented in the codebase — see existing trip-detail headers as the reference for `grid-cols-[minmax(0,1fr)_auto]` + `min-w-0` + `shrink-0`.
 
 ## Event accuracy verification
