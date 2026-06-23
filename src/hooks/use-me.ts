@@ -19,10 +19,9 @@ export function useMe() {
         .from("profiles")
         .select("id, display_name, avatar_url, is_pro")
         .eq("id", userId)
-        .eq("id", u.user.id)
         .maybeSingle();
       return (p as MyProfile | null) ?? {
-        id: u.user.id,
+        id: userId,
         display_name: null,
         avatar_url: null,
         is_pro: false,
