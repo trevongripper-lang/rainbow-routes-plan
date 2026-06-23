@@ -89,6 +89,11 @@ function EventsPage() {
   const [region, setRegion] = useState<string>("All");
   const [tripId, setTripId] = useState<string>("all");
 
+  // Default to the user's first upcoming trip so the Attach control is visible.
+  useEffect(() => {
+    if (tripId === "all" && trips.length > 0) setTripId(trips[0].id);
+  }, [trips, tripId]);
+
   const activeTrip = trips.find((t) => t.id === tripId);
 
   const { data: attachedIds = [] } = useQuery({
