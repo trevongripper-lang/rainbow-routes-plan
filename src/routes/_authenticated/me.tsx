@@ -40,7 +40,7 @@ async function fetchMine() {
 
   return {
     profile,
-    user: u.user,
+    user: s.session.user,
     dests: (dests ?? []).map((d) => ({ ...d, votes: counts[d.id] ?? 0 })),
     voted: myVotes ?? [],
     commentCount: myComments?.length ?? 0,
