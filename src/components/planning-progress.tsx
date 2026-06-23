@@ -2,13 +2,17 @@ import { useEffect, useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { netForUser, type CostRow, type SettlementRow } from "@/lib/trip-balances";
-import { computePlanningItems, pendingPlanningItems } from "@/lib/planning-progress";
+import {
+  computePlanningItems,
+  computeWeightedScore,
+  pendingPlanningItems,
+  nextBestAction,
+  type PlanningItem,
+} from "@/lib/planning-progress";
 import { track } from "@/lib/analytics";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CheckCircle2, Circle, AlertCircle } from "lucide-react";
-
-
 
 type Props = {
   destinationId: string;
@@ -59,7 +63,7 @@ export function PlanningProgress({ destinationId, me, startDate, endDate, headco
   const costs = (costsQ.data ?? []) as CostRow[];
   const settlements = (settlementsQ.data ?? []) as SettlementRow[];
 
-  const memberCount = Math.max(members.length, headcountFallback, 1);
+  const memberCount = Math.max(members.length, 1);
   const flightsBooked = flights.filter((f) => f.confirmation && f.confirmation.trim().length > 0).length;
 
   const memberIds = useMemo(() => {
@@ -80,40 +84,45 @@ export function PlanningProgress({ destinationId, me, startDate, endDate, headco
     staysCount: stays.length,
     flightsBooked,
     memberCount,
+    headcount: headcountFallback,
     ticketsCount: tickets.length,
     myNetCents,
+    settlementsCount: settlements.length,
   });
 
-  const doneCount = items.filter((i) => i.status === "done").length;
-  const pct = Math.round((doneCount / items.length) * 100);
+  const { earned, total, pct } = computeWeightedScore(items);
   const remaining = pendingPlanningItems(items);
-
+  const next = nextBestAction(items);
 
   return (
     <PlanningProgressView
       isLoading={isLoading}
       items={items}
-      doneCount={doneCount}
+      earned={earned}
+      total={total}
       pct={pct}
       remaining={remaining}
+      next={next}
     />
   );
 }
 
 export type PlanningProgressViewProps = {
   isLoading: boolean;
-  items: ReturnType<typeof computePlanningItems>;
-  doneCount: number;
+  items: PlanningItem[];
+  earned: number;
+  total: number;
   pct: number;
-  remaining: ReturnType<typeof pendingPlanningItems>;
+  remaining: PlanningItem[];
+  next: PlanningItem | null;
 };
 
-export function PlanningProgressView({ isLoading, items, doneCount, pct, remaining }: PlanningProgressViewProps) {
+export function PlanningProgressView({ isLoading, items, earned, total, pct, remaining, next }: PlanningProgressViewProps) {
   const summary = isLoading
     ? "Planning progress: loading"
     : remaining.length === 0
-    ? `Planning progress: complete, ${doneCount} of ${items.length} done`
-    : `Planning progress: ${doneCount} of ${items.length} done, ${remaining.length} pending — ${remaining
+    ? `Planning progress: complete, ${earned} of ${total} points`
+    : `Planning progress: ${pct} percent, ${earned} of ${total} points, ${remaining.length} pending — ${remaining
         .map((r) => `${r.label} ${r.hint.toLowerCase()}`)
         .join(", ")}`;
 
@@ -129,7 +138,7 @@ export function PlanningProgressView({ isLoading, items, doneCount, pct, remaini
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="text-xs font-medium text-foreground">Planning progress</h2>
               <span className="text-[11px] tabular-nums text-muted-foreground" aria-hidden="true">
-                {isLoading ? "…" : `${doneCount} / ${items.length} · ${pct}%`}
+                {isLoading ? "…" : `${pct}%`}
               </span>
             </div>
             <Progress
@@ -139,7 +148,6 @@ export function PlanningProgressView({ isLoading, items, doneCount, pct, remaini
               className="mt-1.5 h-1"
             />
           </button>
-
         </TooltipTrigger>
         <TooltipContent side="bottom" align="start" className="max-w-xs border-green-900/30 bg-green-950 p-3 text-green-50 shadow-lg">
           {isLoading ? (
@@ -150,7 +158,7 @@ export function PlanningProgressView({ isLoading, items, doneCount, pct, remaini
               <span>Everything's planned. Nice work.</span>
             </div>
           ) : (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <p className="text-xs font-medium" id="planning-progress-pending-heading">
                 Still to do
               </p>
@@ -166,10 +174,18 @@ export function PlanningProgressView({ isLoading, items, doneCount, pct, remaini
                         <span aria-hidden="true">· </span>
                         {i.hint}
                       </span>
+                      <span className="ml-auto tabular-nums text-[10px] text-muted-foreground" aria-hidden="true">
+                        {i.earned}/{i.weight}
+                      </span>
                     </li>
                   );
                 })}
               </ul>
+              {next && (
+                <p className="border-t border-green-900/30 pt-1.5 text-[11px] text-green-200">
+                  Next best action: <span className="font-medium">{next.label}</span> (+{next.weight - next.earned})
+                </p>
+              )}
             </div>
           )}
         </TooltipContent>
@@ -177,4 +193,3 @@ export function PlanningProgressView({ isLoading, items, doneCount, pct, remaini
     </TooltipProvider>
   );
 }
-
