@@ -85,8 +85,8 @@ describe("PlanningProgressView accessibility", () => {
   it("summary surfaces pending items in aria-label", () => {
     render(view(PARTIAL));
     const label = screen.getByRole("button").getAttribute("aria-label") ?? "";
-    expect(label.toLowerCase()).toContain("dates set");
-    expect(label.toLowerCase()).toContain("money not discussed");
+    expect(label.toLowerCase()).toContain("dates locked set");
+    expect(label.toLowerCase()).toContain("money handled not discussed");
   });
 
   it("announces ready when nothing is pending", () => {
