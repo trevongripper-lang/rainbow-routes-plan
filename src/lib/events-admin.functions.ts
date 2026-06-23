@@ -11,10 +11,13 @@ export type EventDraft = {
   region: string;
   country: string;
   url: string;
+  source_url: string;
   image_url: string | null;
   tags: string;
   latitude: number | null;
   longitude: number | null;
+  verified: boolean;
+  confidence_notes: string;
 };
 
 async function assertAdmin(ctx: {
