@@ -8,7 +8,7 @@ import { formatDistanceToNow } from "date-fns";
 
 type Notif = {
   id: string;
-  destination_id: string;
+  destination_id: string | null;
   kind: string;
   payload: Record<string, unknown> | null;
   read_at: string | null;
@@ -24,6 +24,7 @@ const KIND_LABEL: Record<string, string> = {
   event_added: "new event",
   trip_closed: "trip closed — rate it",
   settlement_recorded: "settlement recorded",
+  welcome: "welcome",
 };
 
 const KIND_TAB: Record<string, string> = {
