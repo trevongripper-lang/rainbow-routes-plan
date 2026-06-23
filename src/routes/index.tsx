@@ -21,8 +21,8 @@ import { Reveal } from "@/components/reveal";
 export const Route = createFileRoute("/")({
   ssr: false,
   beforeLoad: async () => {
-    const { data } = await supabase.auth.getUser();
-    if (data.user) throw redirect({ to: "/trips" });
+    const { data } = await supabase.auth.getSession();
+    if (data.session) throw redirect({ to: "/trips" });
   },
   component: Landing,
 });
