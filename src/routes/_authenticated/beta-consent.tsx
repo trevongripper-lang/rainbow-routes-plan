@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { recordBetaConsent } from "@/lib/beta-consent";
+import { recordBetaConsent, BETA_CONSENT_VERSION } from "@/lib/beta-consent";
+import { track } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_authenticated/beta-consent")({
   component: BetaConsentPage,
