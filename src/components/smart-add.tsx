@@ -194,6 +194,7 @@ export function SmartAdd({ destinationId, me }: { destinationId: string; me: str
       toast.success("Added to trip");
       setText("");
       setDraft(null);
+      setAddToCosts(false);
       qc.invalidateQueries({ queryKey: ["stays", destinationId] });
       qc.invalidateQueries({ queryKey: ["tickets", destinationId] });
       qc.invalidateQueries({ queryKey: ["costs", destinationId] });
