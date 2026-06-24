@@ -152,7 +152,8 @@ export function RlsDebugPanel() {
     <>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-4 right-4 z-[60] flex items-center gap-2 rounded-full border border-border bg-card/90 px-3 py-2 text-xs shadow-lg backdrop-blur hover:border-primary/50"
+        className="fixed right-4 z-[60] flex items-center gap-2 rounded-full border border-border bg-card/90 px-3 py-2 text-xs shadow-lg backdrop-blur hover:border-primary/50"
+        style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
         title="RLS / auth debug panel"
       >
         <Bug className="size-4" />
@@ -165,7 +166,10 @@ export function RlsDebugPanel() {
       </button>
 
       {open && (
-        <div className="fixed bottom-16 right-4 z-[60] flex max-h-[70vh] w-[min(560px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+        <div
+          className="fixed right-4 z-[60] flex max-h-[70vh] w-[min(560px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+          style={{ bottom: "calc(max(1rem, env(safe-area-inset-bottom)) + 3rem)" }}
+        >
           <header className="flex items-center justify-between border-b border-border px-3 py-2">
             <div className="flex items-center gap-2 text-sm">
               <Bug className="size-4 text-primary" />
