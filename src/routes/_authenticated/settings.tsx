@@ -59,9 +59,7 @@ function SettingsPage() {
       <header className="flex items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl">Settings</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            App, account and beta info.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">App, account and beta info.</p>
         </div>
         <span
           className="shrink-0 rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground"
@@ -134,17 +132,9 @@ function SettingsPage() {
 
       {/* Legal */}
       <section className="rounded-2xl border border-border/60 bg-card p-2">
-        <SettingsRow
-          to="/privacy"
-          icon={<FileText className="size-5" />}
-          title="Privacy Policy"
-        />
+        <SettingsRow to="/privacy" icon={<FileText className="size-5" />} title="Privacy Policy" />
         <Divider />
-        <SettingsRow
-          to="/terms"
-          icon={<FileText className="size-5" />}
-          title="Terms of Service"
-        />
+        <SettingsRow to="/terms" icon={<FileText className="size-5" />} title="Terms of Service" />
       </section>
 
       {/* Support */}
@@ -224,10 +214,7 @@ function SettingsRow({
   subtitle?: string;
 }) {
   return (
-    <Link
-      to={to}
-      className="flex items-center gap-3 rounded-xl p-4 transition hover:bg-muted/40"
-    >
+    <Link to={to} className="flex items-center gap-3 rounded-xl p-4 transition hover:bg-muted/40">
       <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
         {icon}
       </div>

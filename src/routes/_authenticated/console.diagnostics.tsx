@@ -33,10 +33,7 @@ export const Route = createFileRoute("/_authenticated/console/diagnostics")({
     if (!data) throw notFound();
   },
   head: () => ({
-    meta: [
-      { name: "robots", content: "noindex, nofollow" },
-      { title: "Diagnostics — Console" },
-    ],
+    meta: [{ name: "robots", content: "noindex, nofollow" }, { title: "Diagnostics — Console" }],
   }),
   component: DiagnosticsPage,
 });
