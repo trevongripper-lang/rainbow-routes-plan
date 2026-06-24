@@ -54,7 +54,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-import { hasBetaConsentLocal, hasBetaConsentRemote, BETA_CONSENT_VERSION } from "@/lib/beta-consent";
+import {
+  hasBetaConsentLocal,
+  hasBetaConsentRemote,
+  BETA_CONSENT_VERSION,
+} from "@/lib/beta-consent";
 import { noteRedirect, clearRedirectTrace } from "@/lib/redirect-guard";
 import { track } from "@/lib/analytics";
 
@@ -94,7 +98,6 @@ function AppShell() {
     clearRedirectTrace();
     navigate({ to: "/auth", replace: true });
   }
-
 
   const navItems = [
     { to: "/events", label: "Events", icon: CalendarDays },

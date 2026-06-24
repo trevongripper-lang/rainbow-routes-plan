@@ -184,7 +184,8 @@ function RootComponent() {
       startedPath = path;
     });
 
-    const onOffline = () => toast.warning("You're offline. Some actions may not save until you reconnect.");
+    const onOffline = () =>
+      toast.warning("You're offline. Some actions may not save until you reconnect.");
     const onOnline = () => toast.success("Back online.");
     window.addEventListener("offline", onOffline);
     window.addEventListener("online", onOnline);
@@ -204,4 +205,3 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
-

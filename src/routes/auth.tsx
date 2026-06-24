@@ -125,7 +125,9 @@ function AuthPage() {
         redirect_uri: window.location.origin + "/trips",
       });
       if (result.error) {
-        track("google_signin_failed", { message: result.error.message?.slice(0, 140) ?? "unknown" });
+        track("google_signin_failed", {
+          message: result.error.message?.slice(0, 140) ?? "unknown",
+        });
         toast.error(result.error.message ?? "Google sign-in failed");
         return;
       }
@@ -142,7 +144,6 @@ function AuthPage() {
       setLoading(false);
     }
   }
-
 
   return (
     <div
