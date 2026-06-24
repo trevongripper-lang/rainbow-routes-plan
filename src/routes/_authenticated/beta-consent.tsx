@@ -53,6 +53,9 @@ const checks: { key: CheckKey; label: string }[] = [
 
 function BetaConsentPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
+  const nextPath = safeNext(search.next);
+
   const [state, setState] = useState<Record<CheckKey, boolean>>({
     age: false,
     beta: false,
