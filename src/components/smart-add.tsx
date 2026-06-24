@@ -122,16 +122,37 @@ export function SmartAdd({ destinationId, me }: { destinationId: string; me: str
         return "stays";
       }
       if (draft.kind === "ticket") {
-        const { error } = await supabase.from("trip_tickets").insert({
-          destination_id: destinationId,
-          user_id: me,
-          name: draft.title || "Ticket",
-          url,
-          price_cents: cents,
-          currency: draft.currency || "USD",
-          notes: draft.description || null,
-        });
+        const { data: inserted, error } = await supabase
+          .from("trip_tickets")
+          .insert({
+            destination_id: destinationId,
+            user_id: me,
+            name: draft.title || "Ticket",
+            url,
+            price_cents: cents,
+            currency: draft.currency || "USD",
+            notes: draft.description || null,
+          })
+          .select("id")
+          .single();
         if (error) throw error;
+        if (addToCosts && inserted?.id) {
+          const { buildTicketAutoCost, insertAutoCost } = await import("@/lib/auto-cost");
+          const row = buildTicketAutoCost({
+            destinationId,
+            me,
+            ticketId: inserted.id,
+            name: draft.title || "Ticket",
+            priceCents: cents,
+            currency: draft.currency || "USD",
+          });
+          if (row) {
+            const r = await insertAutoCost(supabase, row);
+            if (!r.ok) {
+              toast.message("Saved, but we couldn't add it to Costs. You can add it manually.");
+            }
+          }
+        }
         return "tickets";
       }
       if (draft.kind === "cost") {
