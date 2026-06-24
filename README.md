@@ -37,6 +37,23 @@ This is a **web app** that also installs to a phone home screen as a PWA. No App
 
 ---
 
+## Beta testing notes
+
+Tribe Trips is in a **private beta**. A few things testers should know:
+
+- **U.S.-only preferred** for the first wave (timezone / payments / events coverage).
+- **Testers must be 18+** — confirmed at the in-app `/beta-consent` screen on first sign-in.
+- **Screen recordings, voice narration, and written feedback are reviewed by the founder
+  and a small group of analysts** — and only with the tester's explicit consent.
+- **Payments are sandbox / test-only** during beta. No real cards are charged.
+- **Do not enter sensitive information** (payment cards, passport details, real
+  confirmation numbers, private addresses, health information). Use placeholders.
+- **Retention:** beta feedback and recordings are kept up to 6 months and then deleted.
+- **Deletion requests:** email `hello@tgklabs.io`.
+
+Full tester onboarding lives in [`BETA_TESTER_INSTRUCTIONS.md`](./BETA_TESTER_INSTRUCTIONS.md).
+
+
 ## Running locally
 
 Requires [Bun](https://bun.sh) ≥ 1.1.
