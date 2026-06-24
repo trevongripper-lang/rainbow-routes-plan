@@ -186,6 +186,7 @@ function SettingsPage() {
         <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-2">
           <SettingsRow
             to="/console/diagnostics"
+            testId="settings-link-diagnostics"
             icon={<Wrench className="size-5" />}
             title="Diagnostics (admin)"
             subtitle="Integrations, RLS smoke tests, webhooks"
@@ -196,8 +197,10 @@ function SettingsPage() {
       {/* Sign out */}
       <section className="rounded-2xl border border-border/60 bg-card p-2">
         <button
+          type="button"
+          data-testid="settings-sign-out"
           onClick={signOut}
-          className="flex w-full items-center gap-3 rounded-xl p-4 text-left text-destructive transition hover:bg-destructive/5"
+          className="flex w-full items-center gap-3 rounded-xl p-4 text-left text-destructive transition hover:bg-destructive/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40"
         >
           <div className="flex size-10 items-center justify-center rounded-xl bg-destructive/10">
             <LogOut className="size-5" />
