@@ -29,8 +29,10 @@ Please tick each before testing:
 ## What we'd love you to try
 
 1. Sign up and complete the consent screen.
-2. Create a trip, invite a friend (or a second test account), and play with
-   destinations / votes / chat.
+2. Create a trip, then **invite someone by copying the invite link and
+   sending it to them manually** (text, email, WhatsApp, group chat —
+   whatever you'd normally use). Tribe Trips does not email trip invites
+   automatically during beta. Play with destinations / votes / chat.
 3. Add a flight, a stay, a couple of costs, then settle up.
 4. Install Tribe Trips to your phone's home screen (see below) and repeat the
    same flow as a PWA.
