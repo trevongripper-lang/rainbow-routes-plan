@@ -4,9 +4,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { recordBetaConsent, BETA_CONSENT_VERSION } from "@/lib/beta-consent";
 import { track } from "@/lib/analytics";
 
+type BetaConsentSearch = { next?: string; reason?: string };
+
+function safeNext(next: string | undefined): string {
+  // Only allow same-origin absolute paths, never another URL.
+  if (!next || typeof next !== "string") return "/trips";
+  if (!next.startsWith("/") || next.startsWith("//")) return "/trips";
+  if (next === "/beta-consent" || next.startsWith("/auth")) return "/trips";
+  return next;
+}
+
 export const Route = createFileRoute("/_authenticated/beta-consent")({
+  validateSearch: (search: Record<string, unknown>): BetaConsentSearch => ({
+    next: typeof search.next === "string" ? search.next : undefined,
+    reason: typeof search.reason === "string" ? search.reason : undefined,
+  }),
   component: BetaConsentPage,
 });
+
 
 type CheckKey = "age" | "beta" | "payments" | "sensitive" | "review" | "stop" | "retention";
 
