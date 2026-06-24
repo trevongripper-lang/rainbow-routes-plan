@@ -41,12 +41,12 @@ function SettingsPage() {
   const userId = me.data ?? null;
 
   const isAdmin = useQuery({
-    queryKey: ["me", "is-admin", userId],
-    enabled: !!userId,
+    queryKey: ["me", "is-admin"],
     queryFn: async () => {
-      if (!userId) return false;
+      const { data: s } = await supabase.auth.getSession();
+      if (!s.session) return false;
       const { data } = await supabase.rpc("has_role", {
-        _user_id: userId,
+        _user_id: s.session.user.id,
         _role: "admin",
       });
       return !!data;
@@ -64,6 +64,7 @@ function SettingsPage() {
 
   const consented =
     typeof window !== "undefined" && userId ? hasBetaConsentLocal(userId) : true;
+
 
 
   return (
