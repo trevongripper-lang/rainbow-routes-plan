@@ -9,9 +9,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy, Link as LinkIcon, Mail, UserPlus, Check, Trash2 } from "lucide-react";
+import { Copy, Link as LinkIcon, Share2, UserPlus, Check, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function InviteModal({
@@ -23,8 +22,8 @@ export function InviteModal({
 }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState("");
   const [copied, setCopied] = useState(false);
+  const [lastUrl, setLastUrl] = useState<string | null>(null);
 
   const { data: members = [] } = useQuery({
     queryKey: ["trip-members", destinationId],
@@ -43,15 +42,16 @@ export function InviteModal({
       return (rows ?? []).map((r) => ({ ...r, profile: pmap.get(r.user_id) }));
     },
     enabled: open,
+    refetchOnWindowFocus: true,
   });
 
   const createInvite = useMutation({
-    mutationFn: async (forEmail: string | null) => {
+    mutationFn: async () => {
       const { data: s } = await supabase.auth.getSession();
       if (!s.session) throw new Error("Sign in required");
       const { data, error } = await supabase
         .from("trip_invites")
-        .insert({ destination_id: destinationId, invited_by: s.session.user.id, email: forEmail })
+        .insert({ destination_id: destinationId, invited_by: s.session.user.id, email: null })
         .select("token")
         .single();
       if (error) throw error;
@@ -62,33 +62,47 @@ export function InviteModal({
   const inviteLinkFor = (token: string) =>
     `${typeof window !== "undefined" ? window.location.origin : ""}/join/${token}`;
 
-  const onCopyLink = async () => {
-    const token = await createInvite.mutateAsync(null);
+  const ensureLink = async () => {
+    if (lastUrl) return lastUrl;
+    const token = await createInvite.mutateAsync();
     const url = inviteLinkFor(token);
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    toast.success("Invite link copied");
-    setTimeout(() => setCopied(false), 1500);
+    setLastUrl(url);
+    return url;
   };
 
-  const onEmailInvite = async () => {
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed.includes("@")) {
-      toast.error("Enter a valid email");
-      return;
+  const onCopyLink = async () => {
+    try {
+      const url = await ensureLink();
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      toast.success("Invite link copied — paste it into your group chat");
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't copy link");
     }
-    const token = await createInvite.mutateAsync(trimmed);
-    const url = inviteLinkFor(token);
-    await navigator.clipboard.writeText(url);
-    setEmail("");
-    qc.invalidateQueries({ queryKey: ["trip-members", destinationId] });
-    toast.success(
-      `Invite for ${trimmed} created — link copied. Email sending will activate once your email domain is verified.`,
-    );
+  };
+
+  const canShare =
+    typeof navigator !== "undefined" && typeof navigator.share === "function";
+
+  const onNativeShare = async () => {
+    try {
+      const url = await ensureLink();
+      await navigator.share({
+        title: "Join my trip on Tribe Trips",
+        text: "I'm planning a trip on Tribe Trips — join me!",
+        url,
+      });
+    } catch (e) {
+      // user-cancelled share throws AbortError; ignore
+      if (e instanceof Error && e.name !== "AbortError") {
+        toast.error(e.message);
+      }
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setLastUrl(null); }}>
       <DialogTrigger asChild>
         <Button variant="secondary" size="sm" className="gap-1.5">
           <UserPlus className="size-4" /> Invite
@@ -100,50 +114,47 @@ export function InviteModal({
         </DialogHeader>
 
         <div className="space-y-5">
-          <div>
-            <p className="text-sm text-foreground/90">
-              Get your tribe out of the text thread and off to the next adventure.
-            </p>
-            <Label className="mt-3 block text-xs">Shareable link</Label>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Anyone signed in with this link can join.
-            </p>
-            <Button
-              onClick={onCopyLink}
-              disabled={createInvite.isPending}
-              variant="outline"
-              className="mt-2 w-full justify-start gap-2"
-            >
-              {copied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
-              {copied ? "Copied!" : "Create & copy invite link"}
-            </Button>
+          <div className="rounded-md border border-border/60 bg-background/40 p-3 text-xs text-muted-foreground">
+            Copy this invite link and send it to your friends by text, email, WhatsApp, or group
+            chat. Tribe Trips does not email trip invites automatically yet.
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs flex items-center gap-1.5">
-              <Mail className="size-3" /> Invite by email
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="friend@example.com"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") onEmailInvite();
-                }}
-              />
-              <Button
-                onClick={onEmailInvite}
-                disabled={createInvite.isPending || !email.includes("@")}
-              >
-                Send
-              </Button>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Creates an invite link and copies it. Email delivery activates once a verified sender
-              domain is configured.
+            <Label className="text-xs">Shareable invite link</Label>
+            <p className="text-xs text-muted-foreground">
+              Anyone with this link can join after signing in or creating an account.
             </p>
+            <div className="flex gap-2">
+              <Button
+                onClick={onCopyLink}
+                disabled={createInvite.isPending}
+                variant="outline"
+                className="flex-1 justify-start gap-2"
+              >
+                {copied ? (
+                  <Check className="size-4 text-emerald-400" />
+                ) : (
+                  <Copy className="size-4" />
+                )}
+                {copied ? "Copied!" : lastUrl ? "Copy link again" : "Create & copy invite link"}
+              </Button>
+              {canShare && (
+                <Button
+                  onClick={onNativeShare}
+                  disabled={createInvite.isPending}
+                  variant="outline"
+                  size="icon"
+                  aria-label="Share invite link"
+                >
+                  <Share2 className="size-4" />
+                </Button>
+              )}
+            </div>
+            {lastUrl && (
+              <p className="break-all rounded bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground">
+                {lastUrl}
+              </p>
+            )}
           </div>
 
           <div>
