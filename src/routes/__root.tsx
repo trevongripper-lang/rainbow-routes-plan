@@ -12,7 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
 import { RlsDebugPanel } from "@/components/rls-debug-panel";
 import { InstallAppBanner } from "@/components/install-app-banner";
 
