@@ -133,9 +133,19 @@ function SettingsPage() {
 
       {/* Legal */}
       <section className="rounded-2xl border border-border/60 bg-card p-2">
-        <SettingsRow to="/privacy" icon={<FileText className="size-5" />} title="Privacy Policy" />
+        <SettingsRow
+          to="/privacy"
+          testId="settings-link-privacy"
+          icon={<FileText className="size-5" />}
+          title="Privacy Policy"
+        />
         <Divider />
-        <SettingsRow to="/terms" icon={<FileText className="size-5" />} title="Terms of Service" />
+        <SettingsRow
+          to="/terms"
+          testId="settings-link-terms"
+          icon={<FileText className="size-5" />}
+          title="Terms of Service"
+        />
       </section>
 
       {/* Support */}
