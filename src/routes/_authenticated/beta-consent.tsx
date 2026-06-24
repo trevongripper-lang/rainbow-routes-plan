@@ -22,7 +22,6 @@ export const Route = createFileRoute("/_authenticated/beta-consent")({
   component: BetaConsentPage,
 });
 
-
 type CheckKey = "age" | "beta" | "payments" | "sensitive" | "review" | "stop" | "retention";
 
 const checks: { key: CheckKey; label: string }[] = [

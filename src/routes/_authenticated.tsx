@@ -108,7 +108,6 @@ export const Route = createFileRoute("/_authenticated")({
   component: AppShell,
 });
 
-
 function AppShell() {
   const navigate = useNavigate();
   const qc = useQueryClient();

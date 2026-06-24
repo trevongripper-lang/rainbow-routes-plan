@@ -114,7 +114,6 @@ describe("Settings page", () => {
     await waitFor(() => expect(screen.getByText(/consent on file/i)).toBeInTheDocument());
   });
 
-
   it("hides the admin diagnostics link for non-admins", async () => {
     renderPage();
     await waitFor(() => expect(rpcMock).not.toHaveBeenCalled());

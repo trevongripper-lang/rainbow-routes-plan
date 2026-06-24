@@ -62,10 +62,7 @@ function SettingsPage() {
     window.location.assign("/auth");
   }
 
-  const consented =
-    typeof window !== "undefined" && userId ? hasBetaConsentLocal(userId) : true;
-
-
+  const consented = typeof window !== "undefined" && userId ? hasBetaConsentLocal(userId) : true;
 
   return (
     <div className="space-y-8">
