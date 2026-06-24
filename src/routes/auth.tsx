@@ -65,6 +65,7 @@ function AuthPage() {
     try {
       if (mode === "signup") {
         if (!(await guard("signup", email))) return;
+        track("signup_started");
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -74,15 +75,21 @@ function AuthPage() {
           },
         });
         if (error) throw error;
+        track("signup_confirmation_required");
         toast.success("Check your email to confirm, then sign in.");
         setMode("signin");
       } else {
         if (!(await guard("login", email))) return;
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        track("signin_succeeded", { method: "password" });
         navigate({ to: "/trips" });
       }
     } catch (err) {
+      track("signin_failed", {
+        method: mode === "signup" ? "signup" : "password",
+        message: err instanceof Error ? err.message.slice(0, 140) : "unknown",
+      });
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
@@ -112,23 +119,29 @@ function AuthPage() {
   async function handleGoogle() {
     setLoading(true);
     try {
+      track("google_signin_started");
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin + "/trips",
       });
       if (result.error) {
+        track("google_signin_failed", { message: result.error.message?.slice(0, 140) ?? "unknown" });
         toast.error(result.error.message ?? "Google sign-in failed");
         return;
       }
       if (result.redirected) return; // browser is navigating away
       // Session is set; the onAuthStateChange listener above will navigate.
-      // Fallback navigation in case the event already fired before mount.
+      track("signin_succeeded", { method: "google" });
       navigate({ to: "/trips", replace: true });
     } catch (err) {
+      track("google_signin_failed", {
+        message: err instanceof Error ? err.message.slice(0, 140) : "unknown",
+      });
       toast.error(err instanceof Error ? err.message : "Google sign-in failed");
     } finally {
       setLoading(false);
     }
   }
+
 
   return (
     <div
