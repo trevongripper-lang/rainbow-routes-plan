@@ -21,6 +21,7 @@ import { lookupFlight } from "@/lib/flight-lookup.functions";
 import { runRlsSmokeTests, type SmokeCheck } from "@/lib/rls-smoke.functions";
 import { InstallAppButton } from "@/components/install-app-banner";
 import { Smartphone } from "lucide-react";
+import { BETA_CONSENT_VERSION } from "@/lib/beta-consent";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
