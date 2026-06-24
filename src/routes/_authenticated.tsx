@@ -54,11 +54,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-import {
-  hasBetaConsentLocal,
-  hasBetaConsentRemote,
-  BETA_CONSENT_VERSION,
-} from "@/lib/beta-consent";
+import { checkBetaConsent, BETA_CONSENT_VERSION } from "@/lib/beta-consent";
 import { noteRedirect, clearRedirectTrace } from "@/lib/redirect-guard";
 import { track } from "@/lib/analytics";
 
@@ -71,11 +67,39 @@ export const Route = createFileRoute("/_authenticated")({
       throw redirect({ to: "/auth" });
     }
     if (location.pathname !== "/beta-consent") {
-      const ok = hasBetaConsentLocal() || (await hasBetaConsentRemote(data.user.id));
-      if (!ok) {
-        track("consent_required", { route: location.pathname, version: BETA_CONSENT_VERSION });
+      track("consent_check_started", {
+        route: location.pathname,
+        version: BETA_CONSENT_VERSION,
+      });
+      // Authoritative DB check — never trust localStorage as a bypass.
+      // A previous tester on the same browser must not satisfy a new
+      // user's gate, and a version bump must force re-consent.
+      const status = await checkBetaConsent(data.user.id);
+      if (status === "current") {
+        track("consent_current", { route: location.pathname, version: BETA_CONSENT_VERSION });
+      } else {
+        if (status === "missing") {
+          track("consent_missing", {
+            route: location.pathname,
+            version: BETA_CONSENT_VERSION,
+          });
+        } else {
+          // Fail closed on lookup failure — never silently allow access.
+          track("consent_check_failed", {
+            route: location.pathname,
+            version: BETA_CONSENT_VERSION,
+          });
+        }
+        track("consent_redirect_to_beta_consent", {
+          route: location.pathname,
+          status,
+          version: BETA_CONSENT_VERSION,
+        });
         if (noteRedirect(location.pathname, "/beta-consent")) throw redirect({ to: "/recover" });
-        throw redirect({ to: "/beta-consent" });
+        throw redirect({
+          to: "/beta-consent",
+          search: { next: location.pathname, reason: status },
+        });
       }
     }
     clearRedirectTrace();
@@ -83,6 +107,7 @@ export const Route = createFileRoute("/_authenticated")({
   },
   component: AppShell,
 });
+
 
 function AppShell() {
   const navigate = useNavigate();
