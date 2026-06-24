@@ -12,12 +12,12 @@ import { EmailChangeEmail } from '@/lib/email-templates/email-change'
 import { ReauthenticationEmail } from '@/lib/email-templates/reauthentication'
 
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'Confirm your email',
-  invite: "You've been invited",
-  magiclink: 'Your login link',
-  recovery: 'Reset your password',
-  email_change: 'Confirm your new email',
-  reauthentication: 'Your verification code',
+  signup: 'Confirm your Tribe Trips account',
+  invite: "You've been invited to Tribe Trips",
+  magiclink: 'Your Tribe Trips login link',
+  recovery: 'Reset your Tribe Trips password',
+  email_change: 'Confirm your new Tribe Trips email',
+  reauthentication: 'Your Tribe Trips verification code',
 }
 
 // Template mapping
