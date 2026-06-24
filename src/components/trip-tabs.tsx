@@ -609,7 +609,15 @@ export function TicketsTab({ destinationId, me }: { destinationId: string; me: s
             />
           </div>
         </div>
-        <div className="mt-3 flex justify-end">
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Checkbox
+              checked={addToCosts}
+              onCheckedChange={(v) => setAddToCosts(v === true)}
+              aria-label="Add this to trip costs"
+            />
+            Add this to trip costs
+          </label>
           <Button onClick={() => add.mutate()} disabled={add.isPending || !form.name.trim()}>
             <Plus className="mr-1 size-4" />
             Add ticket
