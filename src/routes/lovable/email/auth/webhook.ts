@@ -25,20 +25,20 @@ function redactEmail(email: string | null | undefined): string {
   return `${localPart[0]}***@${domain}`
 }
 
-async function loadTemplate(emailType: string) {
+async function loadTemplate(emailType: string): Promise<React.ComponentType<any> | null> {
   switch (emailType) {
     case 'signup':
-      return (await import('@/lib/email-templates/signup')).SignupEmail
+      return (await import('@/lib/email-templates/signup')).SignupEmail as React.ComponentType<any>
     case 'invite':
-      return (await import('@/lib/email-templates/invite')).InviteEmail
+      return (await import('@/lib/email-templates/invite')).InviteEmail as React.ComponentType<any>
     case 'magiclink':
-      return (await import('@/lib/email-templates/magic-link')).MagicLinkEmail
+      return (await import('@/lib/email-templates/magic-link')).MagicLinkEmail as React.ComponentType<any>
     case 'recovery':
-      return (await import('@/lib/email-templates/recovery')).RecoveryEmail
+      return (await import('@/lib/email-templates/recovery')).RecoveryEmail as React.ComponentType<any>
     case 'email_change':
-      return (await import('@/lib/email-templates/email-change')).EmailChangeEmail
+      return (await import('@/lib/email-templates/email-change')).EmailChangeEmail as React.ComponentType<any>
     case 'reauthentication':
-      return (await import('@/lib/email-templates/reauthentication')).ReauthenticationEmail
+      return (await import('@/lib/email-templates/reauthentication')).ReauthenticationEmail as React.ComponentType<any>
     default:
       return null
   }
