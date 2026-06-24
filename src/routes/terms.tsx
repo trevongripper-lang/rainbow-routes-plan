@@ -31,11 +31,28 @@ function TermsPage() {
       </p>
 
       <section className="mt-8 space-y-3 text-sm">
-        <h2 className="font-display text-xl">Beta status</h2>
+        <h2 className="font-display text-xl">Private beta</h2>
         <p className="text-muted-foreground">
-          Tribe Trips is in active beta. Features may change, break, or be removed. We recommend
-          keeping a copy of anything you cannot afford to lose.
+          Tribe Trips is currently in a private beta. That means a few honest things up front:
         </p>
+        <ul className="list-inside list-disc space-y-1 text-muted-foreground">
+          <li>You may run into bugs, incomplete features, downtime, or occasional data issues.</li>
+          <li>
+            Payments are <strong className="text-foreground">test-only (sandbox)</strong> right now
+            — no real cards are charged. When we go live we'll say so clearly.
+          </li>
+          <li>
+            Beta testers must be <strong className="text-foreground">18 or older</strong>.
+          </li>
+          <li>
+            Please don't enter sensitive personal, financial, travel-document, or health information
+            while testing — use placeholders or fake data where possible.
+          </li>
+          <li>
+            Participation is voluntary. You can stop testing, stop recording, or delete your account
+            at any time.
+          </li>
+        </ul>
       </section>
 
       <section className="mt-8 space-y-3 text-sm">
