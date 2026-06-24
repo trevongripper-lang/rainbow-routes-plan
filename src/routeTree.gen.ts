@@ -21,6 +21,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedMapRouteImport } from './routes/_authenticated/map'
 import { Route as AuthenticatedEventsRouteImport } from './routes/_authenticated/events'
+import { Route as AuthenticatedBetaConsentRouteImport } from './routes/_authenticated/beta-consent'
 import { Route as AuthenticatedTripsIndexRouteImport } from './routes/_authenticated/trips.index'
 import { Route as ApiPublicPaddleWebhookRouteImport } from './routes/api/public/paddle-webhook'
 import { Route as AuthenticatedTripsIdRouteImport } from './routes/_authenticated/trips.$id'
@@ -88,6 +89,12 @@ const AuthenticatedEventsRoute = AuthenticatedEventsRouteImport.update({
   path: '/events',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedBetaConsentRoute =
+  AuthenticatedBetaConsentRouteImport.update({
+    id: '/beta-consent',
+    path: '/beta-consent',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedTripsIndexRoute = AuthenticatedTripsIndexRouteImport.update({
   id: '/trips/',
   path: '/trips/',
@@ -135,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/beta-consent': typeof AuthenticatedBetaConsentRoute
   '/events': typeof AuthenticatedEventsRoute
   '/map': typeof AuthenticatedMapRoute
   '/me': typeof AuthenticatedMeRoute
@@ -155,6 +163,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/beta-consent': typeof AuthenticatedBetaConsentRoute
   '/events': typeof AuthenticatedEventsRoute
   '/map': typeof AuthenticatedMapRoute
   '/me': typeof AuthenticatedMeRoute
@@ -177,6 +186,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/_authenticated/beta-consent': typeof AuthenticatedBetaConsentRoute
   '/_authenticated/events': typeof AuthenticatedEventsRoute
   '/_authenticated/map': typeof AuthenticatedMapRoute
   '/_authenticated/me': typeof AuthenticatedMeRoute
@@ -199,6 +209,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/reset-password'
     | '/terms'
+    | '/beta-consent'
     | '/events'
     | '/map'
     | '/me'
@@ -219,6 +230,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/reset-password'
     | '/terms'
+    | '/beta-consent'
     | '/events'
     | '/map'
     | '/me'
@@ -240,6 +252,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/reset-password'
     | '/terms'
+    | '/_authenticated/beta-consent'
     | '/_authenticated/events'
     | '/_authenticated/map'
     | '/_authenticated/me'
@@ -352,6 +365,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEventsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/beta-consent': {
+      id: '/_authenticated/beta-consent'
+      path: '/beta-consent'
+      fullPath: '/beta-consent'
+      preLoaderRoute: typeof AuthenticatedBetaConsentRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/trips/': {
       id: '/_authenticated/trips/'
       path: '/trips'
@@ -405,6 +425,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedBetaConsentRoute: typeof AuthenticatedBetaConsentRoute
   AuthenticatedEventsRoute: typeof AuthenticatedEventsRoute
   AuthenticatedMapRoute: typeof AuthenticatedMapRoute
   AuthenticatedMeRoute: typeof AuthenticatedMeRoute
@@ -418,6 +439,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedBetaConsentRoute: AuthenticatedBetaConsentRoute,
   AuthenticatedEventsRoute: AuthenticatedEventsRoute,
   AuthenticatedMapRoute: AuthenticatedMapRoute,
   AuthenticatedMeRoute: AuthenticatedMeRoute,
