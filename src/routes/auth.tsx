@@ -24,6 +24,8 @@ function AuthPage() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState<{ scope: string; until: number } | null>(null);
+  const [confirmSent, setConfirmSent] = useState<string | null>(null);
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
 
   const secsLeft = cooldown ? Math.max(0, Math.ceil((cooldown.until - Date.now()) / 1000)) : 0;
   const blocked = secsLeft > 0;
