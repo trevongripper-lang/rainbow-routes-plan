@@ -31,7 +31,7 @@ const SAMPLE_DATA: Record<string, object> = {
   reauthentication: { token: '123456' },
 }
 
-async function loadTemplate(type: string) {
+async function loadTemplate(type: string): Promise<any> {
   switch (type) {
     case 'signup':
       return (await import('@/lib/email-templates/signup')).SignupEmail
