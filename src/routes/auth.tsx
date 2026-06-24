@@ -154,6 +154,30 @@ function AuthPage() {
     }
   }
 
+  async function handleResendConfirmation() {
+    if (!confirmSent || resendState === "sending") return;
+    setResendState("sending");
+    try {
+      if (!(await guard("signup", confirmSent))) {
+        setResendState("idle");
+        return;
+      }
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: confirmSent,
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (error) throw error;
+      setResendState("sent");
+      toast.success("Confirmation email resent.");
+    } catch (err) {
+      setResendState("idle");
+      toast.error(err instanceof Error ? err.message : "Could not resend. Try again shortly.");
+    }
+  }
+
+
+
   return (
     <div
       className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
