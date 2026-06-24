@@ -73,7 +73,7 @@ afterAll(() => {
 });
 
 import { Route } from "@/routes/_authenticated/settings";
-import { BETA_CONSENT_VERSION, BETA_CONSENT_KEY } from "@/lib/beta-consent";
+import { BETA_CONSENT_VERSION, betaConsentCacheKey } from "@/lib/beta-consent";
 
 function renderPage() {
   const Component = (Route as unknown as { component: React.FC }).component;
