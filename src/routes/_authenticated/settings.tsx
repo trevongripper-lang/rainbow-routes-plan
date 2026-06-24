@@ -30,13 +30,23 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 function SettingsPage() {
-  const isAdmin = useQuery({
-    queryKey: ["me", "is-admin"],
+  const me = useQuery({
+    queryKey: ["me", "session-user-id"],
     queryFn: async () => {
-      const { data: s } = await supabase.auth.getSession();
-      if (!s.session) return false;
+      const { data } = await supabase.auth.getSession();
+      return data.session?.user.id ?? null;
+    },
+    staleTime: 60_000,
+  });
+  const userId = me.data ?? null;
+
+  const isAdmin = useQuery({
+    queryKey: ["me", "is-admin", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      if (!userId) return false;
       const { data } = await supabase.rpc("has_role", {
-        _user_id: s.session.user.id,
+        _user_id: userId,
         _role: "admin",
       });
       return !!data;
@@ -52,7 +62,9 @@ function SettingsPage() {
     window.location.assign("/auth");
   }
 
-  const consented = typeof window !== "undefined" ? hasBetaConsentLocal() : true;
+  const consented =
+    typeof window !== "undefined" && userId ? hasBetaConsentLocal(userId) : true;
+
 
   return (
     <div className="space-y-8">
