@@ -69,7 +69,7 @@ function AuthPage() {
       if (mode === "signup") {
         if (!(await guard("signup", email))) return;
         track("signup_started");
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -78,9 +78,16 @@ function AuthPage() {
           },
         });
         if (error) throw error;
-        track("signup_confirmation_required");
-        toast.success("Check your email to confirm, then sign in.");
-        setMode("signin");
+        // If email confirmation is required, identities is an empty array or
+        // session is null. Show the confirmation panel instead of switching modes.
+        if (!data.session) {
+          track("signup_confirmation_required");
+          setConfirmSent(email);
+          return;
+        }
+        // Auto-confirm enabled — straight into the app.
+        track("signin_succeeded", { method: "signup_autoconfirm" });
+        navigate({ to: "/trips" });
       } else {
         if (!(await guard("login", email))) return;
         const { error } = await supabase.auth.signInWithPassword({ email, password });
