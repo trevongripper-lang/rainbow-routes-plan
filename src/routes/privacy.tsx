@@ -54,6 +54,45 @@ function PrivacyPage() {
       </section>
 
       <section className="mt-8 space-y-3 text-sm">
+        <h2 className="font-display text-xl">Beta feedback &amp; recordings</h2>
+        <p className="text-muted-foreground">
+          During the private beta you may choose to send us extra material — screen recordings,
+          voice narration, written notes, and basic device/browser info — to help us understand what
+          works and what doesn't. Sharing any of this is always voluntary.
+        </p>
+        <ul className="list-inside list-disc space-y-1 text-muted-foreground">
+          <li>
+            <strong className="text-foreground">What we do with it:</strong> use it only to improve
+            Tribe Trips — fix bugs, polish flows, and prioritize what to build next. We don't share
+            it with advertisers and we don't use it to train third-party models.
+          </li>
+          <li>
+            <strong className="text-foreground">Who can see it:</strong> the founder and a small
+            group of people directly helping analyze beta feedback. Recordings live in a
+            restricted-access folder.
+          </li>
+          <li>
+            <strong className="text-foreground">How long we keep it:</strong> up to 6 months, then
+            deleted — unless we need to keep something specific for security, legal, or product
+            integrity reasons.
+          </li>
+          <li>
+            <strong className="text-foreground">Request deletion any time:</strong> email{" "}
+            <a className="underline" href="mailto:hello@tgklabs.io">
+              hello@tgklabs.io
+            </a>{" "}
+            and we'll remove your recordings and notes.
+          </li>
+        </ul>
+        <p className="text-muted-foreground">
+          <strong className="text-foreground">Please don't include sensitive information</strong> in
+          recordings or screenshots — payment card numbers, passport or ID details, real
+          confirmation numbers, private addresses, health information, or anything else you wouldn't
+          want a small product team to review. Use fake or scrambled data when you can.
+        </p>
+      </section>
+
+      <section className="mt-8 space-y-3 text-sm">
         <h2 className="font-display text-xl">How we use it</h2>
         <p className="text-muted-foreground">
           To run the app: authenticate you, show your trips, deliver invites and notifications,
