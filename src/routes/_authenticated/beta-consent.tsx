@@ -1,36 +1,44 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { BETA_CONSENT_KEY, BETA_CONSENT_VERSION } from "@/lib/beta-consent";
+import { recordBetaConsent } from "@/lib/beta-consent";
 
 export const Route = createFileRoute("/_authenticated/beta-consent")({
   component: BetaConsentPage,
 });
 
-type CheckKey = "age" | "beta" | "review" | "sensitive" | "stop" | "retention";
+type CheckKey =
+  | "age"
+  | "beta"
+  | "payments"
+  | "sensitive"
+  | "review"
+  | "stop"
+  | "retention";
 
 const checks: { key: CheckKey; label: string }[] = [
   { key: "age", label: "I am 18 years or older." },
   {
     key: "beta",
     label:
-      "I understand Tribe Trips is in private beta and may contain bugs or incomplete features.",
+      "I understand Tribe Trips is in private beta and may contain bugs, rough edges, or incomplete features.",
+  },
+  { key: "payments", label: "I understand payments are test-only during beta." },
+  {
+    key: "sensitive",
+    label:
+      "I will not enter sensitive information such as payment cards, passport details, private addresses, health information, real confirmation numbers, or anything I do not want reviewed.",
   },
   {
     key: "review",
     label:
-      "I consent to Tribe Trips reviewing my screen recording, voice narration, written feedback, and usage notes for product improvement.",
-  },
-  {
-    key: "sensitive",
-    label:
-      "I understand I should not enter payment card details, passport information, private addresses, real confirmation numbers, health information, or other sensitive information while testing.",
+      "If I choose to share screen recordings, voice narration, written feedback, device/browser info, or usage notes, I consent to Tribe Trips reviewing them for product improvement.",
   },
   { key: "stop", label: "I understand I can stop testing or recording at any time." },
   {
     key: "retention",
     label:
-      "I understand my beta feedback and recordings may be stored for up to 6 months and then deleted.",
+      "I understand beta recordings and feedback may be stored for up to 6 months and then deleted, unless retention is needed for security, legal, or product integrity reasons.",
   },
 ];
 
@@ -39,33 +47,34 @@ function BetaConsentPage() {
   const [state, setState] = useState<Record<CheckKey, boolean>>({
     age: false,
     beta: false,
-    review: false,
+    payments: false,
     sensitive: false,
+    review: false,
     stop: false,
     retention: false,
   });
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   const allChecked = checks.every((c) => state[c.key]);
 
   async function accept() {
     if (!allChecked || busy) return;
     setBusy(true);
+    setErr(null);
     try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const uid = session?.user.id ?? "anon";
-      window.localStorage.setItem(
-        BETA_CONSENT_KEY,
-        JSON.stringify({
-          v: BETA_CONSENT_VERSION,
-          uid,
-          at: new Date().toISOString(),
-          checks: state,
-        }),
-      );
+      const uid = session?.user.id;
+      if (!uid) {
+        navigate({ to: "/auth", replace: true });
+        return;
+      }
+      await recordBetaConsent(uid);
       navigate({ to: "/trips", replace: true });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not save consent. Please retry.");
     } finally {
       setBusy(false);
     }
@@ -79,10 +88,11 @@ function BetaConsentPage() {
   return (
     <div className="mx-auto max-w-2xl px-1 py-2">
       <p className="text-xs uppercase tracking-wider text-muted-foreground">Private beta</p>
-      <h1 className="mt-1 font-display text-3xl">Welcome, beta tester</h1>
+      <h1 className="mt-1 font-display text-3xl">Before You Start the Tribe Trips Beta</h1>
       <p className="mt-3 text-sm text-muted-foreground">
-        Before you jump in, please confirm a few things. This takes about 30 seconds and you only
-        see it once. The full details are in our{" "}
+        Tribe Trips is currently in private beta. You may see bugs, rough edges, or incomplete
+        features. Please use realistic but low-sensitivity trip details while testing. Full
+        details live in our{" "}
         <a className="underline" href="/privacy" target="_blank" rel="noreferrer">
           Privacy Policy
         </a>{" "}
@@ -111,13 +121,14 @@ function BetaConsentPage() {
       </div>
 
       <p className="mt-4 text-xs text-muted-foreground">
-        Recordings and feedback are reviewed by the founder and a small group of analysts. We keep
-        them up to 6 months, then delete — email{" "}
+        Email{" "}
         <a className="underline" href="mailto:hello@tgklabs.io">
           hello@tgklabs.io
         </a>{" "}
-        to request deletion sooner.
+        to request deletion of your beta recordings or feedback.
       </p>
+
+      {err && <p className="mt-3 text-sm text-destructive">{err}</p>}
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <button
@@ -133,7 +144,7 @@ function BetaConsentPage() {
           disabled={!allChecked || busy}
           className="rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {busy ? "Saving…" : "I agree, start testing"}
+          {busy ? "Saving…" : "I Agree and Continue"}
         </button>
       </div>
     </div>
