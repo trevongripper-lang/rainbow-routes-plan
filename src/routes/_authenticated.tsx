@@ -54,15 +54,16 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-import { hasBetaConsent } from "@/lib/beta-consent";
+import { hasBetaConsentLocal, hasBetaConsentRemote } from "@/lib/beta-consent";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
-    if (location.pathname !== "/beta-consent" && !hasBetaConsent()) {
-      throw redirect({ to: "/beta-consent" });
+    if (location.pathname !== "/beta-consent") {
+      const ok = hasBetaConsentLocal() || (await hasBetaConsentRemote(data.user.id));
+      if (!ok) throw redirect({ to: "/beta-consent" });
     }
     return { user: data.user };
   },
