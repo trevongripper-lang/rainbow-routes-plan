@@ -92,6 +92,7 @@ function SettingsPage() {
       <section className="rounded-2xl border border-border/60 bg-card p-2">
         <SettingsRow
           to="/me"
+          testId="settings-link-profile"
           icon={<User className="size-5" />}
           title="Profile & account"
           subtitle="Display name, email, plan, delete account"
@@ -132,9 +133,19 @@ function SettingsPage() {
 
       {/* Legal */}
       <section className="rounded-2xl border border-border/60 bg-card p-2">
-        <SettingsRow to="/privacy" icon={<FileText className="size-5" />} title="Privacy Policy" />
+        <SettingsRow
+          to="/privacy"
+          testId="settings-link-privacy"
+          icon={<FileText className="size-5" />}
+          title="Privacy Policy"
+        />
         <Divider />
-        <SettingsRow to="/terms" icon={<FileText className="size-5" />} title="Terms of Service" />
+        <SettingsRow
+          to="/terms"
+          testId="settings-link-terms"
+          icon={<FileText className="size-5" />}
+          title="Terms of Service"
+        />
       </section>
 
       {/* Support */}
@@ -175,6 +186,7 @@ function SettingsPage() {
         <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-2">
           <SettingsRow
             to="/console/diagnostics"
+            testId="settings-link-diagnostics"
             icon={<Wrench className="size-5" />}
             title="Diagnostics (admin)"
             subtitle="Integrations, RLS smoke tests, webhooks"
@@ -185,8 +197,10 @@ function SettingsPage() {
       {/* Sign out */}
       <section className="rounded-2xl border border-border/60 bg-card p-2">
         <button
+          type="button"
+          data-testid="settings-sign-out"
           onClick={signOut}
-          className="flex w-full items-center gap-3 rounded-xl p-4 text-left text-destructive transition hover:bg-destructive/5"
+          className="flex w-full items-center gap-3 rounded-xl p-4 text-left text-destructive transition hover:bg-destructive/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40"
         >
           <div className="flex size-10 items-center justify-center rounded-xl bg-destructive/10">
             <LogOut className="size-5" />
@@ -207,14 +221,21 @@ function SettingsRow({
   icon,
   title,
   subtitle,
+  testId,
 }: {
   to: "/me" | "/privacy" | "/terms" | "/console/diagnostics";
   icon: React.ReactNode;
   title: string;
   subtitle?: string;
+  testId?: string;
 }) {
   return (
-    <Link to={to} className="flex items-center gap-3 rounded-xl p-4 transition hover:bg-muted/40">
+    <Link
+      to={to}
+      aria-label={title}
+      data-testid={testId}
+      className="flex items-center gap-3 rounded-xl p-4 transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+    >
       <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
         {icon}
       </div>
