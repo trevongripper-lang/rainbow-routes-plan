@@ -122,12 +122,12 @@ function PrivacyPage() {
       <section className="mt-8 space-y-3 text-sm">
         <h2 className="font-display text-xl">Your choices</h2>
         <p className="text-muted-foreground">
-          You can edit your profile, leave trips, or delete your account at any time from Settings
-          → Profile & account. Deleting your account permanently removes your profile, the trips
-          you organized (with their itinerary, polls, costs and chat), your votes, comments,
-          credits and beta consent record. On trips you only joined, your membership is removed
-          and your name is cleared from shared records such as expenses and invites; the trip
-          itself stays for the other members. This action cannot be undone.
+          You can edit your profile, leave trips, or delete your account at any time from Settings →
+          Profile & account. Deleting your account permanently removes your profile, the trips you
+          organized (with their itinerary, polls, costs and chat), your votes, comments, credits and
+          beta consent record. On trips you only joined, your membership is removed and your name is
+          cleared from shared records such as expenses and invites; the trip itself stays for the
+          other members. This action cannot be undone.
         </p>
       </section>
 
