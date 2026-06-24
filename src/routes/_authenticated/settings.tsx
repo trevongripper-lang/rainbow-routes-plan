@@ -207,14 +207,21 @@ function SettingsRow({
   icon,
   title,
   subtitle,
+  testId,
 }: {
   to: "/me" | "/privacy" | "/terms" | "/console/diagnostics";
   icon: React.ReactNode;
   title: string;
   subtitle?: string;
+  testId?: string;
 }) {
   return (
-    <Link to={to} className="flex items-center gap-3 rounded-xl p-4 transition hover:bg-muted/40">
+    <Link
+      to={to}
+      aria-label={title}
+      data-testid={testId}
+      className="flex items-center gap-3 rounded-xl p-4 transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+    >
       <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
         {icon}
       </div>
