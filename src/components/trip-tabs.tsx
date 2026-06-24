@@ -495,23 +495,48 @@ export function TicketsTab({ destinationId, me }: { destinationId: string; me: s
   });
 
   const [form, setForm] = useState({ name: "", url: "", price: "", currency: "USD", notes: "" });
+  const [addToCosts, setAddToCosts] = useState(false);
   const add = useMutation({
     mutationFn: async () => {
       if (!form.name.trim()) throw new Error("Name required");
       const cents = form.price ? Math.round(parseFloat(form.price) * 100) : null;
-      const { error } = await supabase.from("trip_tickets").insert({
-        destination_id: destinationId,
-        user_id: me,
-        name: form.name.trim(),
-        url: form.url.trim() || null,
-        price_cents: cents,
-        currency: form.currency,
-        notes: form.notes.trim() || null,
-      });
+      const { data: inserted, error } = await supabase
+        .from("trip_tickets")
+        .insert({
+          destination_id: destinationId,
+          user_id: me,
+          name: form.name.trim(),
+          url: form.url.trim() || null,
+          price_cents: cents,
+          currency: form.currency,
+          notes: form.notes.trim() || null,
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+      if (addToCosts && inserted?.id) {
+        const { buildTicketAutoCost, insertAutoCost } = await import("@/lib/auto-cost");
+        const row = buildTicketAutoCost({
+          destinationId,
+          me,
+          ticketId: inserted.id,
+          name: form.name.trim(),
+          priceCents: cents,
+          currency: form.currency,
+        });
+        if (row) {
+          const r = await insertAutoCost(supabase, row);
+          if (!r.ok) {
+            toast.message("Saved, but we couldn't add it to Costs. You can add it manually.");
+          } else {
+            qc.invalidateQueries({ queryKey: ["costs", destinationId] });
+          }
+        }
+      }
     },
     onSuccess: () => {
       setForm({ name: "", url: "", price: "", currency: "USD", notes: "" });
+      setAddToCosts(false);
       qc.invalidateQueries({ queryKey: ["tickets", destinationId] });
       toast.success("Added");
     },
