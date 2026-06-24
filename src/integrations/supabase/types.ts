@@ -703,6 +703,8 @@ export type Database = {
           label: string
           note: string | null
           paid_by: string | null
+          source_id: string | null
+          source_kind: string | null
           split_member_ids: string[] | null
           split_mode: string | null
           split_shares: Json | null
@@ -720,6 +722,8 @@ export type Database = {
           label: string
           note?: string | null
           paid_by?: string | null
+          source_id?: string | null
+          source_kind?: string | null
           split_member_ids?: string[] | null
           split_mode?: string | null
           split_shares?: Json | null
@@ -737,6 +741,8 @@ export type Database = {
           label?: string
           note?: string | null
           paid_by?: string | null
+          source_id?: string | null
+          source_kind?: string | null
           split_member_ids?: string[] | null
           split_mode?: string | null
           split_shares?: Json | null
