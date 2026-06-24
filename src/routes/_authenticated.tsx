@@ -54,17 +54,31 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-import { hasBetaConsentLocal, hasBetaConsentRemote } from "@/lib/beta-consent";
+import {
+  hasBetaConsentLocal,
+  hasBetaConsentRemote,
+  BETA_CONSENT_VERSION,
+} from "@/lib/beta-consent";
+import { noteRedirect, clearRedirectTrace } from "@/lib/redirect-guard";
+import { track } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
+    if (error || !data.user) {
+      if (noteRedirect(location.pathname, "/auth")) throw redirect({ to: "/recover" });
+      throw redirect({ to: "/auth" });
+    }
     if (location.pathname !== "/beta-consent") {
       const ok = hasBetaConsentLocal() || (await hasBetaConsentRemote(data.user.id));
-      if (!ok) throw redirect({ to: "/beta-consent" });
+      if (!ok) {
+        track("consent_required", { route: location.pathname, version: BETA_CONSENT_VERSION });
+        if (noteRedirect(location.pathname, "/beta-consent")) throw redirect({ to: "/recover" });
+        throw redirect({ to: "/beta-consent" });
+      }
     }
+    clearRedirectTrace();
     return { user: data.user };
   },
   component: AppShell,
@@ -80,6 +94,8 @@ function AppShell() {
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
+    track("signout_succeeded");
+    clearRedirectTrace();
     navigate({ to: "/auth", replace: true });
   }
 

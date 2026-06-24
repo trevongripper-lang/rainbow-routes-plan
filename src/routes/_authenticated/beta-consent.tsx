@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { recordBetaConsent } from "@/lib/beta-consent";
+import { recordBetaConsent, BETA_CONSENT_VERSION } from "@/lib/beta-consent";
+import { track } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_authenticated/beta-consent")({
   component: BetaConsentPage,
@@ -65,8 +66,11 @@ function BetaConsentPage() {
         return;
       }
       await recordBetaConsent(uid);
+      track("consent_accepted", { version: BETA_CONSENT_VERSION });
       navigate({ to: "/trips", replace: true });
     } catch (e) {
+      const msg = e instanceof Error ? e.message.slice(0, 140) : "unknown";
+      track("consent_save_failed", { version: BETA_CONSENT_VERSION, message: msg });
       setErr(e instanceof Error ? e.message : "Could not save consent. Please retry.");
     } finally {
       setBusy(false);

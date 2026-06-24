@@ -12,7 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
 import { RlsDebugPanel } from "@/components/rls-debug-panel";
 import { InstallAppBanner } from "@/components/install-app-banner";
 
@@ -150,6 +150,51 @@ function RootComponent() {
     });
     return () => subscription.unsubscribe();
   }, [router, queryClient]);
+
+  // Page-load timing for tracked routes + offline toast
+  useEffect(() => {
+    const TRACKED = new Set([
+      "/auth",
+      "/beta-consent",
+      "/trips",
+      "/events",
+      "/map",
+      "/me",
+      "/settings",
+    ]);
+    const SLOW_MS = 2500;
+    let startedAt = performance.now();
+    let startedPath = router.state.location.pathname;
+
+    const unsub = router.subscribe("onResolved", () => {
+      const path = router.state.location.pathname;
+      const tracked =
+        TRACKED.has(startedPath) ||
+        startedPath.startsWith("/trips/") ||
+        TRACKED.has(path) ||
+        path.startsWith("/trips/");
+      if (tracked) {
+        const ms = Math.round(performance.now() - startedAt);
+        const normalized = path.startsWith("/trips/") ? "/trips/:id" : path;
+        void import("@/lib/analytics").then(({ track }) =>
+          track("page_loaded", { route: normalized, ms, slow: ms > SLOW_MS }),
+        );
+      }
+      startedAt = performance.now();
+      startedPath = path;
+    });
+
+    const onOffline = () =>
+      toast.warning("You're offline. Some actions may not save until you reconnect.");
+    const onOnline = () => toast.success("Back online.");
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online", onOnline);
+    return () => {
+      unsub();
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [router]);
 
   return (
     <QueryClientProvider client={queryClient}>
