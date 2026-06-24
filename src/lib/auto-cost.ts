@@ -86,9 +86,7 @@ export function buildStayAutoCost(i: BuildStayCostInput): AutoCostInsert | null 
   };
 }
 
-export type AutoCostResult =
-  | { ok: true; duplicate: boolean }
-  | { ok: false; error: string };
+export type AutoCostResult = { ok: true; duplicate: boolean } | { ok: false; error: string };
 
 // Minimal shape we need from a Supabase-like client. Kept loose on purpose so
 // the real supabase client (with deep generics) and a vi.fn() mock both fit.
