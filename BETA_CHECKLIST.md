@@ -101,3 +101,15 @@ Run these once before opening the beta and after any bulk event import:
 - [ ] **Report flow smoke test**: open any trip with suggested events → tap the flag icon → submit a report → confirm toast, then verify `/console/events` shows the report count.
 - [ ] **Stale events**: any event whose `end_date` is in the past should be removed or marked inactive — current schema has no `is_active` flag, so deletion is the simplest action for beta.
 - [ ] **Curated-only policy**: do NOT wire a third-party event API for beta. Tradeoffs documented in `AUDIT.md §7`.
+
+## Beta monitoring & recovery checks
+
+These ship as of beta build `2026-06-beta-v1`. Verify after each release.
+
+- [ ] **Consent gate analytics**: `consent_required`, `consent_accepted`, `consent_save_failed`, and `consent_redirect_loop_detected` events land in `analytics_events` with no PII (only `route`, `version`, short `message`).
+- [ ] **Auth analytics**: `signup_started`, `signup_confirmation_required`, `signin_succeeded` (with `method`), `signin_failed`, `google_signin_started`, `google_signin_failed`, and `signout_succeeded` fire. Confirm no passwords, tokens, or emails are written to `props`.
+- [ ] **Page-load timing**: `page_loaded` events recorded for `/auth`, `/beta-consent`, `/trips`, `/trips/:id` (normalized), `/events`, `/map`, `/me`, `/settings` with `ms` and `slow` flag (threshold 2500ms).
+- [ ] **Redirect-loop guard**: forcing rapid /auth ↔ /beta-consent bouncing routes the user to `/recover` instead of looping. Try-again and sign-out buttons both work.
+- [ ] **Offline toast**: dropping the connection surfaces a sonner warning; restoring it surfaces the "Back online" toast.
+- [ ] **Build label visible**: `/settings` header shows `Beta build: 2026-06-beta-v1` chip — testers can read it back when reporting bugs against stale Home-Screen installs.
+- [ ] **App-level error boundary**: `/__root` `ErrorComponent` shows the friendly fallback with Try again + Go home and logs via `reportLovableError`.
