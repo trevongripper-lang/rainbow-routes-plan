@@ -29,7 +29,8 @@ export function BulkActionBar({
     <div
       role="region"
       aria-label={`${count} ${noun}${count === 1 ? "" : "s"} selected`}
-      className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-3"
+      className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-3"
+      style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
     >
       <div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-card/95 px-3 py-2 shadow-[var(--shadow-soft)] backdrop-blur">
         <button
