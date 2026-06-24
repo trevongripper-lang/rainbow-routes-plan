@@ -114,30 +114,58 @@ export function StaysTab({
   });
   const [form, setForm] = useState(blankForm());
   const [showDetails, setShowDetails] = useState(false);
+  const [addToCosts, setAddToCosts] = useState(false);
 
   const add = useMutation({
     mutationFn: async () => {
       if (!form.title.trim()) throw new Error("Name required");
       const rate = form.nightly_rate ? Math.round(parseFloat(form.nightly_rate) * 100) : null;
-      const { error } = await supabase.from("trip_stays").insert({
-        destination_id: destinationId,
-        user_id: me,
-        title: form.title.trim(),
-        url: form.url.trim() || null,
-        description: form.description.trim() || null,
-        address: form.address.trim() || null,
-        check_in: form.check_in || null,
-        check_out: form.check_out || null,
-        nightly_rate_cents: rate,
-        currency: form.currency || "USD",
-        confirmation: form.confirmation.trim() || null,
-        booked_by: form.booked_by || me,
-      });
+      const { data: inserted, error } = await supabase
+        .from("trip_stays")
+        .insert({
+          destination_id: destinationId,
+          user_id: me,
+          title: form.title.trim(),
+          url: form.url.trim() || null,
+          description: form.description.trim() || null,
+          address: form.address.trim() || null,
+          check_in: form.check_in || null,
+          check_out: form.check_out || null,
+          nightly_rate_cents: rate,
+          currency: form.currency || "USD",
+          confirmation: form.confirmation.trim() || null,
+          booked_by: form.booked_by || me,
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+      if (addToCosts && inserted?.id) {
+        const { buildStayAutoCost, insertAutoCost } = await import("@/lib/auto-cost");
+        const row = buildStayAutoCost({
+          destinationId,
+          me,
+          stayId: inserted.id,
+          title: form.title.trim(),
+          nightlyRateCents: rate,
+          currency: form.currency || "USD",
+          checkIn: form.check_in || null,
+          checkOut: form.check_out || null,
+          bookedBy: form.booked_by || me,
+        });
+        if (row) {
+          const r = await insertAutoCost(supabase, row);
+          if (!r.ok) {
+            toast.message("Saved, but we couldn't add it to Costs. You can add it manually.");
+          } else {
+            qc.invalidateQueries({ queryKey: ["costs", destinationId] });
+          }
+        }
+      }
     },
     onSuccess: () => {
       setForm(blankForm());
       setShowDetails(false);
+      setAddToCosts(false);
       qc.invalidateQueries({ queryKey: ["stays", destinationId] });
       toast.success("Stay added");
     },
@@ -333,7 +361,15 @@ export function StaysTab({
             )}
           </div>
         </div>
-        <div className="mt-3 flex justify-end">
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Checkbox
+              checked={addToCosts}
+              onCheckedChange={(v) => setAddToCosts(v === true)}
+              aria-label="Add this to trip costs"
+            />
+            Add this to trip costs
+          </label>
           <Button onClick={() => add.mutate()} disabled={add.isPending || !form.title.trim()}>
             <Plus className="mr-1 size-4" />
             Add stay
@@ -459,23 +495,48 @@ export function TicketsTab({ destinationId, me }: { destinationId: string; me: s
   });
 
   const [form, setForm] = useState({ name: "", url: "", price: "", currency: "USD", notes: "" });
+  const [addToCosts, setAddToCosts] = useState(false);
   const add = useMutation({
     mutationFn: async () => {
       if (!form.name.trim()) throw new Error("Name required");
       const cents = form.price ? Math.round(parseFloat(form.price) * 100) : null;
-      const { error } = await supabase.from("trip_tickets").insert({
-        destination_id: destinationId,
-        user_id: me,
-        name: form.name.trim(),
-        url: form.url.trim() || null,
-        price_cents: cents,
-        currency: form.currency,
-        notes: form.notes.trim() || null,
-      });
+      const { data: inserted, error } = await supabase
+        .from("trip_tickets")
+        .insert({
+          destination_id: destinationId,
+          user_id: me,
+          name: form.name.trim(),
+          url: form.url.trim() || null,
+          price_cents: cents,
+          currency: form.currency,
+          notes: form.notes.trim() || null,
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+      if (addToCosts && inserted?.id) {
+        const { buildTicketAutoCost, insertAutoCost } = await import("@/lib/auto-cost");
+        const row = buildTicketAutoCost({
+          destinationId,
+          me,
+          ticketId: inserted.id,
+          name: form.name.trim(),
+          priceCents: cents,
+          currency: form.currency,
+        });
+        if (row) {
+          const r = await insertAutoCost(supabase, row);
+          if (!r.ok) {
+            toast.message("Saved, but we couldn't add it to Costs. You can add it manually.");
+          } else {
+            qc.invalidateQueries({ queryKey: ["costs", destinationId] });
+          }
+        }
+      }
     },
     onSuccess: () => {
       setForm({ name: "", url: "", price: "", currency: "USD", notes: "" });
+      setAddToCosts(false);
       qc.invalidateQueries({ queryKey: ["tickets", destinationId] });
       toast.success("Added");
     },
@@ -548,7 +609,15 @@ export function TicketsTab({ destinationId, me }: { destinationId: string; me: s
             />
           </div>
         </div>
-        <div className="mt-3 flex justify-end">
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Checkbox
+              checked={addToCosts}
+              onCheckedChange={(v) => setAddToCosts(v === true)}
+              aria-label="Add this to trip costs"
+            />
+            Add this to trip costs
+          </label>
           <Button onClick={() => add.mutate()} disabled={add.isPending || !form.name.trim()}>
             <Plus className="mr-1 size-4" />
             Add ticket
