@@ -54,11 +54,16 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
+import { hasBetaConsent } from "@/lib/beta-consent";
+
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
+    if (location.pathname !== "/beta-consent" && !hasBetaConsent()) {
+      throw redirect({ to: "/beta-consent" });
+    }
     return { user: data.user };
   },
   component: AppShell,

@@ -1,5 +1,20 @@
 # Beta Checklist
 
+## Legal / consent before beta
+
+- [x] Privacy Policy updated with beta recording, retention, and contact language
+- [x] Terms updated with private-beta, 18+, sandbox-payments, and sensitive-info language
+- [ ] Beta testers confirmed to be 18+ (consent checkbox at `/beta-consent`)
+- [ ] Recording / voice-narration consent captured (consent checkbox at `/beta-consent`)
+- [x] No-sensitive-info warning included in Privacy, Terms, and tester instructions
+- [x] Data retention period documented (up to 6 months, then deleted)
+- [ ] Recordings stored in restricted-access Drive folder (link in internal doc, not public)
+- [x] Contact email for deletion requests confirmed: `hello@tgklabs.io`
+- [x] Payments remain sandbox / test-only during beta
+
+See [`BETA_TESTER_INSTRUCTIONS.md`](./BETA_TESTER_INSTRUCTIONS.md) for the full tester onboarding doc.
+
+
 ## Must fix before opening the beta
 
 - [ ] **Switch Paddle from sandbox to production keys** (`PADDLE_CLIENT_TOKEN`, `PADDLE_PRICE_TIER*`, `PADDLE_WEBHOOK_SECRET`) and re-test one unlock end-to-end. Without this, real money cannot flow.
