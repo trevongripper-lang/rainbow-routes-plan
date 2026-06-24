@@ -122,9 +122,10 @@ describe("Settings page", () => {
   });
 
   it("shows the admin diagnostics link when has_role returns true", async () => {
-    getSessionMock.mockResolvedValueOnce({
+    getSessionMock.mockResolvedValue({
       data: { session: { user: { id: "admin-1" } } },
     });
+
     rpcMock.mockResolvedValueOnce({ data: true });
     renderPage();
     await waitFor(() =>
