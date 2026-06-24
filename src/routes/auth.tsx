@@ -184,6 +184,65 @@ function AuthPage() {
       style={{ background: "var(--gradient-hero)" }}
     >
       <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-8 backdrop-blur">
+        {confirmSent ? (
+          <div>
+            <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">
+              ← back
+            </Link>
+            <div
+              aria-hidden
+              className="mt-4 grid size-12 place-items-center rounded-full bg-primary/15 text-primary"
+            >
+              <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 6h16v12H4z" />
+                <path d="m4 7 8 6 8-6" />
+              </svg>
+            </div>
+            <h1 className="mt-4 font-display text-3xl">Check your email to complete sign up</h1>
+            <p className="mt-3 text-sm text-muted-foreground">
+              We sent a confirmation link to{" "}
+              <span className="font-medium text-foreground break-all">{confirmSent}</span>. Open
+              that email and tap the confirmation link to finish creating your Tribe Trips account.
+            </p>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Didn't get it? Check your spam or promotions folder. The link can take a minute or two
+              to arrive.
+            </p>
+
+            <div className="mt-6 space-y-3">
+              <Button
+                type="button"
+                onClick={handleResendConfirmation}
+                disabled={resendState === "sending" || blocked}
+                variant="outline"
+                className="w-full"
+              >
+                {resendState === "sending"
+                  ? "Sending…"
+                  : resendState === "sent"
+                    ? "Confirmation resent ✓"
+                    : "Resend confirmation email"}
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmSent(null);
+                  setResendState("idle");
+                  setMode("signin");
+                  setPassword("");
+                }}
+                className="w-full text-center text-sm text-muted-foreground hover:text-foreground"
+              >
+                Use a different email
+              </button>
+            </div>
+
+            <p className="mt-6 text-xs text-muted-foreground">
+              You'll be able to sign in once your email is confirmed.
+            </p>
+          </div>
+        ) : (
+        <>
         <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">
           ← back
         </Link>
