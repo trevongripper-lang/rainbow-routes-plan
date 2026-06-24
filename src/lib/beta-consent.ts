@@ -46,8 +46,7 @@ export async function hasBetaConsentRemote(userId: string): Promise<boolean> {
 }
 
 export async function recordBetaConsent(userId: string): Promise<void> {
-  const userAgent =
-    typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 500) : null;
+  const userAgent = typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 500) : null;
   await supabase
     .from("beta_consents")
     .insert({ user_id: userId, version: BETA_CONSENT_VERSION, user_agent: userAgent });

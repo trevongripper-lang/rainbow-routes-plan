@@ -7,14 +7,7 @@ export const Route = createFileRoute("/_authenticated/beta-consent")({
   component: BetaConsentPage,
 });
 
-type CheckKey =
-  | "age"
-  | "beta"
-  | "payments"
-  | "sensitive"
-  | "review"
-  | "stop"
-  | "retention";
+type CheckKey = "age" | "beta" | "payments" | "sensitive" | "review" | "stop" | "retention";
 
 const checks: { key: CheckKey; label: string }[] = [
   { key: "age", label: "I am 18 years or older." },
@@ -91,8 +84,8 @@ function BetaConsentPage() {
       <h1 className="mt-1 font-display text-3xl">Before You Start the Tribe Trips Beta</h1>
       <p className="mt-3 text-sm text-muted-foreground">
         Tribe Trips is currently in private beta. You may see bugs, rough edges, or incomplete
-        features. Please use realistic but low-sensitivity trip details while testing. Full
-        details live in our{" "}
+        features. Please use realistic but low-sensitivity trip details while testing. Full details
+        live in our{" "}
         <a className="underline" href="/privacy" target="_blank" rel="noreferrer">
           Privacy Policy
         </a>{" "}
