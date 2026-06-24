@@ -94,11 +94,19 @@ function SettingsPage() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="font-display text-3xl">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage integrations powering AI lookups and verification.
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl">Settings</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage integrations powering AI lookups and verification.
+          </p>
+        </div>
+        <span
+          className="shrink-0 rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground"
+          title="Beta build version — share this when reporting a bug"
+        >
+          Beta build: {BETA_CONSENT_VERSION}
+        </span>
       </header>
 
       <section className="rounded-2xl border border-border/60 bg-card p-6">
