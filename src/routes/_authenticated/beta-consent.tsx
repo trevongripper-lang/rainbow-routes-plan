@@ -85,7 +85,7 @@ function BetaConsentPage() {
       }
       await recordBetaConsent(uid);
       track("consent_accepted", { version: BETA_CONSENT_VERSION });
-      navigate({ to: nextPath, replace: true });
+      navigate({ to: nextPath as "/trips", replace: true });
     } catch (e) {
       const msg = e instanceof Error ? e.message.slice(0, 140) : "unknown";
       track("consent_save_failed", { version: BETA_CONSENT_VERSION, message: msg });
