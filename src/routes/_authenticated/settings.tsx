@@ -92,6 +92,7 @@ function SettingsPage() {
       <section className="rounded-2xl border border-border/60 bg-card p-2">
         <SettingsRow
           to="/me"
+          testId="settings-link-profile"
           icon={<User className="size-5" />}
           title="Profile & account"
           subtitle="Display name, email, plan, delete account"
