@@ -31,6 +31,7 @@ import { Route as AuthenticatedConsolePromoCodesRouteImport } from './routes/_au
 import { Route as AuthenticatedConsoleEventsRouteImport } from './routes/_authenticated/console.events'
 import { Route as AuthenticatedConsoleDiagnosticsRouteImport } from './routes/_authenticated/console.diagnostics'
 import { Route as AuthenticatedConsoleAnalyticsRouteImport } from './routes/_authenticated/console.analytics'
+import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -147,6 +148,12 @@ const AuthenticatedConsoleAnalyticsRoute =
     path: '/console/analytics',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const LovableEmailQueueProcessRoute =
+  LovableEmailQueueProcessRouteImport.update({
+    id: '/lovable/email/queue/process',
+    path: '/lovable/email/queue/process',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/trips/$id': typeof AuthenticatedTripsIdRoute
   '/api/public/paddle-webhook': typeof ApiPublicPaddleWebhookRoute
   '/trips/': typeof AuthenticatedTripsIndexRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -193,6 +201,7 @@ export interface FileRoutesByTo {
   '/trips/$id': typeof AuthenticatedTripsIdRoute
   '/api/public/paddle-webhook': typeof ApiPublicPaddleWebhookRoute
   '/trips': typeof AuthenticatedTripsIndexRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -218,6 +227,7 @@ export interface FileRoutesById {
   '/_authenticated/trips/$id': typeof AuthenticatedTripsIdRoute
   '/api/public/paddle-webhook': typeof ApiPublicPaddleWebhookRoute
   '/_authenticated/trips/': typeof AuthenticatedTripsIndexRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -243,6 +253,7 @@ export interface FileRouteTypes {
     | '/trips/$id'
     | '/api/public/paddle-webhook'
     | '/trips/'
+    | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -266,6 +277,7 @@ export interface FileRouteTypes {
     | '/trips/$id'
     | '/api/public/paddle-webhook'
     | '/trips'
+    | '/lovable/email/queue/process'
   id:
     | '__root__'
     | '/'
@@ -290,6 +302,7 @@ export interface FileRouteTypes {
     | '/_authenticated/trips/$id'
     | '/api/public/paddle-webhook'
     | '/_authenticated/trips/'
+    | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -303,6 +316,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   JoinTokenRoute: typeof JoinTokenRoute
   ApiPublicPaddleWebhookRoute: typeof ApiPublicPaddleWebhookRoute
+  LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -461,6 +475,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConsoleAnalyticsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/lovable/email/queue/process': {
+      id: '/lovable/email/queue/process'
+      path: '/lovable/email/queue/process'
+      fullPath: '/lovable/email/queue/process'
+      preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -509,6 +530,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   JoinTokenRoute: JoinTokenRoute,
   ApiPublicPaddleWebhookRoute: ApiPublicPaddleWebhookRoute,
+  LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
