@@ -90,11 +90,10 @@ export type AutoCostResult =
   | { ok: true; duplicate: boolean }
   | { ok: false; error: string };
 
-type MinimalInserter = {
-  from: (table: "trip_costs") => {
-    insert: (row: AutoCostInsert) => Promise<{ error: { code?: string; message: string } | null }>;
-  };
-};
+// Minimal shape we need from a Supabase-like client. Kept loose on purpose so
+// the real supabase client (with deep generics) and a vi.fn() mock both fit.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type MinimalInserter = { from: (table: "trip_costs") => { insert: (row: AutoCostInsert) => any } };
 
 /**
  * Insert an auto-generated cost. Treats unique-violation on
@@ -105,9 +104,11 @@ export async function insertAutoCost(
   client: MinimalInserter,
   row: AutoCostInsert,
 ): Promise<AutoCostResult> {
-  const { error } = await client.from("trip_costs").insert(row);
+  const res = (await client.from("trip_costs").insert(row)) as {
+    error: { code?: string; message: string } | null;
+  };
+  const error = res?.error ?? null;
   if (!error) return { ok: true, duplicate: false };
-  // Postgres unique_violation
   if (error.code === "23505") return { ok: true, duplicate: true };
   return { ok: false, error: error.message };
 }
