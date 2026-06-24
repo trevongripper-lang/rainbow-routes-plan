@@ -21,7 +21,7 @@ export const Route = createFileRoute("/terms")({
 
 function TermsPage() {
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12">
+    <div className="safe-top safe-bottom mx-auto max-w-3xl px-6 py-12">
       <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
         Beta · Last updated June 23, 2026
       </p>
