@@ -24,8 +24,7 @@ function detectPlatform(): Platform {
   if (typeof navigator === "undefined") return "unknown";
   const ua = navigator.userAgent;
   const isIPad =
-    /ipad/i.test(ua) ||
-    (navigator.platform === "MacIntel" && (navigator.maxTouchPoints ?? 0) > 1);
+    /ipad/i.test(ua) || (navigator.platform === "MacIntel" && (navigator.maxTouchPoints ?? 0) > 1);
   const isIOS = /iphone|ipod/i.test(ua) || isIPad;
   const isAndroid = /android/i.test(ua);
   const isSafari = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(ua);
@@ -112,13 +111,7 @@ export function useInstallPrompt() {
 
 // --- shared instructions modal ---------------------------------------------
 
-function InstructionsModal({
-  platform,
-  onClose,
-}: {
-  platform: Platform;
-  onClose: () => void;
-}) {
+function InstructionsModal({ platform, onClose }: { platform: Platform; onClose: () => void }) {
   const { title, steps, hint } = getInstructions(platform);
   return (
     <div
@@ -196,8 +189,7 @@ function getInstructions(platform: Platform): {
             Tap the <MoreVertical className="inline size-3.5" /> menu in Chrome's toolbar.
           </>,
           <>
-            Choose{" "}
-            <strong className="text-foreground">Install app</strong> or{" "}
+            Choose <strong className="text-foreground">Install app</strong> or{" "}
             <strong className="text-foreground">Add to Home screen</strong>.
           </>,
           <>Confirm — Tribe Trips will launch like a native app.</>,
