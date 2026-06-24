@@ -123,6 +123,10 @@ function InstructionsModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+      style={{
+        paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+        paddingTop: "max(1rem, env(safe-area-inset-top))",
+      }}
       onClick={onClose}
     >
       <div
