@@ -176,8 +176,6 @@ function AuthPage() {
     }
   }
 
-
-
   return (
     <div
       className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
@@ -193,7 +191,15 @@ function AuthPage() {
               aria-hidden
               className="mt-4 grid size-12 place-items-center rounded-full bg-primary/15 text-primary"
             >
-              <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                viewBox="0 0 24 24"
+                className="size-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M4 6h16v12H4z" />
                 <path d="m4 7 8 6 8-6" />
               </svg>
@@ -242,104 +248,109 @@ function AuthPage() {
             </p>
           </div>
         ) : (
-        <>
-        <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">
-          ← back
-        </Link>
-        <h1 className="mt-3 font-display text-3xl">
-          {mode === "signin" ? "Welcome back" : "Join the crew"}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Get your tribe out of the text thread and off to the next adventure.
-        </p>
-
-        <Button onClick={handleGoogle} disabled={loading} variant="outline" className="mt-6 w-full">
-          <svg viewBox="0 0 24 24" className="size-4">
-            <path
-              fill="currentColor"
-              d="M21.35 11.1H12v3.2h5.35c-.5 2.4-2.6 4-5.35 4a5.85 5.85 0 1 1 0-11.7c1.5 0 2.9.55 4 1.55l2.35-2.35A9.15 9.15 0 0 0 12 3.05a9 9 0 1 0 9.35 9.35c0-.45-.05-.85-.1-1.3Z"
-            />
-          </svg>
-          Continue with Google
-        </Button>
-
-        <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
-          <div className="h-px flex-1 bg-border" /> or <div className="h-px flex-1 bg-border" />
-        </div>
-
-        <form onSubmit={handleEmail} className="space-y-3">
-          {mode === "signup" && (
-            <div>
-              <Label htmlFor="name">Display name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Alex"
-              />
-            </div>
-          )}
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          <Button type="submit" disabled={loading || blocked} className="w-full">
-            {blocked ? `Wait ${secsLeft}s` : mode === "signin" ? "Sign in" : "Create account"}
-          </Button>
-          {blocked && (
-            <p className="text-center text-xs text-destructive">
-              Too many attempts. You can try again in {secsLeft}s.
+          <>
+            <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">
+              ← back
+            </Link>
+            <h1 className="mt-3 font-display text-3xl">
+              {mode === "signin" ? "Welcome back" : "Join the crew"}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Get your tribe out of the text thread and off to the next adventure.
             </p>
-          )}
-        </form>
 
-        {mode === "signin" && (
-          <button
-            type="button"
-            onClick={handleForgot}
-            disabled={loading || blocked}
-            className="mt-3 w-full text-center text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
-          >
-            Forgot password?
-          </button>
-        )}
+            <Button
+              onClick={handleGoogle}
+              disabled={loading}
+              variant="outline"
+              className="mt-6 w-full"
+            >
+              <svg viewBox="0 0 24 24" className="size-4">
+                <path
+                  fill="currentColor"
+                  d="M21.35 11.1H12v3.2h5.35c-.5 2.4-2.6 4-5.35 4a5.85 5.85 0 1 1 0-11.7c1.5 0 2.9.55 4 1.55l2.35-2.35A9.15 9.15 0 0 0 12 3.05a9 9 0 1 0 9.35 9.35c0-.45-.05-.85-.1-1.3Z"
+                />
+              </svg>
+              Continue with Google
+            </Button>
 
-        <button
-          onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          className="mt-5 w-full text-sm text-muted-foreground hover:text-foreground"
-        >
-          {mode === "signin" ? "No account yet? Sign up" : "Have an account? Sign in"}
-        </button>
+            <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="h-px flex-1 bg-border" /> or <div className="h-px flex-1 bg-border" />
+            </div>
 
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          By continuing you agree to our{" "}
-          <Link to="/terms" className="underline hover:text-foreground">
-            Terms
-          </Link>{" "}
-          and{" "}
-          <Link to="/privacy" className="underline hover:text-foreground">
-            Privacy Policy
-          </Link>
-          .
-        </p>
-        </>
+            <form onSubmit={handleEmail} className="space-y-3">
+              {mode === "signup" && (
+                <div>
+                  <Label htmlFor="name">Display name</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Alex"
+                  />
+                </div>
+              )}
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <Button type="submit" disabled={loading || blocked} className="w-full">
+                {blocked ? `Wait ${secsLeft}s` : mode === "signin" ? "Sign in" : "Create account"}
+              </Button>
+              {blocked && (
+                <p className="text-center text-xs text-destructive">
+                  Too many attempts. You can try again in {secsLeft}s.
+                </p>
+              )}
+            </form>
+
+            {mode === "signin" && (
+              <button
+                type="button"
+                onClick={handleForgot}
+                disabled={loading || blocked}
+                className="mt-3 w-full text-center text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                Forgot password?
+              </button>
+            )}
+
+            <button
+              onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+              className="mt-5 w-full text-sm text-muted-foreground hover:text-foreground"
+            >
+              {mode === "signin" ? "No account yet? Sign up" : "Have an account? Sign in"}
+            </button>
+
+            <p className="mt-4 text-center text-xs text-muted-foreground">
+              By continuing you agree to our{" "}
+              <Link to="/terms" className="underline hover:text-foreground">
+                Terms
+              </Link>{" "}
+              and{" "}
+              <Link to="/privacy" className="underline hover:text-foreground">
+                Privacy Policy
+              </Link>
+              .
+            </p>
+          </>
         )}
       </div>
     </div>
