@@ -66,8 +66,11 @@ function BetaConsentPage() {
         return;
       }
       await recordBetaConsent(uid);
+      track("consent_accepted", { version: BETA_CONSENT_VERSION });
       navigate({ to: "/trips", replace: true });
     } catch (e) {
+      const msg = e instanceof Error ? e.message.slice(0, 140) : "unknown";
+      track("consent_save_failed", { version: BETA_CONSENT_VERSION, message: msg });
       setErr(e instanceof Error ? e.message : "Could not save consent. Please retry.");
     } finally {
       setBusy(false);
