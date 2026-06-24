@@ -4,7 +4,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { recordBetaConsent, BETA_CONSENT_VERSION } from "@/lib/beta-consent";
 import { track } from "@/lib/analytics";
 
+type BetaConsentSearch = { next?: string; reason?: string };
+
+function safeNext(next: string | undefined): string {
+  // Only allow same-origin absolute paths, never another URL.
+  if (!next || typeof next !== "string") return "/trips";
+  if (!next.startsWith("/") || next.startsWith("//")) return "/trips";
+  if (next === "/beta-consent" || next.startsWith("/auth")) return "/trips";
+  return next;
+}
+
 export const Route = createFileRoute("/_authenticated/beta-consent")({
+  validateSearch: (search: Record<string, unknown>): BetaConsentSearch => ({
+    next: typeof search.next === "string" ? search.next : undefined,
+    reason: typeof search.reason === "string" ? search.reason : undefined,
+  }),
   component: BetaConsentPage,
 });
 
@@ -38,6 +52,9 @@ const checks: { key: CheckKey; label: string }[] = [
 
 function BetaConsentPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
+  const nextPath = safeNext(search.next);
+
   const [state, setState] = useState<Record<CheckKey, boolean>>({
     age: false,
     beta: false,
@@ -67,7 +84,7 @@ function BetaConsentPage() {
       }
       await recordBetaConsent(uid);
       track("consent_accepted", { version: BETA_CONSENT_VERSION });
-      navigate({ to: "/trips", replace: true });
+      navigate({ to: nextPath as "/trips", replace: true });
     } catch (e) {
       const msg = e instanceof Error ? e.message.slice(0, 140) : "unknown";
       track("consent_save_failed", { version: BETA_CONSENT_VERSION, message: msg });

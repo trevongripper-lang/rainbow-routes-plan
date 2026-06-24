@@ -30,6 +30,16 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 function SettingsPage() {
+  const me = useQuery({
+    queryKey: ["me", "session-user-id"],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      return data.session?.user.id ?? null;
+    },
+    staleTime: 60_000,
+  });
+  const userId = me.data ?? null;
+
   const isAdmin = useQuery({
     queryKey: ["me", "is-admin"],
     queryFn: async () => {
@@ -52,7 +62,7 @@ function SettingsPage() {
     window.location.assign("/auth");
   }
 
-  const consented = typeof window !== "undefined" ? hasBetaConsentLocal() : true;
+  const consented = typeof window !== "undefined" && userId ? hasBetaConsentLocal(userId) : true;
 
   return (
     <div className="space-y-8">

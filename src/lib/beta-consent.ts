@@ -1,54 +1,96 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export const BETA_CONSENT_VERSION = "2026-06-beta-v1";
-export const BETA_CONSENT_KEY = `tt:beta-consent:${BETA_CONSENT_VERSION}`;
 
-type CachedConsent = { v: string; at: string };
+/**
+ * Per-user cache key. Tying the key to userId prevents cross-user
+ * bypass on shared/recycled browsers — a previous tester's "accepted"
+ * flag must never satisfy a different signed-in user's gate.
+ */
+export function betaConsentCacheKey(userId: string): string {
+  return `tt:beta-consent:${BETA_CONSENT_VERSION}:${userId}`;
+}
 
-export function hasBetaConsentLocal(): boolean {
-  if (typeof window === "undefined") return false;
+type CachedConsent = { v: string; uid: string; at: string };
+
+export function hasBetaConsentLocal(userId: string): boolean {
+  if (typeof window === "undefined" || !userId) return false;
   try {
-    const raw = window.localStorage.getItem(BETA_CONSENT_KEY);
+    const raw = window.localStorage.getItem(betaConsentCacheKey(userId));
     if (!raw) return false;
     const parsed = JSON.parse(raw) as CachedConsent | null;
-    return parsed?.v === BETA_CONSENT_VERSION;
+    return parsed?.v === BETA_CONSENT_VERSION && parsed?.uid === userId;
   } catch {
     return false;
   }
 }
 
-export function cacheBetaConsentLocal() {
-  if (typeof window === "undefined") return;
+export function cacheBetaConsentLocal(userId: string) {
+  if (typeof window === "undefined" || !userId) return;
   try {
     window.localStorage.setItem(
-      BETA_CONSENT_KEY,
-      JSON.stringify({ v: BETA_CONSENT_VERSION, at: new Date().toISOString() }),
+      betaConsentCacheKey(userId),
+      JSON.stringify({
+        v: BETA_CONSENT_VERSION,
+        uid: userId,
+        at: new Date().toISOString(),
+      } satisfies CachedConsent),
     );
   } catch {
     /* ignore */
   }
 }
 
-/** Check DB for current-version consent. Caches result in localStorage when found. */
-export async function hasBetaConsentRemote(userId: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from("beta_consents")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("version", BETA_CONSENT_VERSION)
-    .maybeSingle();
-  if (error) return false;
-  if (data) {
-    cacheBetaConsentLocal();
-    return true;
+export function clearBetaConsentLocal(userId: string) {
+  if (typeof window === "undefined" || !userId) return;
+  try {
+    window.localStorage.removeItem(betaConsentCacheKey(userId));
+  } catch {
+    /* ignore */
   }
-  return false;
+}
+
+export type BetaConsentStatus = "current" | "missing" | "error";
+
+/**
+ * Authoritative consent check. Always consults the DB for the current
+ * BETA_CONSENT_VERSION — local cache is never a bypass, only a hint we
+ * confirm against persisted state. Returns "error" on lookup failure so
+ * the gate can fail closed.
+ */
+export async function checkBetaConsent(userId: string): Promise<BetaConsentStatus> {
+  if (!userId) return "missing";
+  try {
+    const { data, error } = await supabase
+      .from("beta_consents")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("version", BETA_CONSENT_VERSION)
+      .maybeSingle();
+    if (error) return "error";
+    if (data) {
+      cacheBetaConsentLocal(userId);
+      return "current";
+    }
+    // No row for this user/version — could be brand-new user OR a stale
+    // version after a bump. Either way: require consent.
+    clearBetaConsentLocal(userId);
+    return "missing";
+  } catch {
+    return "error";
+  }
+}
+
+/** @deprecated use {@link checkBetaConsent}. Kept for callers that only need a boolean. */
+export async function hasBetaConsentRemote(userId: string): Promise<boolean> {
+  return (await checkBetaConsent(userId)) === "current";
 }
 
 export async function recordBetaConsent(userId: string): Promise<void> {
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 500) : null;
-  await supabase
+  const { error } = await supabase
     .from("beta_consents")
     .insert({ user_id: userId, version: BETA_CONSENT_VERSION, user_agent: userAgent });
-  cacheBetaConsentLocal();
+  if (error) throw error;
+  cacheBetaConsentLocal(userId);
 }

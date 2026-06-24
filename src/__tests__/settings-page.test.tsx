@@ -73,7 +73,7 @@ afterAll(() => {
 });
 
 import { Route } from "@/routes/_authenticated/settings";
-import { BETA_CONSENT_VERSION, BETA_CONSENT_KEY } from "@/lib/beta-consent";
+import { BETA_CONSENT_VERSION, betaConsentCacheKey } from "@/lib/beta-consent";
 
 function renderPage() {
   const Component = (Route as unknown as { component: React.FC }).component;
@@ -103,13 +103,15 @@ describe("Settings page", () => {
     expect(screen.getByText(new RegExp(`Beta build: ${BETA_CONSENT_VERSION}`))).toBeInTheDocument();
   });
 
-  it("shows 'Consent on file' badge when local consent is cached", () => {
+  it("shows 'Consent on file' badge when local consent is cached", async () => {
+    const uid = "user-with-consent";
+    getSessionMock.mockResolvedValueOnce({ data: { session: { user: { id: uid } } } });
     window.localStorage.setItem(
-      BETA_CONSENT_KEY,
-      JSON.stringify({ v: BETA_CONSENT_VERSION, at: new Date().toISOString() }),
+      betaConsentCacheKey(uid),
+      JSON.stringify({ v: BETA_CONSENT_VERSION, uid, at: new Date().toISOString() }),
     );
     renderPage();
-    expect(screen.getByText(/consent on file/i)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/consent on file/i)).toBeInTheDocument());
   });
 
   it("hides the admin diagnostics link for non-admins", async () => {
@@ -119,9 +121,10 @@ describe("Settings page", () => {
   });
 
   it("shows the admin diagnostics link when has_role returns true", async () => {
-    getSessionMock.mockResolvedValueOnce({
+    getSessionMock.mockResolvedValue({
       data: { session: { user: { id: "admin-1" } } },
     });
+
     rpcMock.mockResolvedValueOnce({ data: true });
     renderPage();
     await waitFor(() =>
