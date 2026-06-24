@@ -62,6 +62,7 @@ export function SmartAdd({ destinationId, me }: { destinationId: string; me: str
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [addToCosts, setAddToCosts] = useState(false);
 
   async function onAnalyze() {
     const t = text.trim();
