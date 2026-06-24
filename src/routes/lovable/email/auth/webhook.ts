@@ -1,15 +1,8 @@
-import * as React from 'react'
-import { render } from '@react-email/components'
-import { parseEmailWebhookPayload } from '@lovable.dev/email-js'
-import { WebhookError, verifyWebhookRequest } from '@lovable.dev/webhooks-js'
-import { createClient } from '@supabase/supabase-js'
+// Safeguard: keep module-level imports minimal so a broken template or a
+// renamed export in @react-email/components cannot crash sibling page SSR
+// when this route is pulled in via routeTree.gen.ts. All heavy/risky
+// imports are loaded lazily inside the POST handler.
 import { createFileRoute } from '@tanstack/react-router'
-import { SignupEmail } from '@/lib/email-templates/signup'
-import { InviteEmail } from '@/lib/email-templates/invite'
-import { MagicLinkEmail } from '@/lib/email-templates/magic-link'
-import { RecoveryEmail } from '@/lib/email-templates/recovery'
-import { EmailChangeEmail } from '@/lib/email-templates/email-change'
-import { ReauthenticationEmail } from '@/lib/email-templates/reauthentication'
 
 const EMAIL_SUBJECTS: Record<string, string> = {
   signup: 'Confirm your Tribe Trips account',
@@ -20,21 +13,10 @@ const EMAIL_SUBJECTS: Record<string, string> = {
   reauthentication: 'Your Tribe Trips verification code',
 }
 
-// Template mapping
-const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
-  signup: SignupEmail,
-  invite: InviteEmail,
-  magiclink: MagicLinkEmail,
-  recovery: RecoveryEmail,
-  email_change: EmailChangeEmail,
-  reauthentication: ReauthenticationEmail,
-}
-
-// Configuration
-const SITE_NAME = "plantribetrips"
-const SENDER_DOMAIN = "notify.jointribetrips.com"
-const ROOT_DOMAIN = "jointribetrips.com"
-const FROM_DOMAIN = "jointribetrips.com"
+const SITE_NAME = 'plantribetrips'
+const SENDER_DOMAIN = 'notify.jointribetrips.com'
+const ROOT_DOMAIN = 'jointribetrips.com'
+const FROM_DOMAIN = 'jointribetrips.com'
 
 function redactEmail(email: string | null | undefined): string {
   if (!email) return '***'
@@ -43,7 +25,26 @@ function redactEmail(email: string | null | undefined): string {
   return `${localPart[0]}***@${domain}`
 }
 
-export const Route = createFileRoute("/lovable/email/auth/webhook")({
+async function loadTemplate(emailType: string): Promise<any> {
+  switch (emailType) {
+    case 'signup':
+      return (await import('@/lib/email-templates/signup')).SignupEmail
+    case 'invite':
+      return (await import('@/lib/email-templates/invite')).InviteEmail
+    case 'magiclink':
+      return (await import('@/lib/email-templates/magic-link')).MagicLinkEmail
+    case 'recovery':
+      return (await import('@/lib/email-templates/recovery')).RecoveryEmail
+    case 'email_change':
+      return (await import('@/lib/email-templates/email-change')).EmailChangeEmail
+    case 'reauthentication':
+      return (await import('@/lib/email-templates/reauthentication')).ReauthenticationEmail
+    default:
+      return null
+  }
+}
+
+export const Route = createFileRoute('/lovable/email/auth/webhook')({
   server: {
     handlers: {
       POST: async ({ request }) => {
@@ -51,13 +52,24 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
 
         if (!apiKey) {
           console.error('LOVABLE_API_KEY not configured')
-          return Response.json(
-            { error: 'Server configuration error' },
-            { status: 500 }
-          )
+          return Response.json({ error: 'Server configuration error' }, { status: 500 })
         }
 
-        // Verify signature + timestamp, then parse payload.
+        // Lazy-load heavy deps so module evaluation stays cheap and safe.
+        const [
+          React,
+          { render },
+          { parseEmailWebhookPayload },
+          { WebhookError, verifyWebhookRequest },
+          { createClient },
+        ] = await Promise.all([
+          import('react'),
+          import('@react-email/components'),
+          import('@lovable.dev/email-js'),
+          import('@lovable.dev/webhooks-js'),
+          import('@supabase/supabase-js'),
+        ])
+
         let payload: any
         let run_id = ''
         try {
@@ -76,45 +88,30 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
               case 'invalid_timestamp':
               case 'stale_timestamp':
                 console.error('Invalid webhook signature', { error: error.message })
-                return Response.json(
-                  { error: 'Invalid signature' },
-                  { status: 401 }
-                )
+                return Response.json({ error: 'Invalid signature' }, { status: 401 })
               case 'invalid_payload':
               case 'invalid_json':
                 console.error('Invalid webhook payload', { error: error.message })
-                return Response.json(
-                  { error: 'Invalid webhook payload' },
-                  { status: 400 }
-                )
+                return Response.json({ error: 'Invalid webhook payload' }, { status: 400 })
             }
           }
-
           console.error('Webhook verification failed', { error })
-          return Response.json(
-            { error: 'Invalid webhook payload' },
-            { status: 400 }
-          )
+          return Response.json({ error: 'Invalid webhook payload' }, { status: 400 })
         }
 
         if (!run_id) {
           console.error('Webhook payload missing run_id')
-          return Response.json(
-            { error: 'Invalid webhook payload' },
-            { status: 400 }
-          )
+          return Response.json({ error: 'Invalid webhook payload' }, { status: 400 })
         }
 
         if (payload.version !== '1') {
           console.error('Unsupported payload version', { version: payload.version, run_id })
           return Response.json(
             { error: `Unsupported payload version: ${payload.version}` },
-            { status: 400 }
+            { status: 400 },
           )
         }
 
-        // The email action type is in payload.data.action_type (e.g., "signup", "recovery")
-        // payload.type is the hook event type ("auth")
         const emailType = payload.data.action_type
         console.log('Received auth event', {
           emailType,
@@ -122,16 +119,12 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
           run_id,
         })
 
-        const EmailTemplate = EMAIL_TEMPLATES[emailType]
+        const EmailTemplate = await loadTemplate(emailType)
         if (!EmailTemplate) {
           console.error('Unknown email type', { emailType, run_id })
-          return Response.json(
-            { error: `Unknown email type: ${emailType}` },
-            { status: 400 }
-          )
+          return Response.json({ error: `Unknown email type: ${emailType}` }, { status: 400 })
         }
 
-        // Build template props from payload.data (HookData structure)
         const templateProps = {
           siteName: SITE_NAME,
           siteUrl: `https://${ROOT_DOMAIN}`,
@@ -143,27 +136,21 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
           newEmail: payload.data.new_email,
         }
 
-        // Render React Email to HTML and plain text
         const element = React.createElement(EmailTemplate, templateProps)
         const html = await render(element)
         const text = await render(element, { plainText: true })
 
-        // Enqueue email for async processing by the dispatcher (process-email-queue).
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
         if (!supabaseUrl || !supabaseServiceKey) {
           console.error('Missing Supabase environment variables')
-          return Response.json(
-            { error: 'Server configuration error' },
-            { status: 500 }
-          )
+          return Response.json({ error: 'Server configuration error' }, { status: 500 })
         }
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey)
         const messageId = crypto.randomUUID()
 
-        // Log pending BEFORE enqueue so we have a record even if enqueue crashes
         await supabase.from('email_send_log').insert({
           message_id: messageId,
           template_name: emailType,
@@ -197,10 +184,7 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
             status: 'failed',
             error_message: 'Failed to enqueue email',
           })
-          return Response.json(
-            { error: 'Failed to enqueue email' },
-            { status: 500 }
-          )
+          return Response.json({ error: 'Failed to enqueue email' }, { status: 500 })
         }
 
         console.log('Auth email enqueued', {
