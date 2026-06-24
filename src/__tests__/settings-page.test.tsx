@@ -103,14 +103,17 @@ describe("Settings page", () => {
     expect(screen.getByText(new RegExp(`Beta build: ${BETA_CONSENT_VERSION}`))).toBeInTheDocument();
   });
 
-  it("shows 'Consent on file' badge when local consent is cached", () => {
+  it("shows 'Consent on file' badge when local consent is cached", async () => {
+    const uid = "user-with-consent";
+    getSessionMock.mockResolvedValueOnce({ data: { session: { user: { id: uid } } } });
     window.localStorage.setItem(
-      BETA_CONSENT_KEY,
-      JSON.stringify({ v: BETA_CONSENT_VERSION, at: new Date().toISOString() }),
+      betaConsentCacheKey(uid),
+      JSON.stringify({ v: BETA_CONSENT_VERSION, uid, at: new Date().toISOString() }),
     );
     renderPage();
-    expect(screen.getByText(/consent on file/i)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/consent on file/i)).toBeInTheDocument());
   });
+
 
   it("hides the admin diagnostics link for non-admins", async () => {
     renderPage();
