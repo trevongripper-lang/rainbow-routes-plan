@@ -329,6 +329,19 @@ export function SmartAdd({ destinationId, me }: { destinationId: string; me: str
               </div>
             </div>
 
+            {draft.kind === "ticket" && parseFloat(draft.amount) > 0 && (
+              <label className="mt-3 flex items-center gap-2 text-xs text-white/80">
+                <input
+                  type="checkbox"
+                  checked={addToCosts}
+                  onChange={(e) => setAddToCosts(e.target.checked)}
+                  className="size-4 rounded border-white/40 bg-white/10"
+                  aria-label="Add this to trip costs"
+                />
+                Add this to trip costs
+              </label>
+            )}
+
             <div className="mt-3 flex justify-end gap-2">
               <Button
                 variant="ghost"
