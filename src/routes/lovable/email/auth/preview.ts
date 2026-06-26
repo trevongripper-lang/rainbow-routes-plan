@@ -31,8 +31,8 @@ const SAMPLE_DATA: Record<string, object> = {
   reauthentication: { token: "123456" },
 };
 
-type EmailTemplate = (props: Record<string, unknown>) => unknown;
-async function loadTemplate(type: string): Promise<EmailTemplate | null> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function loadTemplate(type: string): Promise<any> {
   switch (type) {
     case "signup":
       return (await import("@/lib/email-templates/signup")).SignupEmail;

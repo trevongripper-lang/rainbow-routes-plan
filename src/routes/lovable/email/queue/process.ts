@@ -36,7 +36,8 @@ function getRetryAfterSeconds(error: unknown): number {
 }
 
 async function moveToDlq(
-  supabase: SupabaseClient,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any>,
   queue: string,
   msg: { msg_id: number; message: Record<string, unknown> },
   reason: string,
@@ -85,7 +86,8 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
           return Response.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const supabase: SupabaseClient<any, any> = createClient(supabaseUrl, supabaseServiceKey);
 
         // 1. Check rate-limit cooldown and read queue config
         const { data: state } = await supabase
@@ -128,7 +130,8 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
           const messageIds = Array.from(
             new Set(
               messages
-                .map((msg: { message?: { message_id?: unknown } }) =>
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                .map((msg: any) =>
                   msg?.message?.message_id && typeof msg.message.message_id === "string"
                     ? msg.message.message_id
                     : null,
