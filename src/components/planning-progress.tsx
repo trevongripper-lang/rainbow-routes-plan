@@ -115,15 +115,18 @@ export function PlanningProgress({
   const [membersQ, flagsQ, staysQ, costsQ, settlementsQ] = results;
   const isLoading = results.some((r) => r.isLoading);
 
-  const members = (membersQ.data ?? []) as MemberRow[];
+  const members = useMemo(() => (membersQ.data ?? []) as MemberRow[], [membersQ.data]);
   const flags = (flagsQ.data ?? {
     dates_locked: false,
     stay_not_needed: false,
     no_shared_costs: false,
   }) as DestFlags;
   const stays = (staysQ.data ?? []) as { id: string }[];
-  const costs = (costsQ.data ?? []) as CostRow[];
-  const settlements = (settlementsQ.data ?? []) as SettlementRow[];
+  const costs = useMemo(() => (costsQ.data ?? []) as CostRow[], [costsQ.data]);
+  const settlements = useMemo(
+    () => (settlementsQ.data ?? []) as SettlementRow[],
+    [settlementsQ.data],
+  );
 
   const memberCount = Math.max(members.length, 1);
   const confirmedCount = members.filter(

@@ -37,7 +37,7 @@ vi.mock("@tanstack/react-query", () => {
     const [data, setData] = React.useState<unknown>(undefined);
     React.useEffect(() => {
       queryFn().then(setData);
-    }, []);
+    }, [queryFn]);
     return { data };
   };
   return {

@@ -80,7 +80,7 @@ export function NotificationsBell() {
     },
     enabled: tripIds.length > 0,
   });
-  const tripMap = new Map(trips.map((t) => [t.id, t]));
+  const tripMap = useMemo(() => new Map(trips.map((t) => [t.id, t])), [trips]);
 
   // Realtime
   useEffect(() => {
