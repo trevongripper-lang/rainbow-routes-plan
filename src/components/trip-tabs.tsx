@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -771,8 +771,10 @@ export function CostsTab({
     },
   });
   const pmap = useMemo(() => new Map(profiles.map((p) => [p.id, p])), [profiles]);
-  const nameOf = (id: string | null | undefined) =>
-    id ? (pmap.get(id)?.display_name ?? "Someone") : "Someone";
+  const nameOf = useCallback(
+    (id: string | null | undefined) => (id ? (pmap.get(id)?.display_name ?? "Someone") : "Someone"),
+    [pmap],
+  );
 
   const saveHeadcount = useMutation({
     mutationFn: async (n: number) => {
