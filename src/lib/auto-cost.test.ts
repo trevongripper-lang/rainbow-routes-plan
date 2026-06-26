@@ -65,7 +65,12 @@ describe("buildStayAutoCost", () => {
       currency: "USD",
     };
     expect(
-      buildStayAutoCost({ ...base, nightlyRateCents: 0, checkIn: "2025-01-01", checkOut: "2025-01-03" }),
+      buildStayAutoCost({
+        ...base,
+        nightlyRateCents: 0,
+        checkIn: "2025-01-01",
+        checkOut: "2025-01-03",
+      }),
     ).toBeNull();
     expect(
       buildStayAutoCost({ ...base, nightlyRateCents: 1000, checkIn: null, checkOut: "2025-01-03" }),
@@ -124,9 +129,7 @@ describe("insertAutoCost", () => {
   });
 
   it("surfaces other errors", async () => {
-    const insert = vi
-      .fn()
-      .mockResolvedValue({ error: { code: "42501", message: "RLS denied" } });
+    const insert = vi.fn().mockResolvedValue({ error: { code: "42501", message: "RLS denied" } });
     const client = { from: vi.fn(() => ({ insert })) };
     await expect(insertAutoCost(client, row)).resolves.toEqual({
       ok: false,

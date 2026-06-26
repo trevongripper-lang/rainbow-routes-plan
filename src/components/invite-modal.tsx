@@ -82,8 +82,7 @@ export function InviteModal({
     }
   };
 
-  const canShare =
-    typeof navigator !== "undefined" && typeof navigator.share === "function";
+  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
   const onNativeShare = async () => {
     try {
@@ -102,7 +101,13 @@ export function InviteModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setLastUrl(null); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) setLastUrl(null);
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant="secondary" size="sm" className="gap-1.5">
           <UserPlus className="size-4" /> Invite

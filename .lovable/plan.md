@@ -1,60 +1,47 @@
-# Normalize "Add to Home Screen"
+## Status snapshot
 
-## Problem
+**Everything functioning:** ✅
+- Live site (jointribetrips.com): `/`, `/auth`, `/pricing`, `/privacy`, `/terms` all return 200, correct titles, zero console errors.
+- Tests: **59/59 passing** across 7 files.
+- Typecheck: clean.
+- Lovable Cloud backend: healthy.
+- Security scan: **0 findings** across supabase, supabase_lov, supply_chain, and connector scanners.
 
-The install banner is the only surface and it almost never appears:
+**One regression introduced recently:** ⚠️
+- **Lint: 466 errors / 14 warnings** (was ~20 before). The bulk is **prettier formatting in `src/routes/lovable/email/queue/process.ts`** from the email-infra work — single vs double quotes and missing semicolons. 458 are auto-fixable with `eslint --fix`. No behavior impact, but it will block any CI gate that runs lint.
 
-- **Chromium (Android / desktop Chrome / Edge):** never fires `beforeinstallprompt` because the app has no service worker. Chrome's install criteria require an SW with a fetch handler. Result: banner hidden.
-- **iPadOS Safari:** UA reports as Macintosh, the `iphone|ipad|ipod` check fails, banner hidden.
-- **Dismissal is permanent:** one tap of × sets `localStorage["tribe.install.dismissed"]=1` forever with no UI to undo.
-- **No manual entry point** in the user menu / Settings, so once dismissed (or on any unsupported browser) the feature is invisible.
+## Outstanding items (from `BETA_CHECKLIST.md`)
 
-## Goal
+37 unchecked, 6 done. Grouped by who has to act:
 
-A single, predictable install surface on every platform:
+### Needs code/agent work (I can do)
+1. Fix the 466 lint errors (`eslint --fix`, then hand-clean the residual ~8).
+2. Remove two obsolete `@next/next/no-img-element` rule references in `eslint.config.js`.
+3. Resolve `react-hooks/exhaustive-deps` warnings in `EventsMap.tsx` and `trips.$id.tsx`.
+4. Pin `search_path` on the remaining `SECURITY DEFINER` helpers flagged by Supabase advisors (separate from the 0-finding scanner above).
+5. Decide on and either ship or drop deferred Ratings / Credits / Loyalty schema.
 
-1. A **persistent "Install app" entry** the user can always find (never disappears unless the app is actually installed).
-2. An **opportunistic banner** with sane snoozing (not permanent dismissal) for first-time visitors.
-3. **Real Chromium install support** so Android/desktop Chrome shows the native prompt instead of the iOS fallback instructions.
+### Needs your action (config / dashboards / manual QA — I can't do)
+6. **Switch Paddle from sandbox to production keys** + re-run one unlock end-to-end.
+7. Confirm Google OAuth client has prod redirect URLs (Lovable subdomain + custom domain).
+8. Enable HIBP leaked-password check, disable anonymous sign-ups (Cloud → Auth Settings).
+9. Live-device PWA smoke matrix (iPhone Safari, iPhone PWA, Android Chrome, desktop) — 6 checklist rows.
+10. Beta cohort confirmation: 18+ ack, recording consent, recordings stored in restricted Drive.
+11. Events curation pass: coordinates audit, verified pass, stale-event sweep in `/console/events`.
 
-## Plan
+### Verification rows (mostly already implemented — just need a tester to tick them)
+12. Consent-gate analytics, auth analytics, page-load timing, redirect-loop guard, offline toast, build-label chip, error boundary — all 7 are wired; they just need one live tester to confirm the events land in `analytics_events`.
 
-### 1. Add a minimal service worker so Chromium qualifies for install
+## Proposed next step
 
-Use `vite-plugin-pwa` with `generateSW`, following the project's PWA skill rules:
+Run lint auto-fix + hand-clean the email queue file, drop the dead eslint rule refs, and address the two `exhaustive-deps` warnings. That gets lint back to green and is the only true regression. The rest is either your-side ops work or tester verification — I'll list those in chat so you can route them.
 
-- `registerType: "autoUpdate"`, `injectRegister: null`, `devOptions.enabled: false`.
-- Navigation strategy `NetworkFirst` (no offline behavior promised — this exists solely to satisfy install criteria).
-- Single guarded registration wrapper that refuses to register in dev, in iframes, on Lovable preview hosts (`id-preview--*`, `preview--*`, `*.lovableproject.com`, `*.lovableproject-dev.com`, `beta.lovable.dev`), and when `?sw=off` is set; in those cases it also unregisters any matching `/sw.js`.
-- Registration wrapper called once from `RootComponent` in `__root.tsx` inside a `useEffect`.
-- Keep the existing `manifest.webmanifest` (plugin's manifest generation disabled, or aligned with the current file).
+### Technical detail (for the cleanup work)
 
-This is the minimum change that unlocks `beforeinstallprompt` on Chromium without introducing offline behavior.
+- `bunx eslint . --fix` will resolve ~458 prettier/quote/semicolon errors.
+- Residual `no-explicit-any` and empty-catch errors will need manual narrowing or `// eslint-disable-next-line` with a reason.
+- `eslint.config.js`: drop the two `@next/next/no-img-element` entries (Next.js plugin not installed).
+- `EventsMap.tsx` / `trips.$id.tsx`: add the missing deps or wrap with `useCallback` — review case by case.
+- DB advisors: `ALTER FUNCTION ... SET search_path = public, pg_temp` on each remaining flagged function.
 
-### 2. Rework `install-app-banner.tsx` into a small install module
-
-Split responsibilities:
-
-- **`useInstallPrompt()` hook** — owns: captured `BeforeInstallPromptEvent`, installed state (`display-mode: standalone` + iOS `navigator.standalone`), platform detection (Chromium-prompt / iOS-Safari / Android-Firefox / desktop-other), and a `promptInstall()` action. Fix iPadOS detection by also treating `navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1` as iPad.
-- **`InstallAppBanner`** — opportunistic banner. Replace permanent dismissal with a **7-day snooze** stored as a timestamp (`tribe.install.snoozed_until`). Banner hides while snoozed, while installed, or when the platform offers no install path at all (e.g. desktop Firefox).
-- **`InstallAppButton`** — small reusable button/menu-item that is always actionable: triggers the native prompt on Chromium, opens the iOS Safari instructions modal on iOS, and opens a generic "How to install" modal with per-browser steps elsewhere. Never hidden except when the app is already installed.
-- Keep the existing iOS instructions modal; extend it with Android-Chrome and desktop-Chromium variants for the fallback path.
-
-### 3. Add the persistent entry point
-
-Add `InstallAppButton` to the Settings page (`src/routes/_authenticated/settings.tsx`) as a row in the existing settings list, labeled "Install app" with a short helper line ("Add Tribe Trips to your home screen"). This is the normalized, always-available trigger the user asked for. The opportunistic banner stays in `__root.tsx` for discoverability.
-
-### 4. Verify
-
-- Android Chrome: banner appears after SW registers; tapping Install fires the native prompt; after install, both surfaces hide.
-- iOS Safari (iPhone + iPad): banner appears with iOS instructions; Settings entry always works.
-- Desktop Chrome/Edge: banner appears; native prompt fires.
-- Desktop Firefox / iOS Chrome: banner hidden; Settings entry opens a "your browser can't install this app — open in Safari/Chrome" modal.
-- Lovable preview & dev: SW never registers; banner still renders for layout review.
-
-## Technical notes
-
-- Files touched: `vite.config.ts` (add plugin), `package.json` (`vite-plugin-pwa`), `src/components/install-app-banner.tsx` (rewrite), new `src/lib/install.ts` (hook + registration wrapper), `src/routes/__root.tsx` (call registration), `src/routes/_authenticated/settings.tsx` (add row).
-- `manifest.webmanifest` already has correct `display`, `start_url`, `id`, icons (`any` + `maskable`) — no changes needed.
-- The PWA skill's kill-switch worker is **not** needed here; there is no prior app SW deployed to evict.
-- No offline caching is added; we only need Chromium to see "has SW with fetch handler" to enable install.
+No production deploy required for the lint cleanup itself; publish only once items 1–5 are batched.
