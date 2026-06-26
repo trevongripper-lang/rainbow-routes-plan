@@ -772,8 +772,7 @@ export function CostsTab({
   });
   const pmap = useMemo(() => new Map(profiles.map((p) => [p.id, p])), [profiles]);
   const nameOf = useCallback(
-    (id: string | null | undefined) =>
-      id ? (pmap.get(id)?.display_name ?? "Someone") : "Someone",
+    (id: string | null | undefined) => (id ? (pmap.get(id)?.display_name ?? "Someone") : "Someone"),
     [pmap],
   );
 
