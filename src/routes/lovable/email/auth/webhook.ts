@@ -25,7 +25,8 @@ function redactEmail(email: string | null | undefined): string {
   return `${localPart[0]}***@${domain}`;
 }
 
-async function loadTemplate(emailType: string): Promise<any> {
+type EmailTemplate = (props: Record<string, unknown>) => unknown;
+async function loadTemplate(emailType: string): Promise<EmailTemplate | null> {
   switch (emailType) {
     case "signup":
       return (await import("@/lib/email-templates/signup")).SignupEmail;
@@ -70,7 +71,7 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
           import("@supabase/supabase-js"),
         ]);
 
-        let payload: any;
+        let payload: Record<string, unknown> & { user?: { email?: string }; email_data?: Record<string, unknown> };
         let run_id = "";
         try {
           const verified = await verifyWebhookRequest({
