@@ -323,3 +323,122 @@ export const listAdminEvents = createServerFn({ method: "POST" })
     }
     return (data ?? []).map((e) => ({ ...e, reports_count: reportCounts[e.id] ?? 0 }));
   });
+
+// ---------- Export all events (admin) ----------
+export const exportAllEvents = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { data, error } = await context.supabase
+      .from("events")
+      .select(
+        "id, name, description, start_date, end_date, city, region, country, url, source_url, image_url, tags, latitude, longitude, verified, confidence_notes",
+      )
+      .order("start_date", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+// ---------- Bulk upsert from spreadsheet (admin) ----------
+const RowInput = z.object({
+  id: z.string().uuid().optional().nullable(),
+  name: z.string().min(2).max(200),
+  description: z.string().max(2000).optional().nullable(),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  end_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .nullable(),
+  city: z.string().min(1).max(120),
+  region: z.string().min(1).max(120),
+  country: z.string().min(1).max(120),
+  url: z.string().url().max(2000).optional().nullable().or(z.literal("")),
+  source_url: z.string().url().max(2000).optional().nullable().or(z.literal("")),
+  image_url: z.string().url().max(2000).optional().nullable().or(z.literal("")),
+  tags: z.string().max(200).optional().nullable(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  verified: z.boolean().optional().default(false),
+  confidence_notes: z.string().max(500).optional().nullable(),
+});
+
+const ImportInput = z.object({
+  rows: z.array(z.unknown()).max(2000),
+});
+
+type ImportResult = {
+  inserted: number;
+  updated: number;
+  errors: Array<{ row: number; reason: string }>;
+};
+
+export const importEvents = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => ImportInput.parse(d))
+  .handler(async ({ data, context }): Promise<ImportResult> => {
+    await assertAdmin(context);
+
+    const inserts: Array<Record<string, unknown>> = [];
+    const updates: Array<Record<string, unknown>> = [];
+    const errors: Array<{ row: number; reason: string }> = [];
+
+    data.rows.forEach((raw, idx) => {
+      const parsed = RowInput.safeParse(raw);
+      if (!parsed.success) {
+        errors.push({ row: idx + 2, reason: parsed.error.issues[0]?.message ?? "Invalid row" });
+        return;
+      }
+      const r = parsed.data;
+      const payload = {
+        name: r.name,
+        description: r.description || null,
+        start_date: r.start_date,
+        end_date: r.end_date || null,
+        city: r.city,
+        region: r.region,
+        country: r.country,
+        url: r.url || null,
+        source_url: r.source_url || r.url || null,
+        image_url: r.image_url || null,
+        tags: r.tags || null,
+        latitude: r.latitude ?? null,
+        longitude: r.longitude ?? null,
+        verified: r.verified ?? false,
+        confidence_notes: r.confidence_notes || null,
+      };
+      if (r.id) {
+        updates.push({ id: r.id, ...payload });
+      } else {
+        inserts.push(payload);
+      }
+    });
+
+    let inserted = 0;
+    let updated = 0;
+
+    if (inserts.length > 0) {
+      const { data: ins, error } = await context.supabase
+        .from("events")
+        .insert(inserts)
+        .select("id");
+      if (error) {
+        errors.push({ row: 0, reason: `Insert failed: ${error.message}` });
+      } else {
+        inserted = ins?.length ?? 0;
+      }
+    }
+
+    // Update one-by-one so per-row errors don't poison the batch.
+    for (const u of updates) {
+      const { id, ...rest } = u as { id: string } & Record<string, unknown>;
+      const { error } = await context.supabase.from("events").update(rest).eq("id", id);
+      if (error) {
+        errors.push({ row: 0, reason: `Update ${id}: ${error.message}` });
+      } else {
+        updated += 1;
+      }
+    }
+
+    return { inserted, updated, errors };
+  });
