@@ -136,8 +136,8 @@ function BetaConsentPage() {
 
       <p className="mt-4 text-xs text-muted-foreground">
         Email{" "}
-        <a className="underline" href="mailto:hello@tgklabs.io">
-          hello@tgklabs.io
+        <a className="underline" href="mailto:hello@jointribetrips.com">
+          hello@jointribetrips.com
         </a>{" "}
         to request deletion of your beta recordings or feedback.
       </p>
