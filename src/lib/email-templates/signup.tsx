@@ -21,16 +21,21 @@ interface SignupEmailProps {
   confirmationUrl: string;
 }
 
-export const SignupEmail = ({ confirmationUrl }: SignupEmailProps) => (
+export const SignupEmail = ({ confirmationUrl, recipient }: SignupEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Confirm your email to finish setting up your Tribe Trips account.</Preview>
+    <Preview>
+      Tap to confirm {recipient ? recipient : "your email"} and finish creating your Tribe Trips
+      account — the link expires in 24 hours.
+    </Preview>
     <Body style={main}>
       <Container style={container}>
         <Text style={brand}>Tribe Trips</Text>
-        <Heading style={h1}>Confirm your Tribe Trips account</Heading>
+        <Heading style={h1}>Confirm your email</Heading>
         <Text style={text}>
-          Welcome to Tribe Trips. Confirm your email address to finish setting up your account.
+          You're getting this because {recipient ? <strong>{recipient}</strong> : "this address"}{" "}
+          was used to sign up for Tribe Trips — the app for planning group trips with friends.
+          Confirm your email so we know it's really you.
         </Text>
 
         <Section style={{ textAlign: "center" as const, margin: "32px 0" }}>
@@ -50,7 +55,9 @@ export const SignupEmail = ({ confirmationUrl }: SignupEmailProps) => (
 
         <Hr style={hr} />
         <Text style={footer}>
-          If you didn't create a Tribe Trips account, you can safely ignore this email.
+          If you didn't sign up for Tribe Trips, you can safely ignore this email — no account will
+          be created. Questions or trouble confirming? Just reply to this email and a human on our
+          team will help.
         </Text>
       </Container>
     </Body>
