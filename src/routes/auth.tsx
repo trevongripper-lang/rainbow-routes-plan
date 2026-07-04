@@ -155,8 +155,13 @@ function AuthPage() {
     setLoading(true);
     try {
       track("google_signin_started");
+      // Stash the intended redirect so we can honor it after the full-page
+      // OAuth round-trip returns to /auth (or the origin) with a fresh
+      // session. `redirect_uri` MUST stay a public same-origin URL, never a
+      // protected route.
+      stashPendingRedirect(redirectTarget);
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + "/trips",
+        redirect_uri: window.location.origin,
       });
       if (result.error) {
         track("google_signin_failed", {
@@ -168,7 +173,7 @@ function AuthPage() {
       if (result.redirected) return; // browser is navigating away
       // Session is set; the onAuthStateChange listener above will navigate.
       track("signin_succeeded", { method: "google" });
-      navigate({ to: "/trips", replace: true });
+      window.location.replace(redirectTarget);
     } catch (err) {
       track("google_signin_failed", {
         message: err instanceof Error ? err.message.slice(0, 140) : "unknown",
