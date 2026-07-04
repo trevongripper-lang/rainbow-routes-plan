@@ -8,6 +8,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Copy, Link as LinkIcon, Share2, UserPlus, Check, Trash2 } from "lucide-react";
@@ -24,6 +34,9 @@ export function InviteModal({
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [lastUrl, setLastUrl] = useState<string | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<
+    { userId: string; name: string } | null
+  >(null);
 
   const { data: members = [] } = useQuery({
     queryKey: ["trip-members", destinationId],
