@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AttendeesCard } from "@/components/attendees-card";
 import { PlanningProgress } from "@/components/planning-progress";
+import { TripSectionBar } from "@/components/trip-section-bar";
 
 async function fetchTrip(id: string) {
   // 2 round-trips instead of 5: one combined destinations+votes+comments query,
@@ -390,6 +391,8 @@ function TripDetail() {
           </div>
         </header>
       )}
+
+      <TripSectionBar tripId={id} activeTab={activeTab} />
 
       <Tabs
         value={activeTab}
