@@ -526,6 +526,44 @@ export function FlightsTab({ destinationId, me, startDate, endDate }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={!!dupeConfirm}
+        onOpenChange={(o) => {
+          if (!o && dupeConfirm) {
+            dupeConfirm.resolve(false);
+            setDupeConfirm(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save duplicate flight?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A matching flight is already saved for this passenger on the same date. Save another
+              anyway?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                dupeConfirm?.resolve(false);
+                setDupeConfirm(null);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                dupeConfirm?.resolve(true);
+                setDupeConfirm(null);
+              }}
+            >
+              Save anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
