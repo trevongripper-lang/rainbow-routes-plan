@@ -218,6 +218,43 @@ export function InviteModal({
           </div>
         </div>
       </DialogContent>
+
+      <AlertDialog
+        open={!!pendingRemove}
+        onOpenChange={(o) => !o && setPendingRemove(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {pendingRemove?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              They'll lose access to this trip and any private planning here. They can be
+              re-invited later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!pendingRemove) return;
+                const { userId } = pendingRemove;
+                setPendingRemove(null);
+                const { error } = await supabase
+                  .from("trip_members")
+                  .delete()
+                  .eq("destination_id", destinationId)
+                  .eq("user_id", userId);
+                if (error) toast.error(error.message);
+                else {
+                  toast.success("Removed");
+                  qc.invalidateQueries({ queryKey: ["trip-members", destinationId] });
+                }
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
