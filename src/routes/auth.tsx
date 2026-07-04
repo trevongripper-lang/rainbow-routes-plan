@@ -112,13 +112,13 @@ function AuthPage() {
         }
         // Auto-confirm enabled — straight into the app.
         track("signin_succeeded", { method: "signup_autoconfirm" });
-        navigate({ to: "/trips" });
+        window.location.replace(redirectTarget);
       } else {
         if (!(await guard("login", email))) return;
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         track("signin_succeeded", { method: "password" });
-        navigate({ to: "/trips" });
+        window.location.replace(redirectTarget);
       }
     } catch (err) {
       track("signin_failed", {
