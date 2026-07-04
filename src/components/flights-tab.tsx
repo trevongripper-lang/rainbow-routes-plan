@@ -68,6 +68,7 @@ export function FlightsTab({ destinationId, me, startDate, endDate }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [showBookingDetails, setShowBookingDetails] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [dupeConfirm, setDupeConfirm] = useState<{ resolve: (ok: boolean) => void } | null>(null);
   const aiInputRef = useRef<HTMLInputElement>(null);
 
   const { data: flights = [] } = useQuery({
@@ -126,9 +127,7 @@ export function FlightsTab({ destinationId, me, startDate, endDate }: Props) {
           (x.passenger_name ?? "").toLowerCase() === form.passenger_name.trim().toLowerCase(),
       );
       if (dupe) {
-        const ok = window.confirm(
-          "A matching flight is already saved for this passenger. Save another?",
-        );
+        const ok = await new Promise<boolean>((resolve) => setDupeConfirm({ resolve }));
         if (!ok) throw new Error("__cancelled__");
       }
       const { error } = await supabase.from("trip_flights").insert({
