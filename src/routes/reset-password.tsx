@@ -9,6 +9,16 @@ import { KeyRound, CheckCircle2, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
+  head: () => ({
+    meta: [
+      { title: "Reset password — Tribe Trips" },
+      {
+        name: "description",
+        content: "Choose a new password for your Tribe Trips account after requesting a reset link.",
+      },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: ResetPasswordPage,
 });
 

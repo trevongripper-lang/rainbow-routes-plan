@@ -20,6 +20,24 @@ import { Reveal } from "@/components/reveal";
 
 export const Route = createFileRoute("/")({
   ssr: false,
+  head: () => ({
+    meta: [
+      { title: "Tribe Trips — Plan gay group trips with your crew" },
+      {
+        name: "description",
+        content:
+          "Pitch destinations, upvote as a crew, chatter about plans, split costs, and discover regional queer events — all in one shared trip.",
+      },
+      { property: "og:title", content: "Tribe Trips — Plan gay group trips with your crew" },
+      {
+        property: "og:description",
+        content:
+          "Pitch destinations, upvote as a crew, chatter, split costs, and discover queer events.",
+      },
+      { property: "og:url", content: "https://jointribetrips.com/" },
+    ],
+    links: [{ rel: "canonical", href: "https://jointribetrips.com/" }],
+  }),
   beforeLoad: async () => {
     const { data } = await supabase.auth.getSession();
     if (data.session) throw redirect({ to: "/trips" });

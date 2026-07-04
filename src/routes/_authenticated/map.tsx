@@ -26,6 +26,16 @@ type TripLite = { id: string; title: string; region: string; country: string | n
 
 export const Route = createFileRoute("/_authenticated/map")({
   ssr: false,
+  head: () => ({
+    meta: [
+      { title: "Trip Map — Tribe Trips" },
+      {
+        name: "description",
+        content: "See your crew's trips and nearby queer events plotted on an interactive map.",
+      },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   loader: ({ context }) =>
     context.queryClient.ensureQueryData({
       queryKey: ["events"],

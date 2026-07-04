@@ -8,7 +8,15 @@ import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/join/$token")({
   head: () => ({
-    meta: [{ title: "Join a trip — Tribe Trips" }, { name: "robots", content: "noindex" }],
+    meta: [
+      { title: "Join a trip — Tribe Trips" },
+      {
+        name: "description",
+        content:
+          "You've been invited to plan a group trip on Tribe Trips. Preview the destination, then sign in to join your crew and start pitching plans.",
+      },
+      { name: "robots", content: "noindex" },
+    ],
   }),
   component: JoinPage,
 });

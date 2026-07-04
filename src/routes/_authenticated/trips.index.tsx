@@ -33,6 +33,16 @@ import { track } from "@/lib/analytics";
 // (kept imports tidy below)
 
 export const Route = createFileRoute("/_authenticated/trips/")({
+  head: () => ({
+    meta: [
+      { title: "My Trips — Tribe Trips" },
+      {
+        name: "description",
+        content: "See every trip your crew is planning on Tribe Trips and jump into the details.",
+      },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   loader: ({ context }) => context.queryClient.ensureQueryData(tripsQueryOptions),
   component: TripsPage,
   errorComponent: ({ error }) => (

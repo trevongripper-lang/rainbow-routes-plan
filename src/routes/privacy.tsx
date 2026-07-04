@@ -14,7 +14,9 @@ export const Route = createFileRoute("/privacy")({
         content: "How Tribe Trips handles your data.",
       },
       { property: "og:type", content: "article" },
+      { property: "og:url", content: "https://jointribetrips.com/privacy" },
     ],
+    links: [{ rel: "canonical", href: "https://jointribetrips.com/privacy" }],
   }),
   component: PrivacyPage,
 });
