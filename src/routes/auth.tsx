@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -9,14 +9,25 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { rlCheckPublic } from "@/lib/rate-limit.functions";
 import { track } from "@/lib/analytics";
+import {
+  sanitizeRedirectPath,
+  stashPendingRedirect,
+  consumePendingRedirect,
+} from "@/lib/redirect-guard";
+
+type AuthSearch = { redirect?: string };
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
+  validateSearch: (s: Record<string, unknown>): AuthSearch => ({
+    redirect: typeof s.redirect === "string" ? s.redirect : undefined,
+  }),
   component: AuthPage,
 });
 
 function AuthPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const rlCheck = useServerFn(rlCheckPublic);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -27,6 +38,14 @@ function AuthPage() {
   const [confirmSent, setConfirmSent] = useState<string | null>(null);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
 
+  // Resolve the final post-auth destination. Prefer the search-param
+  // redirect (e.g. /join/$token), fall back to any pending redirect stashed
+  // in sessionStorage (survives full-page OAuth), then /trips.
+  const redirectTarget = useMemo(() => {
+    if (typeof window === "undefined") return "/trips";
+    return sanitizeRedirectPath(search.redirect ?? consumePendingRedirect() ?? "/trips");
+  }, [search.redirect]);
+
   const secsLeft = cooldown ? Math.max(0, Math.ceil((cooldown.until - Date.now()) / 1000)) : 0;
   const blocked = secsLeft > 0;
 
@@ -36,19 +55,25 @@ function AuthPage() {
   // navigate() call in handleGoogle().
   useEffect(() => {
     let cancelled = false;
+    const go = () => {
+      // Use window.location so any same-origin path (including dynamic
+      // routes like /join/$token) works without router type wrangling.
+      window.location.replace(redirectTarget);
+    };
     supabase.auth.getSession().then(({ data }) => {
-      if (!cancelled && data.session) navigate({ to: "/trips", replace: true });
+      if (!cancelled && data.session) go();
     });
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) navigate({ to: "/trips", replace: true });
+      if (event === "SIGNED_IN" && session) go();
     });
     return () => {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [navigate, redirectTarget]);
+
 
   async function guard(scope: "login" | "reset" | "signup", emailVal: string): Promise<boolean> {
     const r = await rlCheck({ data: { scope, email: emailVal } });
