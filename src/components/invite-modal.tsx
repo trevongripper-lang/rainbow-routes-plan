@@ -191,24 +191,12 @@ export function InviteModal({
                   )}
                   {isOwner && m.role !== "owner" && (
                     <button
-                      onClick={async () => {
-                        if (
-                          !confirm(
-                            `Remove ${m.profile?.display_name ?? "this member"} from the trip?`,
-                          )
-                        )
-                          return;
-                        const { error } = await supabase
-                          .from("trip_members")
-                          .delete()
-                          .eq("destination_id", destinationId)
-                          .eq("user_id", m.user_id);
-                        if (error) toast.error(error.message);
-                        else {
-                          toast.success("Removed");
-                          qc.invalidateQueries({ queryKey: ["trip-members", destinationId] });
-                        }
-                      }}
+                      onClick={() =>
+                        setPendingRemove({
+                          userId: m.user_id,
+                          name: m.profile?.display_name ?? "this member",
+                        })
+                      }
                       aria-label="Remove member"
                       className="rounded-full p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                     >
