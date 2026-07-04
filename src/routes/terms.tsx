@@ -14,7 +14,9 @@ export const Route = createFileRoute("/terms")({
         content: "Beta terms for using Tribe Trips.",
       },
       { property: "og:type", content: "article" },
+      { property: "og:url", content: "https://jointribetrips.com/terms" },
     ],
+    links: [{ rel: "canonical", href: "https://jointribetrips.com/terms" }],
   }),
   component: TermsPage,
 });

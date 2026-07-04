@@ -24,6 +24,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
     meta: [
       { title: "Settings — Tribe Trips" },
       { name: "description", content: "Manage your Tribe Trips app, account and beta access." },
+      { name: "robots", content: "noindex" },
     ],
   }),
   component: SettingsPage,

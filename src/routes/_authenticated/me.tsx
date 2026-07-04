@@ -24,6 +24,16 @@ import { InstallAppButton } from "@/components/install-app-banner";
 import { Smartphone } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/me")({
+  head: () => ({
+    meta: [
+      { title: "Profile — Tribe Trips" },
+      {
+        name: "description",
+        content: "Update your Tribe Trips profile, avatar, and personal preferences.",
+      },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   loader: ({ context }) =>
     context.queryClient.ensureQueryData({
       queryKey: ["me"],

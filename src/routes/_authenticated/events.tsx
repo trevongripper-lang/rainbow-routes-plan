@@ -9,6 +9,16 @@ import { useMe } from "@/hooks/use-me";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/events")({
+  head: () => ({
+    meta: [
+      { title: "Queer Events — Tribe Trips" },
+      {
+        name: "description",
+        content: "Browse regional queer events and Pride happenings to build into your trip plans.",
+      },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   loader: ({ context }) =>
     context.queryClient.ensureQueryData({
       queryKey: ["events"],

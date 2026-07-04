@@ -19,6 +19,17 @@ type AuthSearch = { redirect?: string };
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
+  head: () => ({
+    meta: [
+      { title: "Sign in — Tribe Trips" },
+      {
+        name: "description",
+        content:
+          "Sign in or create your Tribe Trips account to pitch destinations, invite your crew, and start planning your next group trip.",
+      },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   validateSearch: (s: Record<string, unknown>): AuthSearch => ({
     redirect: typeof s.redirect === "string" ? s.redirect : undefined,
   }),

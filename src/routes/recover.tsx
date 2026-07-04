@@ -4,6 +4,16 @@ import { clearRedirectTrace } from "@/lib/redirect-guard";
 import { track } from "@/lib/analytics";
 
 export const Route = createFileRoute("/recover")({
+  head: () => ({
+    meta: [
+      { title: "Recover — Tribe Trips" },
+      {
+        name: "description",
+        content: "Break out of a sign-in loop and get back into your Tribe Trips account.",
+      },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: RecoverPage,
 });
 

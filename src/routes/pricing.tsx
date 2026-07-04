@@ -16,7 +16,9 @@ export const Route = createFileRoute("/pricing")({
         property: "og:description",
         content: "Pay once per trip. No subscriptions. Earn free trips when you keep planning.",
       },
+      { property: "og:url", content: "https://jointribetrips.com/pricing" },
     ],
+    links: [{ rel: "canonical", href: "https://jointribetrips.com/pricing" }],
   }),
   component: PricingPage,
 });
