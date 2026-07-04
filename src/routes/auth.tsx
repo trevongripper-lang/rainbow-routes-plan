@@ -71,7 +71,7 @@ function AuthPage() {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [navigate, redirectTarget]);
+  }, [redirectTarget]);
 
 
   async function guard(scope: "login" | "reset" | "signup", emailVal: string): Promise<boolean> {
