@@ -73,7 +73,6 @@ function AuthPage() {
     };
   }, [redirectTarget]);
 
-
   async function guard(scope: "login" | "reset" | "signup", emailVal: string): Promise<boolean> {
     const r = await rlCheck({ data: { scope, email: emailVal } });
     if (!r.allowed) {

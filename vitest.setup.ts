@@ -28,7 +28,6 @@ const g = globalThis as unknown as {
 if (typeof g.localStorage === "undefined") g.localStorage = memStorage();
 if (typeof g.sessionStorage === "undefined") g.sessionStorage = memStorage();
 
-
 // Radix Tooltip uses pointer events / hasPointerCapture which jsdom doesn't ship.
 if (!(Element.prototype as unknown as { hasPointerCapture?: unknown }).hasPointerCapture) {
   (Element.prototype as unknown as { hasPointerCapture: () => boolean }).hasPointerCapture = () =>

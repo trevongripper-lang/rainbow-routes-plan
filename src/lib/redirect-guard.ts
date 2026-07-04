@@ -49,10 +49,7 @@ export function clearRedirectTrace() {
  * absolute paths and rejects known-unsafe targets (external URLs, auth
  * pages, consent gate). Returns the fallback when the input is unsafe.
  */
-export function sanitizeRedirectPath(
-  input: unknown,
-  opts: { fallback?: string } = {},
-): string {
+export function sanitizeRedirectPath(input: unknown, opts: { fallback?: string } = {}): string {
   const fallback = opts.fallback ?? "/trips";
   if (typeof input !== "string") return fallback;
   const s = input.trim();
