@@ -43,3 +43,49 @@ export function clearRedirectTrace() {
     /* noop */
   }
 }
+
+/**
+ * Validate a candidate post-auth redirect path. Only allows same-origin
+ * absolute paths and rejects known-unsafe targets (external URLs, auth
+ * pages, consent gate). Returns the fallback when the input is unsafe.
+ */
+export function sanitizeRedirectPath(input: unknown, opts: { fallback?: string } = {}): string {
+  const fallback = opts.fallback ?? "/trips";
+  if (typeof input !== "string") return fallback;
+  const s = input.trim();
+  if (!s) return fallback;
+  // must be a same-origin absolute path
+  if (!s.startsWith("/")) return fallback;
+  // protocol-relative "//host/…" would be cross-origin
+  if (s.startsWith("//")) return fallback;
+  // backslash tricks
+  if (s.includes("\\")) return fallback;
+  // never bounce back to auth/consent — that creates loops
+  if (s === "/auth" || s.startsWith("/auth/") || s.startsWith("/auth?")) return fallback;
+  if (s === "/beta-consent" || s.startsWith("/beta-consent?")) return fallback;
+  if (s === "/recover" || s.startsWith("/recover?")) return fallback;
+  return s;
+}
+
+/** Session-storage key for a redirect the auth page should honor after sign-in. */
+export const PENDING_REDIRECT_KEY = "tt.pendingRedirect";
+
+export function stashPendingRedirect(path: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(PENDING_REDIRECT_KEY, path);
+  } catch {
+    /* noop */
+  }
+}
+
+export function consumePendingRedirect(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const v = window.sessionStorage.getItem(PENDING_REDIRECT_KEY);
+    if (v) window.sessionStorage.removeItem(PENDING_REDIRECT_KEY);
+    return v;
+  } catch {
+    return null;
+  }
+}

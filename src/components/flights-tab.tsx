@@ -68,6 +68,7 @@ export function FlightsTab({ destinationId, me, startDate, endDate }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [showBookingDetails, setShowBookingDetails] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [dupeConfirm, setDupeConfirm] = useState<{ resolve: (ok: boolean) => void } | null>(null);
   const aiInputRef = useRef<HTMLInputElement>(null);
 
   const { data: flights = [] } = useQuery({
@@ -126,9 +127,7 @@ export function FlightsTab({ destinationId, me, startDate, endDate }: Props) {
           (x.passenger_name ?? "").toLowerCase() === form.passenger_name.trim().toLowerCase(),
       );
       if (dupe) {
-        const ok = window.confirm(
-          "A matching flight is already saved for this passenger. Save another?",
-        );
+        const ok = await new Promise<boolean>((resolve) => setDupeConfirm({ resolve }));
         if (!ok) throw new Error("__cancelled__");
       }
       const { error } = await supabase.from("trip_flights").insert({
@@ -523,6 +522,44 @@ export function FlightsTab({ destinationId, me, startDate, endDate }: Props) {
               }}
             >
               Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!dupeConfirm}
+        onOpenChange={(o) => {
+          if (!o && dupeConfirm) {
+            dupeConfirm.resolve(false);
+            setDupeConfirm(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save duplicate flight?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A matching flight is already saved for this passenger on the same date. Save another
+              anyway?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                dupeConfirm?.resolve(false);
+                setDupeConfirm(null);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                dupeConfirm?.resolve(true);
+                setDupeConfirm(null);
+              }}
+            >
+              Save anyway
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

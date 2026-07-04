@@ -420,7 +420,7 @@ export const importEvents = createServerFn({ method: "POST" })
     if (inserts.length > 0) {
       const { data: ins, error } = await context.supabase
         .from("events")
-        .insert(inserts)
+        .insert(inserts as never)
         .select("id");
       if (error) {
         errors.push({ row: 0, reason: `Insert failed: ${error.message}` });
@@ -432,7 +432,10 @@ export const importEvents = createServerFn({ method: "POST" })
     // Update one-by-one so per-row errors don't poison the batch.
     for (const u of updates) {
       const { id, ...rest } = u as { id: string } & Record<string, unknown>;
-      const { error } = await context.supabase.from("events").update(rest).eq("id", id);
+      const { error } = await context.supabase
+        .from("events")
+        .update(rest as never)
+        .eq("id", id);
       if (error) {
         errors.push({ row: 0, reason: `Update ${id}: ${error.message}` });
       } else {

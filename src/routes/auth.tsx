@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -9,14 +9,24 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { rlCheckPublic } from "@/lib/rate-limit.functions";
 import { track } from "@/lib/analytics";
+import {
+  sanitizeRedirectPath,
+  stashPendingRedirect,
+  consumePendingRedirect,
+} from "@/lib/redirect-guard";
+
+type AuthSearch = { redirect?: string };
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
+  validateSearch: (s: Record<string, unknown>): AuthSearch => ({
+    redirect: typeof s.redirect === "string" ? s.redirect : undefined,
+  }),
   component: AuthPage,
 });
 
 function AuthPage() {
-  const navigate = useNavigate();
+  const search = Route.useSearch();
   const rlCheck = useServerFn(rlCheckPublic);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -27,6 +37,14 @@ function AuthPage() {
   const [confirmSent, setConfirmSent] = useState<string | null>(null);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
 
+  // Resolve the final post-auth destination. Prefer the search-param
+  // redirect (e.g. /join/$token), fall back to any pending redirect stashed
+  // in sessionStorage (survives full-page OAuth), then /trips.
+  const redirectTarget = useMemo(() => {
+    if (typeof window === "undefined") return "/trips";
+    return sanitizeRedirectPath(search.redirect ?? consumePendingRedirect() ?? "/trips");
+  }, [search.redirect]);
+
   const secsLeft = cooldown ? Math.max(0, Math.ceil((cooldown.until - Date.now()) / 1000)) : 0;
   const blocked = secsLeft > 0;
 
@@ -36,19 +54,24 @@ function AuthPage() {
   // navigate() call in handleGoogle().
   useEffect(() => {
     let cancelled = false;
+    const go = () => {
+      // Use window.location so any same-origin path (including dynamic
+      // routes like /join/$token) works without router type wrangling.
+      window.location.replace(redirectTarget);
+    };
     supabase.auth.getSession().then(({ data }) => {
-      if (!cancelled && data.session) navigate({ to: "/trips", replace: true });
+      if (!cancelled && data.session) go();
     });
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) navigate({ to: "/trips", replace: true });
+      if (event === "SIGNED_IN" && session) go();
     });
     return () => {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [redirectTarget]);
 
   async function guard(scope: "login" | "reset" | "signup", emailVal: string): Promise<boolean> {
     const r = await rlCheck({ data: { scope, email: emailVal } });
@@ -87,13 +110,13 @@ function AuthPage() {
         }
         // Auto-confirm enabled — straight into the app.
         track("signin_succeeded", { method: "signup_autoconfirm" });
-        navigate({ to: "/trips" });
+        window.location.replace(redirectTarget);
       } else {
         if (!(await guard("login", email))) return;
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         track("signin_succeeded", { method: "password" });
-        navigate({ to: "/trips" });
+        window.location.replace(redirectTarget);
       }
     } catch (err) {
       track("signin_failed", {
@@ -130,8 +153,13 @@ function AuthPage() {
     setLoading(true);
     try {
       track("google_signin_started");
+      // Stash the intended redirect so we can honor it after the full-page
+      // OAuth round-trip returns to /auth (or the origin) with a fresh
+      // session. `redirect_uri` MUST stay a public same-origin URL, never a
+      // protected route.
+      stashPendingRedirect(redirectTarget);
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + "/trips",
+        redirect_uri: window.location.origin,
       });
       if (result.error) {
         track("google_signin_failed", {
@@ -143,7 +171,7 @@ function AuthPage() {
       if (result.redirected) return; // browser is navigating away
       // Session is set; the onAuthStateChange listener above will navigate.
       track("signin_succeeded", { method: "google" });
-      navigate({ to: "/trips", replace: true });
+      window.location.replace(redirectTarget);
     } catch (err) {
       track("google_signin_failed", {
         message: err instanceof Error ? err.message.slice(0, 140) : "unknown",

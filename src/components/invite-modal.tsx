@@ -8,6 +8,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Copy, Link as LinkIcon, Share2, UserPlus, Check, Trash2 } from "lucide-react";
@@ -24,6 +34,7 @@ export function InviteModal({
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [lastUrl, setLastUrl] = useState<string | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<{ userId: string; name: string } | null>(null);
 
   const { data: members = [] } = useQuery({
     queryKey: ["trip-members", destinationId],
@@ -178,24 +189,12 @@ export function InviteModal({
                   )}
                   {isOwner && m.role !== "owner" && (
                     <button
-                      onClick={async () => {
-                        if (
-                          !confirm(
-                            `Remove ${m.profile?.display_name ?? "this member"} from the trip?`,
-                          )
-                        )
-                          return;
-                        const { error } = await supabase
-                          .from("trip_members")
-                          .delete()
-                          .eq("destination_id", destinationId)
-                          .eq("user_id", m.user_id);
-                        if (error) toast.error(error.message);
-                        else {
-                          toast.success("Removed");
-                          qc.invalidateQueries({ queryKey: ["trip-members", destinationId] });
-                        }
-                      }}
+                      onClick={() =>
+                        setPendingRemove({
+                          userId: m.user_id,
+                          name: m.profile?.display_name ?? "this member",
+                        })
+                      }
                       aria-label="Remove member"
                       className="rounded-full p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                     >
@@ -217,6 +216,40 @@ export function InviteModal({
           </div>
         </div>
       </DialogContent>
+
+      <AlertDialog open={!!pendingRemove} onOpenChange={(o) => !o && setPendingRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {pendingRemove?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              They'll lose access to this trip and any private planning here. They can be re-invited
+              later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!pendingRemove) return;
+                const { userId } = pendingRemove;
+                setPendingRemove(null);
+                const { error } = await supabase
+                  .from("trip_members")
+                  .delete()
+                  .eq("destination_id", destinationId)
+                  .eq("user_id", userId);
+                if (error) toast.error(error.message);
+                else {
+                  toast.success("Removed");
+                  qc.invalidateQueries({ queryKey: ["trip-members", destinationId] });
+                }
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
