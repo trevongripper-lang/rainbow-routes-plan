@@ -177,8 +177,9 @@ function AppShell() {
                 onClick={signOut}
                 className="rounded-full p-2 text-muted-foreground hover:text-foreground"
                 title="Sign out"
+                aria-label="Sign out"
               >
-                <LogOut className="size-4" />
+                <LogOut className="size-4" aria-hidden="true" />
               </button>
             </div>
           </div>
