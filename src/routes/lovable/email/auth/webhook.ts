@@ -13,10 +13,15 @@ const EMAIL_SUBJECTS: Record<string, string> = {
   reauthentication: "Your Tribe Trips verification code",
 };
 
-const SITE_NAME = "plantribetrips";
+const SITE_NAME = "Tribe Trips";
 const SENDER_DOMAIN = "notify.jointribetrips.com";
 const ROOT_DOMAIN = "jointribetrips.com";
+// Display-only From domain (root). Reply-friendly mailbox so replies reach
+// a human instead of bouncing off a noreply@ address, which hurts both
+// deliverability and user trust.
 const FROM_DOMAIN = "jointribetrips.com";
+const FROM_LOCAL_PART = "hello";
+const REPLY_TO = `hello@${FROM_DOMAIN}`;
 
 function redactEmail(email: string | null | undefined): string {
   if (!email) return "***";
