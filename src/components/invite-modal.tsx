@@ -34,9 +34,7 @@ export function InviteModal({
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [lastUrl, setLastUrl] = useState<string | null>(null);
-  const [pendingRemove, setPendingRemove] = useState<
-    { userId: string; name: string } | null
-  >(null);
+  const [pendingRemove, setPendingRemove] = useState<{ userId: string; name: string } | null>(null);
 
   const { data: members = [] } = useQuery({
     queryKey: ["trip-members", destinationId],
@@ -219,16 +217,13 @@ export function InviteModal({
         </div>
       </DialogContent>
 
-      <AlertDialog
-        open={!!pendingRemove}
-        onOpenChange={(o) => !o && setPendingRemove(null)}
-      >
+      <AlertDialog open={!!pendingRemove} onOpenChange={(o) => !o && setPendingRemove(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove {pendingRemove?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              They'll lose access to this trip and any private planning here. They can be
-              re-invited later.
+              They'll lose access to this trip and any private planning here. They can be re-invited
+              later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

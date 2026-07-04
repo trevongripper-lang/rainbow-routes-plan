@@ -25,13 +25,7 @@ const SECTIONS: Section[] = [
  * Sticky, horizontally scrollable section bar for the trip detail page.
  * Mobile-only (hidden at md+ where the sidebar takes over).
  */
-export function TripSectionBar({
-  tripId,
-  activeTab,
-}: {
-  tripId: string;
-  activeTab: string;
-}) {
+export function TripSectionBar({ tripId, activeTab }: { tripId: string; activeTab: string }) {
   return (
     <nav
       aria-label="Trip sections"
