@@ -22,7 +22,7 @@ import { InviteModal } from "@/components/invite-modal";
 import { UnlockTripButton } from "@/components/unlock-trip-button";
 import { ItineraryTab } from "@/components/itinerary-tab";
 import { TripEventsStrip } from "@/components/trip-events-strip";
-import { SmartAdd } from "@/components/smart-add";
+
 import { PollsPanel } from "@/components/polls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -402,7 +402,7 @@ function TripDetail() {
         <TabsContent value="overview" className="mt-6">
           {me ? (
             <div className="space-y-6">
-              <SmartAdd destinationId={id} me={me} />
+
 
               <PollsPanel destinationId={id} me={me} />
               <TripEventsStrip
