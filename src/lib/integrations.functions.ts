@@ -1,9 +1,22 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+async function assertAdmin(ctx: {
+  supabase: typeof import("@/integrations/supabase/client").supabase;
+  userId: string;
+}) {
+  const { data, error } = await ctx.supabase.rpc("has_role", {
+    _user_id: ctx.userId,
+    _role: "admin",
+  });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Forbidden");
+}
+
 export const getIntegrationsStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
     return {
       serpstack: { configured: Boolean(process.env.SERPSTACK_API_KEY) },
       aviationstack: { configured: Boolean(process.env.AVIATIONSTACK_API_KEY) },
@@ -12,7 +25,8 @@ export const getIntegrationsStatus = createServerFn({ method: "GET" })
 
 export const testSerpstack = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
     const key = process.env.SERPSTACK_API_KEY;
     if (!key) {
       return { ok: false as const, message: "SERPSTACK_API_KEY is not configured." };

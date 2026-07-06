@@ -1,6 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+async function assertAdmin(ctx: {
+  supabase: typeof import("@/integrations/supabase/client").supabase;
+  userId: string;
+}) {
+  const { data, error } = await ctx.supabase.rpc("has_role", {
+    _user_id: ctx.userId,
+    _role: "admin",
+  });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Forbidden");
+}
+
 export type PaddleConfigIssue = {
   secret: string;
   tier?: "tier1" | "tier2" | "tier3";
@@ -46,7 +58,8 @@ function checkPriceSecret(
  */
 export const validatePaddleConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async (): Promise<PaddleConfigReport> => {
+  .handler(async ({ context }): Promise<PaddleConfigReport> => {
+    await assertAdmin(context);
     const environment = (process.env.PADDLE_ENVIRONMENT ?? "sandbox") as "sandbox" | "production";
     const issues: PaddleConfigIssue[] = [];
     const checked = [
