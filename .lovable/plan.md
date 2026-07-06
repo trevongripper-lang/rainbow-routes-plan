@@ -1,41 +1,29 @@
-## P0 fix: block self-join into `trip_members`
+## Defer "Add anything via link" (SmartAdd) from P0
 
-### Problem
-`trip_members` INSERT policy `"Owner can add members"` has:
-```
-WITH CHECK (is_trip_owner(destination_id, auth.uid()) OR user_id = auth.uid())
-```
-The `user_id = auth.uid()` branch lets any signed-in user who guesses/knows a trip id insert themselves as a member, bypassing the invite flow.
+Remove SmartAdd from the P0 surface without deleting the underlying implementation, so it can be refined and re-enabled later.
 
-### Why it's safe to remove the self-insert branch
-- `redeem_trip_invite(_token)` is `SECURITY DEFINER` — it inserts into `trip_members` with elevated rights and is not gated by the INSERT policy.
-- `add_owner_as_member()` trigger is also `SECURITY DEFINER` — owner auto-membership on trip creation still works.
-- No client code calls `supabase.from('trip_members').insert(...)` for self-joins; joining goes through the RPC.
+### Changes
 
-### Change (single migration)
-Drop and recreate the INSERT policy so only the trip owner may directly insert membership rows:
-```sql
-DROP POLICY "Owner can add members" ON public.trip_members;
-CREATE POLICY "Owner can add members"
-  ON public.trip_members
-  FOR INSERT TO authenticated
-  WITH CHECK (public.is_trip_owner(destination_id, auth.uid()));
-```
-All other policies (SELECT, UPDATE, DELETE) are left untouched — a member can still leave (DELETE `user_id = auth.uid()`) and update their own commitment.
+1. **`src/routes/_authenticated/trips.$id.tsx`**
+   - Remove the `<SmartAdd destinationId={id} me={me} />` mount on the Overview tab (line 405).
+   - Remove the now-unused `import { SmartAdd } from "@/components/smart-add"` (line 25).
 
-### Invite preview stays intact
-`preview_trip_invite(_token)` is unchanged — anonymous users with a token still see only `title, region, country, image_url, expired, used`.
+2. **`docs/Tribe-SPEC.md`**
+   - Add a "Deferred / future enhancement" note for **Smart Add (paste-a-link → auto-classify)**: needs refinement on classification accuracy, URL enrichment reliability, and undo/edit UX before re-enabling.
 
-### Manual test checklist
-1. **Self-join blocked**: signed-in user runs `supabase.from('trip_members').insert({ destination_id: <someone-else's-trip>, user_id: <self>, role: 'member' })` → expect RLS error.
-2. **Invite redemption still works**: valid `/join/<token>` → click Join → membership row created, redirect to trip.
-3. **Owner creates trip**: new destination → owner row auto-added by trigger.
-4. **Owner adds member directly**: owner inserts a `trip_members` row for another user on their own trip → allowed.
-5. **Leave trip**: member deletes their own row → allowed.
-6. **Preview**: unauthenticated `preview_trip_invite` returns only public pitch fields.
+3. **Keep intact (no deletion):**
+   - `src/components/smart-add.tsx`
+   - `src/lib/smart-add.functions.ts` (`enrichUrl`, `classifySmartAdd`)
+   - Test mock in `src/__tests__/trip-page.test.tsx` (harmless; safe to leave)
+   - `SERPSTACK_API_KEY` and `LOVABLE_API_KEY` secrets (leave — either shared with other features or benign if unused)
 
-### Out of scope (per instructions)
-- No role rename (owner→organizer, add co_organizer).
-- No destinations→trips refactor.
-- No new entity tables.
-- No new automated RLS tests — repo has no existing RLS test harness; manual checklist above.
+### Not touched
+- No database migration.
+- No changes to `trip_stays` / `trip_tickets` / `trip_costs` / `trip_flights` / `comments` — data users already added stays put and remains editable in each tab.
+- No changes to the invite/join flow or any other P0 feature.
+
+### Manual verification
+1. Open a trip → Overview tab: the "Smart Add" paste box no longer appears.
+2. Polls, Events strip, and the rest of Overview still render.
+3. Stays/Tickets/Costs/Flights tabs still list previously-added items.
+4. `bun run lint` / typecheck: no unused-import errors.
