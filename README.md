@@ -26,6 +26,8 @@ This is a **web app** that also installs to a phone home screen as a PWA. No App
 - [`public/manifest.webmanifest`](./public/manifest.webmanifest) — PWA install manifest
 - [`src/integrations/supabase/`](./src/integrations/supabase/) — auto-generated DB client and types (do not edit)
 
+- [`docs/Tribe-SPEC.md`](./docs/Tribe-SPEC.md) — product spec (authoritative)
+
 ---
 
 ## What's in the box
@@ -54,23 +56,24 @@ Tribe Trips is in a **private beta**. A few things testers should know:
 Full tester onboarding lives in [`BETA_TESTER_INSTRUCTIONS.md`](./BETA_TESTER_INSTRUCTIONS.md).
 
 
+
 ## Running locally
 
-Requires [Bun](https://bun.sh) ≥ 1.1.
+Recommended: Node.js 18+ and `npm` (Bun is supported but `npm` is the primary workflow here).
 
 ```bash
-bun install
-bun run dev          # http://localhost:8080
+npm install
+npm run dev          # http://localhost:5173
 ```
 
 Other scripts:
 
 ```bash
-bun run build        # production build (Cloudflare Worker bundle)
-bun run preview      # preview the production build
-bun run lint         # ESLint
-bun run format       # Prettier --write
-bunx vitest run      # unit + accessibility tests
+npm run build        # production build (Cloudflare Worker bundle)
+npm run preview      # preview the production build
+npm run lint         # ESLint
+npm run format       # Prettier --write
+npx vitest run       # unit + accessibility tests
 ```
 
 The dev server reads `.env` (see below).
