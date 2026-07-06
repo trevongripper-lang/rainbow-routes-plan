@@ -284,3 +284,8 @@ Chatter
 Files
 Settings
 Navigation note: Travel appears before Stays because that matches how many groups think through planning. Files includes links.
+
+## Deferred / future enhancements (not P0)
+
+- **Smart Add (paste-a-link → auto-classify)** — a single Overview input where members paste any URL or blurb and the app classifies it as a stay, ticket, cost, flight, or note and pre-fills the right form. Deferred from P0: classification accuracy, URL enrichment reliability, and undo/edit UX need refinement before re-enabling. Implementation is preserved in `src/components/smart-add.tsx` and `src/lib/smart-add.functions.ts` but is not mounted anywhere.
+
