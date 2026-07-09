@@ -84,6 +84,11 @@ function AuthPage() {
   // the string against the route tree. `router.invalidate()` re-runs every
   // `beforeLoad` (including `_authenticated`) against the fresh session so
   // protected loaders see the signed-in user without a full page reload.
+  // Post-auth navigation. Safari (both regular and PWA) can freeze a
+  // client-side transition mid-flight and serve the pre-login page from
+  // bfcache on the next view. Force a real navigation with
+  // `window.location.replace` so the app fully re-hydrates against the
+  // fresh session. `redirectTarget` is already a sanitized same-origin path.
   const goToApp = useCallback(async (opts: { skipSessionCheck?: boolean } = {}) => {
     if (redirectingRef.current) return;
     redirectingRef.current = true;
@@ -95,6 +100,10 @@ function AuthPage() {
     }
     consumePendingRedirect();
 
+    if (typeof window !== "undefined") {
+      window.location.replace(redirectTarget);
+      return;
+    }
     await router.invalidate();
     await router.navigate({ href: redirectTarget, replace: true });
   }, [router, redirectTarget]);
