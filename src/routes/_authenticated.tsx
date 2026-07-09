@@ -4,6 +4,7 @@ import {
   Outlet,
   Link,
   useNavigate,
+  useRouter,
   useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, useState, useSyncExternalStore } from "react";
