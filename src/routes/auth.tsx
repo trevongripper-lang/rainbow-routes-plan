@@ -137,53 +137,13 @@ function AuthPage() {
 
     setRedirectPhase("navigating");
 
-    // On mobile browsers and installed PWAs, the in-place router transition
-    // after sign-in is unreliable (blank/stuck screen). A full-page load is
-    // proven reliable on these devices, so bypass the client router entirely.
-    const forceHardNav =
-      typeof window !== "undefined" &&
-      (window.matchMedia?.("(display-mode: standalone)").matches ||
-        /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
-
-    if (forceHardNav) {
-      console.info("[auth] forceHardNav: window.location.assign", { redirectTarget });
-      window.location.assign(redirectTarget);
-      return;
-    }
-
-    try {
-      console.info("[auth] router.invalidate called before redirect", { redirectTarget });
-      await withTimeout(router.invalidate(), 1_500, "Router invalidation after sign-in");
-    } catch (err) {
-      console.warn("[auth] router.invalidate failed or timed out before redirect", {
-        redirectTarget,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-
-    try {
-      console.info("[auth] router.navigate called", { redirectTarget });
-      await withTimeout(router.navigate({ href: redirectTarget, replace: true }), 1_800, "Router navigation after sign-in");
-      if (typeof window !== "undefined" && window.location.pathname.startsWith("/auth")) {
-        console.info("[auth] location.replace called after router.navigate", { redirectTarget });
-        window.location.replace(redirectTarget);
-      }
-      return;
-    } catch (err) {
-      console.warn("[auth] router.navigate failed or timed out; falling back to location.replace", {
-        redirectTarget,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-
-    if (typeof window !== "undefined") {
-      console.info("[auth] location.replace called", { redirectTarget });
-      window.location.replace(redirectTarget);
-      return;
-    }
-
-
-    await router.navigate({ href: redirectTarget, replace: true });
+    // Full-page navigation on ALL platforms. The client-side SPA transition
+    // after sign-in races the root onAuthStateChange listener and stalls
+    // (blank/stuck screen), especially after Google OAuth return and inside
+    // installed PWAs. A hard nav reloads the app cleanly against the fresh
+    // session. `redirectTarget` is already a sanitized same-origin path.
+    console.info("[auth] goToApp: window.location.assign", { redirectTarget });
+    window.location.assign(redirectTarget);
   }, [clearRedirectTimeout, redirectTarget, router, startRedirectRecoveryTimer]);
 
   useEffect(() => () => clearRedirectTimeout(), [clearRedirectTimeout]);
@@ -295,7 +255,7 @@ function AuthPage() {
       // protected route.
       stashPendingRedirect(redirectTarget);
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+        redirect_uri: window.location.origin + "/auth",
       });
       if (result.error) {
         track("google_signin_failed", {

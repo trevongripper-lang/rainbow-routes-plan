@@ -183,21 +183,18 @@ function RootComponent() {
         return;
       }
 
-      // On interactive sign-in, AuthPage.goToApp() already owns the
-      // post-login navigation and invalidation. Running the global
-      // router.invalidate() / queryClient.invalidateQueries() here at the
-      // same time re-enters the auth gate mid-navigation and can orphan the
-      // /trips mount, leaving the user stuck on a blank/loading screen.
-      const onAuthRoute = window.location.pathname.startsWith("/auth");
-      if (event === "SIGNED_IN" && onAuthRoute) return;
+      // On interactive sign-in, AuthPage.goToApp() hard-navigates via
+      // window.location.assign(), which fully reloads the app against the
+      // fresh session. Do NOT run router.invalidate() or
+      // queryClient.invalidateQueries() on SIGNED_IN here — that races the
+      // outgoing navigation and re-enters the auth gate mid-transition,
+      // stalling the user on a blank/loading screen. Cross-tab sign-in is
+      // still covered by AuthProvider's visibilitychange → refreshAuthState.
+      if (event === "SIGNED_IN") return;
 
       window.setTimeout(() => {
         void router.invalidate();
         if (event !== "SIGNED_OUT" && nextAuth.session) void queryClient.invalidateQueries();
-        // NOTE: post-login navigation is owned by AuthPage.goToApp().
-        // The root listener MUST NOT force-navigate on SIGNED_IN — doing so
-        // yanked signed-in users off /privacy, /terms, and /auth back to
-        // /app → /trips on token refresh / cross-tab sign-in / OAuth return.
       }, 0);
     });
     return () => stop();
