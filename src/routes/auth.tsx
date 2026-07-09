@@ -67,7 +67,7 @@ function AuthPage() {
   const [redirectRecovery, setRedirectRecovery] = useState<{ target: string; message: string } | null>(null);
   const [redirectPhase, setRedirectPhase] = useState<"idle" | "confirming" | "navigating">("idle");
   const redirectingRef = useRef(false);
-  const redirectTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const redirectTimeoutRef = useRef<number | null>(null);
 
   // Resolve the final post-auth destination. Prefer the search-param
   // redirect (e.g. /join/$token), fall back to any pending redirect stashed
