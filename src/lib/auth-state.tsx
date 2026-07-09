@@ -224,7 +224,11 @@ export async function refreshAuthState(timeoutMs = SESSION_HYDRATION_TIMEOUT_MS)
     return publishAuthState(authFailureState(false));
   }
 
-  return publishAuthState(authStateFromSession(result.session));
+  const next = publishAuthState(authStateFromSession(result.session));
+  if (next.user) void primeBetaConsent(next.user.id);
+  else clearBetaConsentCache();
+  return next;
+
 }
 
 export async function ensureAuthReady() {
