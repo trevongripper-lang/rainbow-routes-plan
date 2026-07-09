@@ -173,11 +173,20 @@ function AuthPage() {
 
 
   // If a session already exists (e.g. user returned from OAuth redirect, or
-  // signed in in another tab), bounce off /auth immediately. The root auth
-  // listener owns session updates/router invalidation; this page just reacts
-  // to the app-wide auth snapshot.
+  // signed in in another tab), bounce off /auth. Re-confirm with Supabase
+  // before navigating so a just-cleared sign-out (whose in-memory snapshot
+  // may still show a session for a tick) does NOT bounce back to /app.
   useEffect(() => {
-    if (auth.ready && auth.session) void goToApp();
+    if (!auth.ready || !auth.session) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (cancelled || !data.session) return;
+      void goToApp();
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [auth.ready, auth.session, goToApp]);
 
   async function guard(scope: "login" | "reset" | "signup", emailVal: string): Promise<boolean> {
