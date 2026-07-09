@@ -3,10 +3,12 @@ import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { checkBetaConsent, type BetaConsentStatus } from "@/lib/beta-consent";
 
+export type AppAuthStatus = "loading" | "authenticated" | "unauthenticated";
 
 export type AppBetaConsentStatus = "unknown" | BetaConsentStatus;
 
 export type AppAuthState = {
+
   status: AppAuthStatus;
   ready: boolean;
   session: Session | null;
