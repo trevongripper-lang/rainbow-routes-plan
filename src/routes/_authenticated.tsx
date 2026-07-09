@@ -57,12 +57,16 @@ import {
 import { checkBetaConsent, BETA_CONSENT_VERSION } from "@/lib/beta-consent";
 import { noteRedirect, clearRedirectTrace } from "@/lib/redirect-guard";
 import { track } from "@/lib/analytics";
-import { ensureAuthReady, getAuthState } from "@/lib/auth-state";
+import { SESSION_HYDRATION_ERROR_MESSAGE, ensureAuthReady, getAuthState } from "@/lib/auth-state";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location, context }) => {
     const auth = context.auth.ready ? context.auth : await ensureAuthReady();
+    if (auth.error) {
+      if (import.meta.env.DEV) console.error("[auth] Protected route session recovery required.");
+      throw redirect({ to: "/auth", search: { redirect: location.href } });
+    }
     const user = auth.user ?? getAuthState().user;
     if (!user) {
       if (noteRedirect(location.pathname, "/auth")) throw redirect({ to: "/recover" });
@@ -113,6 +117,11 @@ export const Route = createFileRoute("/_authenticated")({
   pendingComponent: () => (
     <div className="grid min-h-[50vh] place-items-center text-sm text-muted-foreground">
       Checking your session…
+    </div>
+  ),
+  errorComponent: () => (
+    <div className="grid min-h-[50vh] place-items-center px-6 text-center text-sm text-muted-foreground">
+      {SESSION_HYDRATION_ERROR_MESSAGE}
     </div>
   ),
   component: AppShell,
