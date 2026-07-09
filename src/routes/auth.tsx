@@ -201,9 +201,9 @@ function AuthPage() {
         return;
       }
       if (result.redirected) return; // browser is navigating away
-      // Session is set; the onAuthStateChange listener above will navigate.
+      // Session is set inline (preview iframe / web_message flow); go now.
       track("signin_succeeded", { method: "google" });
-      window.location.replace(redirectTarget);
+      await goToApp();
     } catch (err) {
       track("google_signin_failed", {
         message: err instanceof Error ? err.message.slice(0, 140) : "unknown",
