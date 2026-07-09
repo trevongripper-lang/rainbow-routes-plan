@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -12,8 +12,10 @@ import { track } from "@/lib/analytics";
 import {
   sanitizeRedirectPath,
   stashPendingRedirect,
+  getPendingRedirect,
   consumePendingRedirect,
 } from "@/lib/redirect-guard";
+import { refreshAuthState, useAuth } from "@/lib/auth-state";
 
 type AuthSearch = { redirect?: string };
 
@@ -39,6 +41,7 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const search = Route.useSearch();
   const router = useRouter();
+  const auth = useAuth();
   const rlCheck = useServerFn(rlCheckPublic);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -48,17 +51,16 @@ function AuthPage() {
   const [cooldown, setCooldown] = useState<{ scope: string; until: number } | null>(null);
   const [confirmSent, setConfirmSent] = useState<string | null>(null);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
-  // While we're still resolving whether the user already has a session, don't
-  // flash the sign-in form. Prevents a "sign in → back on /auth → refresh
-  // works" ping-pong when navigation and session hydration race.
-  const [sessionChecked, setSessionChecked] = useState(false);
+  const redirectingRef = useRef(false);
 
   // Resolve the final post-auth destination. Prefer the search-param
   // redirect (e.g. /join/$token), fall back to any pending redirect stashed
-  // in sessionStorage (survives full-page OAuth), then /trips.
+  // in sessionStorage (survives full-page OAuth), then /app.
   const redirectTarget = useMemo(() => {
-    if (typeof window === "undefined") return "/trips";
-    return sanitizeRedirectPath(search.redirect ?? consumePendingRedirect() ?? "/trips");
+    if (typeof window === "undefined") return "/app";
+    return sanitizeRedirectPath(search.redirect ?? getPendingRedirect() ?? "/app", {
+      fallback: "/app",
+    });
   }, [search.redirect]);
 
   const secsLeft = cooldown ? Math.max(0, Math.ceil((cooldown.until - Date.now()) / 1000)) : 0;
@@ -70,40 +72,27 @@ function AuthPage() {
   // the string against the route tree. `router.invalidate()` re-runs every
   // `beforeLoad` (including `_authenticated`) against the fresh session so
   // protected loaders see the signed-in user without a full page reload.
-  const goToApp = async () => {
+  const goToApp = useCallback(async () => {
+    if (redirectingRef.current) return;
+    redirectingRef.current = true;
+    const confirmed = await refreshAuthState();
+    if (!confirmed.session) {
+      redirectingRef.current = false;
+      toast.error("We couldn't confirm your session yet. Please try again.");
+      return;
+    }
+    consumePendingRedirect();
     await router.invalidate();
     await router.navigate({ href: redirectTarget, replace: true });
-  };
+  }, [router, redirectTarget]);
 
   // If a session already exists (e.g. user returned from OAuth redirect, or
-  // signed in in another tab), bounce off /auth immediately. Also react to
-  // SIGNED_IN / TOKEN_REFRESHED events so the moment Supabase confirms the
-  // session we navigate — no manual refresh required.
+  // signed in in another tab), bounce off /auth immediately. The root auth
+  // listener owns session updates/router invalidation; this page just reacts
+  // to the app-wide auth snapshot.
   useEffect(() => {
-    let cancelled = false;
-    supabase.auth.getSession().then(({ data }) => {
-      if (cancelled) return;
-      if (data.session) {
-        void goToApp();
-      } else {
-        setSessionChecked(true);
-      }
-    });
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (cancelled) return;
-      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session) {
-        void goToApp();
-      }
-    });
-    return () => {
-      cancelled = true;
-      subscription.unsubscribe();
-    };
-    // goToApp closes over `redirectTarget`; re-run when it changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [redirectTarget]);
+    if (auth.ready && auth.session) void goToApp();
+  }, [auth.ready, auth.session, goToApp]);
 
   async function guard(scope: "login" | "reset" | "signup", emailVal: string): Promise<boolean> {
     const r = await rlCheck({ data: { scope, email: emailVal } });
@@ -147,6 +136,8 @@ function AuthPage() {
         if (!(await guard("login", email))) return;
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        const confirmed = await refreshAuthState();
+        if (!confirmed.session) throw new Error("Sign-in succeeded, but the session is not ready yet.");
         track("signin_succeeded", { method: "password" });
         await goToApp();
       }
@@ -201,7 +192,9 @@ function AuthPage() {
         return;
       }
       if (result.redirected) return; // browser is navigating away
-      // Session is set inline (preview iframe / web_message flow); go now.
+      // Session is set inline (preview iframe / web_message flow); confirm it and go now.
+      const confirmed = await refreshAuthState();
+      if (!confirmed.session) throw new Error("Google sign-in succeeded, but the session is not ready yet.");
       track("signin_succeeded", { method: "google" });
       await goToApp();
     } catch (err) {
@@ -239,7 +232,7 @@ function AuthPage() {
   // Initial session check hasn't completed yet — show a neutral loading state
   // so we never flash the sign-in form to an already-authenticated user (that
   // was the "stuck on /auth until refresh" symptom).
-  if (!sessionChecked) {
+  if (!auth.ready || auth.session || redirectingRef.current) {
     return (
       <div
         className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"

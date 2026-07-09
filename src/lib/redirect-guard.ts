@@ -79,6 +79,15 @@ export function stashPendingRedirect(path: string) {
   }
 }
 
+export function getPendingRedirect(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage.getItem(PENDING_REDIRECT_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export function consumePendingRedirect(): string | null {
   if (typeof window === "undefined") return null;
   try {

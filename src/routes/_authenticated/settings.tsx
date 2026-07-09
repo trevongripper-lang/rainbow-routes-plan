@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 function SettingsPage() {
+  const navigate = useNavigate();
   const me = useQuery({
     queryKey: ["me", "session-user-id"],
     queryFn: async () => {
@@ -60,7 +61,7 @@ function SettingsPage() {
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
-    window.location.assign("/auth");
+    navigate({ to: "/auth", replace: true });
   }
 
   const consented = typeof window !== "undefined" && userId ? hasBetaConsentLocal(userId) : true;

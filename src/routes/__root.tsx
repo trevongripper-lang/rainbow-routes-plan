@@ -11,10 +11,15 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { supabase } from "@/integrations/supabase/client";
 import { Toaster, toast } from "sonner";
 import { RlsDebugPanel } from "@/components/rls-debug-panel";
 import { InstallAppBanner } from "@/components/install-app-banner";
+import {
+  AuthProvider,
+  startAuthStateListener,
+  useAuthSnapshot,
+  type AppAuthState,
+} from "@/lib/auth-state";
 
 function NotFoundComponent() {
   return (
@@ -62,7 +67,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+export const Route = createRootRouteWithContext<{
+  queryClient: QueryClient;
+  auth: AppAuthState;
+}>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -139,16 +147,44 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  const auth = useAuthSnapshot();
 
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
-      router.invalidate();
-      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+    router.update({
+      ...router.options,
+      context: {
+        ...router.options.context,
+        auth,
+      },
     });
-    return () => subscription.unsubscribe();
+  }, [router, auth]);
+
+  useEffect(() => {
+    const stop = startAuthStateListener((event, nextAuth) => {
+      router.update({
+        ...router.options,
+        context: {
+          ...router.options.context,
+          auth: nextAuth,
+        },
+      });
+
+      if (
+        event !== "INITIAL_SESSION" &&
+        event !== "SIGNED_IN" &&
+        event !== "TOKEN_REFRESHED" &&
+        event !== "USER_UPDATED" &&
+        event !== "SIGNED_OUT"
+      ) {
+        return;
+      }
+
+      window.setTimeout(() => {
+        void router.invalidate();
+        if (event !== "SIGNED_OUT" && nextAuth.session) void queryClient.invalidateQueries();
+      }, 0);
+    });
+    return () => stop();
   }, [router, queryClient]);
 
   // Page-load timing for tracked routes + offline toast
@@ -197,11 +233,13 @@ function RootComponent() {
   }, [router]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <InstallAppBanner />
-      <Toaster theme="dark" position="top-center" richColors />
-      {import.meta.env.DEV && <RlsDebugPanel />}
-    </QueryClientProvider>
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <Outlet />
+        <InstallAppBanner />
+        <Toaster theme="dark" position="top-center" richColors />
+        {import.meta.env.DEV && <RlsDebugPanel />}
+      </QueryClientProvider>
+    </AuthProvider>
   );
 }

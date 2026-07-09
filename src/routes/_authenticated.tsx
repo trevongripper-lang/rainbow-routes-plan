@@ -57,14 +57,19 @@ import {
 import { checkBetaConsent, BETA_CONSENT_VERSION } from "@/lib/beta-consent";
 import { noteRedirect, clearRedirectTrace } from "@/lib/redirect-guard";
 import { track } from "@/lib/analytics";
+import { ensureAuthReady, getAuthState } from "@/lib/auth-state";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async ({ location }) => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
+  beforeLoad: async ({ location, context }) => {
+    const auth = context.auth.ready ? context.auth : await ensureAuthReady();
+    const user = auth.user ?? getAuthState().user;
+    if (!user) {
       if (noteRedirect(location.pathname, "/auth")) throw redirect({ to: "/recover" });
-      throw redirect({ to: "/auth" });
+      throw redirect({
+        to: "/auth",
+        search: { redirect: location.href },
+      });
     }
     if (location.pathname !== "/beta-consent") {
       track("consent_check_started", {
@@ -74,7 +79,7 @@ export const Route = createFileRoute("/_authenticated")({
       // Authoritative DB check — never trust localStorage as a bypass.
       // A previous tester on the same browser must not satisfy a new
       // user's gate, and a version bump must force re-consent.
-      const status = await checkBetaConsent(data.user.id);
+      const status = await checkBetaConsent(user.id);
       if (status === "current") {
         track("consent_current", { route: location.pathname, version: BETA_CONSENT_VERSION });
       } else {
@@ -103,8 +108,13 @@ export const Route = createFileRoute("/_authenticated")({
       }
     }
     clearRedirectTrace();
-    return { user: data.user };
+    return { user };
   },
+  pendingComponent: () => (
+    <div className="grid min-h-[50vh] place-items-center text-sm text-muted-foreground">
+      Checking your session…
+    </div>
+  ),
   component: AppShell,
 });
 
