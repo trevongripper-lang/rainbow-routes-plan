@@ -26,6 +26,7 @@ import {
   useAuth,
 } from "@/lib/auth-state";
 import { withTimeout } from "@/lib/utils";
+import { canonicalEmailOrigin } from "@/lib/canonical-origin";
 
 type AuthSearch = { redirect?: string };
 
@@ -212,7 +213,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: canonicalEmailOrigin(),
             data: { full_name: name || email.split("@")[0] },
           },
         });
@@ -259,7 +260,7 @@ function AuthPage() {
     try {
       if (!(await guard("reset", trimmed))) return;
       await supabase.auth.resetPasswordForEmail(trimmed, {
-        redirectTo: window.location.origin + "/reset-password",
+        redirectTo: canonicalEmailOrigin() + "/reset-password",
       });
       // Don't disclose whether the email exists.
       toast.success("If that email is registered, a reset link is on its way.");
@@ -339,7 +340,7 @@ function AuthPage() {
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: confirmSent,
-        options: { emailRedirectTo: window.location.origin },
+        options: { emailRedirectTo: canonicalEmailOrigin() },
       });
       if (error) throw error;
       setResendState("sent");
