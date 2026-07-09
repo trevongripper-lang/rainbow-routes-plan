@@ -97,10 +97,13 @@ function scheduleBrowserRedirectFallback(target: string) {
   if (typeof window === "undefined") return;
   window.setTimeout(() => {
     const current = `${window.location.pathname}${window.location.search}`;
-    if (current !== target) {
+    const statusText = document.querySelector('[role="status"]')?.textContent ?? "";
+    const stillShowingGate = /Checking your session|Checking beta consent|Redirecting/i.test(statusText);
+    if (current !== target || stillShowingGate) {
       console.warn("[auth-gate] router redirect did not complete; using browser fallback", {
         current,
         target,
+        statusText,
       });
       window.location.replace(target);
     }
