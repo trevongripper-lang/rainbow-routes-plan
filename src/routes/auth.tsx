@@ -18,6 +18,7 @@ import {
 } from "@/lib/redirect-guard";
 import {
   SESSION_HYDRATION_ERROR_MESSAGE,
+  clearAuthSession,
   refreshAuthState,
   resetAuthState,
   useAuth,
@@ -233,7 +234,7 @@ function AuthPage() {
       queryClient.clear();
       resetAuthState();
       await supabase.auth.signOut();
-      resetAuthState();
+      clearAuthSession();
       await router.invalidate();
       await router.navigate({ to: "/auth", replace: true });
     } finally {
