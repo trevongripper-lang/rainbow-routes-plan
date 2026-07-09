@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestIP, getRequestHeader } from "@tanstack/react-start/server";
-import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type RlResult = { allowed: boolean; retryAfter: number };
@@ -34,11 +33,13 @@ function normEmail(e: string | undefined): string {
   return (e ?? "").trim().toLowerCase().slice(0, 254);
 }
 
+// `rl_hit` EXECUTE is scoped to service_role only (any signed-in user could
+// otherwise spam arbitrary keys / DoS other users' rate-limit windows). We
+// invoke it through the admin client, loaded inside the handler so the
+// server-only module never enters the client bundle graph.
 async function hit(key: string, windowSeconds: number, max: number): Promise<RlResult> {
-  const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
-    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-  });
-  const { data, error } = await sb.rpc("rl_hit", {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.rpc("rl_hit", {
     _key: key,
     _window_seconds: windowSeconds,
     _max: max,
