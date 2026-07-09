@@ -1405,7 +1405,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_trip_co_organizer: {
+        Args: { _dest: string; _user: string }
+        Returns: boolean
+      }
       is_trip_member: {
+        Args: { _dest: string; _user: string }
+        Returns: boolean
+      }
+      is_trip_organizer_or_co: {
         Args: { _dest: string; _user: string }
         Returns: boolean
       }
@@ -1478,6 +1486,10 @@ export type Database = {
       rl_hit: {
         Args: { _key: string; _max: number; _window_seconds: number }
         Returns: Json
+      }
+      set_trip_member_role: {
+        Args: { _dest: string; _role: string; _user: string }
+        Returns: undefined
       }
       unlock_destination: {
         Args: { _dest: string; _paid_cents?: number; _use_credit: boolean }

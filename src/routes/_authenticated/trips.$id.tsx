@@ -214,6 +214,23 @@ function TripDetail() {
   const { dest, author, votes, voted, me } = data;
   const isOwner = me === dest.user_id;
 
+  const { data: myMembership } = useQuery({
+    queryKey: ["my-trip-role", id, me],
+    queryFn: async () => {
+      if (!me) return null;
+      const { data: row } = await supabase
+        .from("trip_members")
+        .select("role")
+        .eq("destination_id", id)
+        .eq("user_id", me)
+        .maybeSingle();
+      return row;
+    },
+    enabled: !!me,
+  });
+  const isCoOrganizer = myMembership?.role === "co_organizer";
+  const canOrganize = isOwner || isCoOrganizer;
+
   const isOverview = activeTab === "overview";
 
   return (
@@ -290,10 +307,14 @@ function TripDetail() {
                 {dest.description}
               </p>
             )}
-            {isOwner && (
+            {canOrganize && (
               <div className="mt-5 flex flex-wrap items-end gap-3">
-                <InviteModal destinationId={id} isOwner={isOwner} />
-                <UnlockTripButton destinationId={id} isOwner={isOwner} />
+                <InviteModal
+                  destinationId={id}
+                  isOwner={isOwner}
+                  isCoOrganizer={isCoOrganizer}
+                />
+                {isOwner && <UnlockTripButton destinationId={id} isOwner={isOwner} />}
                 <div className="flex w-full flex-wrap items-end gap-2 sm:w-auto">
                   <div className="min-w-0 flex-1 sm:flex-none">
                     <Label className="text-xs">Start date</Label>
@@ -386,7 +407,13 @@ function TripDetail() {
             </div>
             <div className="flex items-center gap-2">
               <AttendeesCard destinationId={id} />
-              {isOwner && <InviteModal destinationId={id} isOwner={isOwner} />}
+              {canOrganize && (
+                <InviteModal
+                  destinationId={id}
+                  isOwner={isOwner}
+                  isCoOrganizer={isCoOrganizer}
+                />
+              )}
             </div>
           </div>
         </header>

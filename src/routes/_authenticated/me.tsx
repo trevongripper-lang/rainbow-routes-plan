@@ -13,7 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
-import { CreditsPanel } from "@/components/credits-panel";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -119,7 +119,7 @@ function MePage() {
         isPro={isPro}
       />
 
-      <CreditsPanel />
+
 
       <section className="rounded-2xl border border-border/60 bg-card p-5">
         <div className="flex items-start justify-between gap-4">
@@ -325,7 +325,7 @@ function MyAccount({
         {confirming && (
           <div className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-4">
             <p className="text-sm text-foreground">
-              This permanently deletes your account, profile, pitches, votes, comments, and credits.
+              This permanently deletes your account, profile, pitches, votes, and comments.
               This cannot be undone.
             </p>
             <p className="mt-2 text-xs text-muted-foreground">

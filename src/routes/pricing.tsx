@@ -149,33 +149,9 @@ function PricingPage() {
           </div>
         </div>
 
-        {/* Credits */}
-        <div className="mt-8 grid gap-6 md:grid-cols-2">
-          <div className="rounded-3xl border border-border/60 bg-card p-6">
-            <div className="flex items-center gap-2 text-primary">
-              <Sparkles className="size-5" />
-              <h3 className="font-display text-xl">Loyalty credits</h3>
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Every <strong>8 trips you pay to unlock</strong>, you get{" "}
-              <strong>2 free unlock credits</strong> — usable on any tier.
-            </p>
-          </div>
-          <div className="rounded-3xl border border-border/60 bg-card p-6">
-            <div className="flex items-center gap-2 text-primary">
-              <Gift className="size-5" />
-              <h3 className="font-display text-xl">Referral credits</h3>
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Join via an invite from someone who's paid for at least one trip? You get{" "}
-              <strong>3 free unlock credits</strong> for trips you organize.
-            </p>
-          </div>
-        </div>
-
         <div className="mt-16 text-center text-sm text-muted-foreground">
           Questions?{" "}
-          <a className="text-primary hover:underline" href="mailto:hi@tribetrips.app">
+          <a className="text-primary hover:underline" href="mailto:hello@jointribetrips.com">
             Get in touch
           </a>
           .

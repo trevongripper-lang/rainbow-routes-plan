@@ -90,7 +90,7 @@ describe("Settings page", () => {
     expect(screen.getByTestId("settings-sign-out")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /email support/i })).toHaveAttribute(
       "href",
-      expect.stringMatching(/^mailto:hello@tgklabs\.io/),
+      expect.stringMatching(/^mailto:hello@jointribetrips\.com/),
     );
     expect(screen.getByRole("link", { name: /report a bug/i })).toHaveAttribute(
       "href",

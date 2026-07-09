@@ -88,7 +88,7 @@ export const enrichUrl = createServerFn({ method: "POST" })
     try {
       const res = await fetch(data.url, {
         headers: {
-          "user-agent": "Mozilla/5.0 (compatible; TribeTripsBot/1.0; +https://tribetrips.app)",
+          "user-agent": "Mozilla/5.0 (compatible; TribeTripsBot/1.0; +https://jointribetrips.com)",
           accept: "text/html,application/xhtml+xml",
         },
         redirect: "follow",

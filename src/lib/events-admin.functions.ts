@@ -120,7 +120,7 @@ export const extractEventFromUrl = createServerFn({ method: "POST" })
     try {
       const res = await fetch(data.url, {
         headers: {
-          "user-agent": "Mozilla/5.0 (compatible; TribeTripsBot/1.0; +https://tribetrips.app)",
+          "user-agent": "Mozilla/5.0 (compatible; TribeTripsBot/1.0; +https://jointribetrips.com)",
           accept: "text/html,application/xhtml+xml",
         },
         redirect: "follow",
@@ -201,21 +201,26 @@ export const extractEventFromUrl = createServerFn({ method: "POST" })
       tags?: string;
     };
 
-    // 3) Geocode location
+    // 3) Geocode location via OpenStreetMap Nominatim
     let latitude: number | null = null;
     let longitude: number | null = null;
-    const token = process.env.MAPBOX_TOKEN;
-    if (token) {
-      const q = [parsed.city, parsed.region, parsed.country].filter(Boolean).join(", ");
+    const q = [parsed.city, parsed.region, parsed.country].filter(Boolean).join(", ");
+    if (q) {
       try {
-        const mbUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?limit=1&types=place,locality,region&access_token=${token}`;
-        const r = await fetch(mbUrl);
+        const nUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+        const r = await fetch(nUrl, {
+          headers: {
+            "User-Agent":
+              "TribeTrips/1.0 (+https://jointribetrips.com; hello@jointribetrips.com)",
+            Accept: "application/json",
+          },
+        });
         if (r.ok) {
-          const j = (await r.json()) as { features?: Array<{ center: [number, number] }> };
-          const top = j.features?.[0];
-          if (top?.center) {
-            longitude = top.center[0];
-            latitude = top.center[1];
+          const j = (await r.json()) as Array<{ lat: string; lon: string }>;
+          const top = j[0];
+          if (top) {
+            latitude = Number(top.lat);
+            longitude = Number(top.lon);
           }
         }
       } catch {
@@ -240,7 +245,7 @@ export const extractEventFromUrl = createServerFn({ method: "POST" })
       verified: false,
       confidence_notes:
         latitude != null && longitude != null
-          ? "AI-extracted; coordinates resolved via Mapbox. Verify dates and location before publishing."
+          ? "AI-extracted; coordinates resolved via OpenStreetMap. Verify dates and location before publishing."
           : "AI-extracted; NO coordinates resolved — event will not match by distance. Add lat/lng before publishing.",
     };
   });

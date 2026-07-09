@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -18,19 +19,41 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Copy, Link as LinkIcon, Share2, UserPlus, Check, Trash2 } from "lucide-react";
+import {
+  Copy,
+  Link as LinkIcon,
+  Share2,
+  UserPlus,
+  Check,
+  Trash2,
+  MoreHorizontal,
+  ShieldPlus,
+  ShieldMinus,
+} from "lucide-react";
 import { toast } from "sonner";
+import { setTripMemberRole } from "@/lib/trip-roles.functions";
 
 export function InviteModal({
   destinationId,
   isOwner = false,
+  isCoOrganizer = false,
 }: {
   destinationId: string;
   isOwner?: boolean;
+  isCoOrganizer?: boolean;
 }) {
+  const canManage = isOwner || isCoOrganizer;
   const qc = useQueryClient();
+  const setRole = useServerFn(setTripMemberRole);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [lastUrl, setLastUrl] = useState<string | null>(null);
@@ -70,6 +93,17 @@ export function InviteModal({
     },
   });
 
+  const changeRole = useMutation({
+    mutationFn: (v: { userId: string; role: "co_organizer" | "member" }) =>
+      setRole({ data: { destinationId, userId: v.userId, role: v.role } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["trip-members", destinationId] });
+      qc.invalidateQueries({ queryKey: ["my-trip-role", destinationId] });
+      toast.success("Role updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const inviteLinkFor = (token: string) =>
     `${typeof window !== "undefined" ? window.location.origin : ""}/join/${token}`;
 
@@ -104,11 +138,19 @@ export function InviteModal({
         url,
       });
     } catch (e) {
-      // user-cancelled share throws AbortError; ignore
       if (e instanceof Error && e.name !== "AbortError") {
         toast.error(e.message);
       }
     }
+  };
+
+  // Removal rules: owner can remove any non-owner; co-organizer can remove
+  // plain members only (never the owner and never another co-organizer).
+  const canRemoveMember = (role: string | null | undefined) => {
+    if (role === "owner") return false;
+    if (isOwner) return true;
+    if (isCoOrganizer) return role === "member";
+    return false;
   };
 
   return (
@@ -176,33 +218,80 @@ export function InviteModal({
           <div>
             <Label className="text-xs">Current crew ({members.length})</Label>
             <ul className="mt-2 space-y-1.5">
-              {members.map((m) => (
-                <li key={m.user_id} className="flex items-center gap-2 text-sm">
-                  <div className="grid size-7 place-items-center rounded-full bg-primary/20 text-xs font-medium text-primary">
-                    {(m.profile?.display_name ?? "?").slice(0, 1).toUpperCase()}
-                  </div>
-                  <span className="flex-1 truncate">{m.profile?.display_name ?? "Member"}</span>
-                  {m.role === "owner" && (
-                    <span className="rounded-full bg-accent/30 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-accent-foreground">
-                      Owner
-                    </span>
-                  )}
-                  {isOwner && m.role !== "owner" && (
-                    <button
-                      onClick={() =>
-                        setPendingRemove({
-                          userId: m.user_id,
-                          name: m.profile?.display_name ?? "this member",
-                        })
-                      }
-                      aria-label="Remove member"
-                      className="rounded-full p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  )}
-                </li>
-              ))}
+              {members.map((m) => {
+                const roleLabel =
+                  m.role === "owner"
+                    ? "Organizer"
+                    : m.role === "co_organizer"
+                      ? "Co-organizer"
+                      : null;
+                const showMenu =
+                  canManage &&
+                  m.role !== "owner" &&
+                  (isOwner || (isCoOrganizer && m.role === "member"));
+                return (
+                  <li key={m.user_id} className="flex items-center gap-2 text-sm">
+                    <div className="grid size-7 place-items-center rounded-full bg-primary/20 text-xs font-medium text-primary">
+                      {(m.profile?.display_name ?? "?").slice(0, 1).toUpperCase()}
+                    </div>
+                    <span className="flex-1 truncate">{m.profile?.display_name ?? "Member"}</span>
+                    {roleLabel && (
+                      <span className="rounded-full bg-accent/30 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-accent-foreground">
+                        {roleLabel}
+                      </span>
+                    )}
+                    {showMenu && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            aria-label="Member actions"
+                            className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            <MoreHorizontal className="size-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {isOwner && m.role === "member" && (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                changeRole.mutate({
+                                  userId: m.user_id,
+                                  role: "co_organizer",
+                                })
+                              }
+                            >
+                              <ShieldPlus className="mr-2 size-4" /> Make co-organizer
+                            </DropdownMenuItem>
+                          )}
+                          {isOwner && m.role === "co_organizer" && (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                changeRole.mutate({ userId: m.user_id, role: "member" })
+                              }
+                            >
+                              <ShieldMinus className="mr-2 size-4" /> Remove co-organizer role
+                            </DropdownMenuItem>
+                          )}
+                          {isOwner && <DropdownMenuSeparator />}
+                          {canRemoveMember(m.role) && (
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() =>
+                                setPendingRemove({
+                                  userId: m.user_id,
+                                  name: m.profile?.display_name ?? "this member",
+                                })
+                              }
+                            >
+                              <Trash2 className="mr-2 size-4" /> Remove from trip
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
 

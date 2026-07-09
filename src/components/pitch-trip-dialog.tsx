@@ -181,8 +181,8 @@ export function PitchTripDialog() {
       }
 
       const reasons = form.reasons.map((r) => r.trim()).filter(Boolean);
-      // Verified values from Mapbox win over typed values so the saved
-      // destination always matches the chosen coordinates.
+      // Verified values from the location search win over typed values so the
+      // saved destination always matches the chosen coordinates.
       const title = form.title.trim();
       const city = chosen.city || form.city.trim() || null;
       const country = chosen.country || form.country.trim() || null;

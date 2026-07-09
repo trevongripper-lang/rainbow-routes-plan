@@ -25,7 +25,7 @@ function PrivacyPage() {
   return (
     <div className="safe-top safe-bottom mx-auto max-w-3xl px-6 py-12">
       <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-        Beta · Last updated June 23, 2026
+        Beta · Last updated July 9, 2026
       </p>
       <h1 className="font-display text-3xl">Privacy Policy</h1>
       <p className="mt-3 text-sm text-muted-foreground">
@@ -49,8 +49,10 @@ function PrivacyPage() {
             by Paddle. We never see or store your card details — only the success/failure result.
           </li>
           <li>
-            <strong className="text-foreground">Basic logs:</strong> error reports and anonymous
-            usage events so we can fix bugs.
+            <strong className="text-foreground">Basic logs:</strong> error reports plus first-party
+            usage events (event name, and — when relevant — the trip and your user id) so we can
+            fix bugs and understand what to build next. We do not use third-party ad or analytics
+            trackers.
           </li>
         </ul>
       </section>
@@ -80,8 +82,8 @@ function PrivacyPage() {
           </li>
           <li>
             <strong className="text-foreground">Request deletion any time:</strong> email{" "}
-            <a className="underline" href="mailto:hello@tgklabs.io">
-              hello@tgklabs.io
+            <a className="underline" href="mailto:hello@jointribetrips.com">
+              hello@jointribetrips.com
             </a>{" "}
             and we'll remove your recordings and notes.
           </li>
@@ -117,7 +119,7 @@ function PrivacyPage() {
           <li>Cloudflare (hosting / edge)</li>
           <li>Paddle (payments)</li>
           <li>Google (optional sign-in)</li>
-          <li>Mapbox (maps)</li>
+          <li>OpenStreetMap / Nominatim (map tiles and location search)</li>
         </ul>
       </section>
 
@@ -126,8 +128,8 @@ function PrivacyPage() {
         <p className="text-muted-foreground">
           You can edit your profile, leave trips, or delete your account at any time from Settings →
           Profile & account. Deleting your account permanently removes your profile, the trips you
-          organized (with their itinerary, polls, costs and chat), your votes, comments, credits and
-          beta consent record. On trips you only joined, your membership is removed and your name is
+          organized (with their itinerary, polls, costs and chat), your votes, comments, and beta
+          consent record. On trips you only joined, your membership is removed and your name is
           cleared from shared records such as expenses and invites; the trip itself stays for the
           other members. This action cannot be undone.
         </p>
@@ -137,8 +139,8 @@ function PrivacyPage() {
         <h2 className="font-display text-xl">Contact</h2>
         <p className="text-muted-foreground">
           Questions or requests? Email{" "}
-          <a className="underline" href="mailto:hello@tribetrips.app">
-            hello@tribetrips.app
+          <a className="underline" href="mailto:hello@jointribetrips.com">
+            hello@jointribetrips.com
           </a>
           .
         </p>
