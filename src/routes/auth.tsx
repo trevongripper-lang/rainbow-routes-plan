@@ -21,6 +21,7 @@ import {
   clearAuthSession,
   refreshAuthState,
   resetAuthState,
+  setAuthSession,
   useAuth,
 } from "@/lib/auth-state";
 
@@ -82,10 +83,10 @@ function AuthPage() {
   // the string against the route tree. `router.invalidate()` re-runs every
   // `beforeLoad` (including `_authenticated`) against the fresh session so
   // protected loaders see the signed-in user without a full page reload.
-  const goToApp = useCallback(async () => {
+  const goToApp = useCallback(async (opts: { skipSessionCheck?: boolean } = {}) => {
     if (redirectingRef.current) return;
     redirectingRef.current = true;
-    const confirmed = await refreshAuthState();
+    const confirmed = opts.skipSessionCheck ? auth : await refreshAuthState();
     if (!confirmed.session) {
       redirectingRef.current = false;
       toast.error("We couldn't confirm your session yet. Please try again.");
@@ -93,14 +94,9 @@ function AuthPage() {
     }
     consumePendingRedirect();
 
-    // Force a full-page navigation after auth on every browser. SPA
-    // invalidate+navigate occasionally leaves the view stuck on the auth
-    // screen (URL updates, view doesn't repaint) — most reproducibly on
-    // iOS standalone PWAs, but also seen on Safari and Chrome after a
-    // fresh session write. A full navigation reboots the app with the
-    // hydrated session and eliminates the stall class entirely.
-    window.location.href = redirectTarget;
-  }, [router, redirectTarget]);
+    await router.invalidate();
+    await router.navigate({ href: redirectTarget, replace: true });
+  }, [auth, router, redirectTarget]);
 
 
   // If a session already exists (e.g. user returned from OAuth redirect, or
@@ -147,8 +143,9 @@ function AuthPage() {
           return;
         }
         // Auto-confirm enabled — straight into the app.
+        setAuthSession(data.session);
         track("signin_succeeded", { method: "signup_autoconfirm" });
-        await goToApp();
+        await goToApp({ skipSessionCheck: true });
       } else {
         if (!(await guard("login", email))) return;
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -156,7 +153,7 @@ function AuthPage() {
         const confirmed = await refreshAuthState();
         if (!confirmed.session) throw new Error("Sign-in succeeded, but the session is not ready yet.");
         track("signin_succeeded", { method: "password" });
-        await goToApp();
+        await goToApp({ skipSessionCheck: true });
       }
     } catch (err) {
       track("signin_failed", {
@@ -213,7 +210,7 @@ function AuthPage() {
       const confirmed = await refreshAuthState();
       if (!confirmed.session) throw new Error("Google sign-in succeeded, but the session is not ready yet.");
       track("signin_succeeded", { method: "google" });
-      await goToApp();
+      await goToApp({ skipSessionCheck: true });
     } catch (err) {
       track("google_signin_failed", {
         message: err instanceof Error ? err.message.slice(0, 140) : "unknown",
@@ -228,7 +225,7 @@ function AuthPage() {
     setRetryingSession(true);
     try {
       const next = await refreshAuthState();
-      if (next.session) await goToApp();
+      if (next.session) await goToApp({ skipSessionCheck: true });
     } finally {
       setRetryingSession(false);
     }
