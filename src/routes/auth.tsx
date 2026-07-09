@@ -260,7 +260,7 @@ function AuthPage() {
     try {
       if (!(await guard("reset", trimmed))) return;
       await supabase.auth.resetPasswordForEmail(trimmed, {
-        redirectTo: window.location.origin + "/reset-password",
+        redirectTo: canonicalEmailOrigin() + "/reset-password",
       });
       // Don't disclose whether the email exists.
       toast.success("If that email is registered, a reset link is on its way.");
