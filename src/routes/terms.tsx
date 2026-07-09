@@ -25,7 +25,7 @@ function TermsPage() {
   return (
     <div className="safe-top safe-bottom mx-auto max-w-3xl px-6 py-12">
       <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-        Beta · Last updated June 23, 2026
+        Beta · Last updated July 9, 2026
       </p>
       <h1 className="font-display text-3xl">Terms of Service</h1>
       <p className="mt-3 text-sm text-muted-foreground">
@@ -87,6 +87,17 @@ function TermsPage() {
       </section>
 
       <section className="mt-8 space-y-3 text-sm">
+        <h2 className="font-display text-xl">Trip roles</h2>
+        <p className="text-muted-foreground">
+          Each trip has one <strong className="text-foreground">organizer</strong> (the person who
+          created it) and any number of <strong className="text-foreground">members</strong>. The
+          organizer can promote members to <strong className="text-foreground">co-organizers</strong>,
+          who can invite people, edit trip details, and manage the itinerary. Only the organizer can
+          add or remove co-organizers.
+        </p>
+      </section>
+
+      <section className="mt-8 space-y-3 text-sm">
         <h2 className="font-display text-xl">Content you create</h2>
         <p className="text-muted-foreground">
           You own the content you add to your trips. You grant us a limited license to store and
@@ -115,8 +126,8 @@ function TermsPage() {
         <h2 className="font-display text-xl">Contact</h2>
         <p className="text-muted-foreground">
           Reach us at{" "}
-          <a className="underline" href="mailto:hello@tribetrips.app">
-            hello@tribetrips.app
+          <a className="underline" href="mailto:hello@jointribetrips.com">
+            hello@jointribetrips.com
           </a>
           .
         </p>

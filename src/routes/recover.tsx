@@ -59,7 +59,7 @@ function RecoverPage() {
             Sign out and start over
           </button>
           <a
-            href="mailto:hello@tgklabs.io?subject=Tribe%20Trips%20beta%20issue"
+            href="mailto:hello@jointribetrips.com?subject=Tribe%20Trips%20beta%20issue"
             className="text-xs text-muted-foreground underline"
           >
             Contact support

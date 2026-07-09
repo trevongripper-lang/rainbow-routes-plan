@@ -103,8 +103,7 @@ function PromoAdminPage() {
         <p className="text-xs uppercase tracking-widest text-muted-foreground">Console</p>
         <h1 className="font-display text-3xl">Promo codes</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Codes grant trip-unlock credits. Credits expire after the validity window from each
-          redemption.
+          Codes grant trip unlocks. Unlocks expire after the validity window from each redemption.
         </p>
       </header>
 
@@ -141,7 +140,7 @@ function PromoAdminPage() {
               className={input}
             />
           </Field>
-          <Field label="Credits granted">
+          <Field label="Unlocks granted">
             <input
               required
               type="number"
@@ -218,7 +217,7 @@ function PromoAdminPage() {
             <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="py-2 pr-3">Code</th>
-                <th className="py-2 pr-3">Credits</th>
+                <th className="py-2 pr-3">Unlocks</th>
                 <th className="py-2 pr-3">Validity</th>
                 <th className="py-2 pr-3">Used</th>
                 <th className="py-2 pr-3">Cap</th>

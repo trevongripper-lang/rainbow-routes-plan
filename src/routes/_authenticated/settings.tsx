@@ -17,7 +17,7 @@ import {
 import { InstallAppButton } from "@/components/install-app-banner";
 import { BETA_CONSENT_VERSION, hasBetaConsentLocal } from "@/lib/beta-consent";
 
-const SUPPORT_EMAIL = "hello@tgklabs.io";
+const SUPPORT_EMAIL = "hello@jointribetrips.com";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({

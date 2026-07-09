@@ -1,13 +1,25 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-type MapboxFeature = {
-  id: string;
-  text: string;
-  place_name: string;
-  center: [number, number];
-  place_type: string[];
-  context?: Array<{ id: string; text: string; short_code?: string }>;
+// Nominatim (OpenStreetMap) result shape — subset we use.
+type NominatimResult = {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+  type?: string;
+  class?: string;
+  address?: {
+    city?: string;
+    town?: string;
+    village?: string;
+    hamlet?: string;
+    municipality?: string;
+    county?: string;
+    state?: string;
+    region?: string;
+    country?: string;
+  };
 };
 
 export type GeocodeCandidate = {
@@ -19,22 +31,31 @@ export type GeocodeCandidate = {
   country: string | null;
 };
 
-function parseFeature(f: MapboxFeature): GeocodeCandidate {
-  const ctx = f.context || [];
-  const pick = (prefix: string) => ctx.find((c) => c.id.startsWith(prefix))?.text ?? null;
-  const selfType = f.place_type?.[0] ?? "";
-  const city =
-    selfType === "place" || selfType === "locality" ? f.text : (pick("place") ?? pick("locality"));
-  const region = selfType === "region" ? f.text : pick("region");
-  const country = selfType === "country" ? f.text : pick("country");
+// Nominatim usage policy requires a descriptive User-Agent identifying the app.
+const USER_AGENT = "TribeTrips/1.0 (+https://jointribetrips.com; hello@jointribetrips.com)";
+
+function parseResult(r: NominatimResult): GeocodeCandidate {
+  const a = r.address ?? {};
+  const city = a.city ?? a.town ?? a.village ?? a.hamlet ?? a.municipality ?? null;
+  const region = a.state ?? a.region ?? a.county ?? null;
+  const country = a.country ?? null;
   return {
-    place_name: f.place_name,
-    latitude: f.center[1],
-    longitude: f.center[0],
+    place_name: r.display_name,
+    latitude: Number(r.lat),
+    longitude: Number(r.lon),
     city,
     region,
     country,
   };
+}
+
+async function nominatimSearch(query: string, limit: number): Promise<NominatimResult[]> {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=${limit}&q=${encodeURIComponent(query)}`;
+  const res = await fetch(url, {
+    headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`Location search failed: ${res.status}`);
+  return (await res.json()) as NominatimResult[];
 }
 
 export const geocodeSearch = createServerFn({ method: "POST" })
@@ -45,16 +66,9 @@ export const geocodeSearch = createServerFn({ method: "POST" })
       .slice(0, 200),
   }))
   .handler(async ({ data }) => {
-    const token = process.env.MAPBOX_TOKEN;
-    if (!token) throw new Error("MAPBOX_TOKEN not configured");
     if (!data.query) return { candidates: [] as GeocodeCandidate[] };
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-      data.query,
-    )}.json?limit=5&types=place,locality,region,country&access_token=${token}`;
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`Mapbox failed: ${r.status}`);
-    const j = (await r.json()) as { features?: MapboxFeature[] };
-    return { candidates: (j.features ?? []).map(parseFeature) };
+    const results = await nominatimSearch(data.query, 5);
+    return { candidates: results.map(parseResult) };
   });
 
 export const geocodeDestination = createServerFn({ method: "POST" })
@@ -72,8 +86,6 @@ export const geocodeDestination = createServerFn({ method: "POST" })
     if (dest.latitude != null && dest.longitude != null) {
       return { ok: true, cached: true, latitude: dest.latitude, longitude: dest.longitude };
     }
-    const token = process.env.MAPBOX_TOKEN;
-    if (!token) throw new Error("MAPBOX_TOKEN not configured");
 
     // Lead with `title` (the real place name) so the query is never just a
     // continent/country pair, which would resolve to a region centroid.
@@ -82,15 +94,11 @@ export const geocodeDestination = createServerFn({ method: "POST" })
       .filter((p) => p.length > 0);
     const query = Array.from(new Set(parts)).join(", ");
     if (!query) return { ok: false, cached: false, latitude: null, longitude: null };
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-      query,
-    )}.json?limit=1&types=place,locality,region,country&access_token=${token}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Mapbox geocoding failed: ${res.status}`);
-    const json = (await res.json()) as { features?: MapboxFeature[] };
-    const top = json.features?.[0];
-    if (!top?.center) return { ok: false, cached: false, latitude: null, longitude: null };
-    const parsed = parseFeature(top);
+
+    const results = await nominatimSearch(query, 1);
+    const top = results[0];
+    if (!top) return { ok: false, cached: false, latitude: null, longitude: null };
+    const parsed = parseResult(top);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error: upErr } = await supabaseAdmin
@@ -98,7 +106,6 @@ export const geocodeDestination = createServerFn({ method: "POST" })
       .update({
         latitude: parsed.latitude,
         longitude: parsed.longitude,
-        // Backfill missing city/region/country so the data is self-consistent.
         ...(dest.city ? {} : parsed.city ? { city: parsed.city } : {}),
         ...(dest.region && dest.region !== "—"
           ? {}
