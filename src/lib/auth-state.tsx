@@ -99,8 +99,8 @@ export async function refreshAuthState(timeoutMs = SESSION_HYDRATION_TIMEOUT_MS)
   authCheckVersion = requestVersion;
 
   let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
-  const sessionPromise: Promise<SessionCheckResult> = supabase.auth
-    .getSession()
+  const sessionPromise: Promise<SessionCheckResult> = Promise.resolve()
+    .then(() => supabase.auth.getSession())
     .then(({ data }) => ({ status: "success", session: data.session ?? null }) as const)
     .catch((error) => ({ status: "error", error }) as const);
 
