@@ -25,6 +25,7 @@ import {
   setAuthSession,
   useAuth,
 } from "@/lib/auth-state";
+import { withTimeout } from "@/lib/utils";
 
 type AuthSearch = { redirect?: string };
 
@@ -63,7 +64,10 @@ function AuthPage() {
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
   const [retryingSession, setRetryingSession] = useState(false);
   const [resettingSession, setResettingSession] = useState(false);
+  const [redirectRecovery, setRedirectRecovery] = useState<{ target: string; message: string } | null>(null);
+  const [redirectPhase, setRedirectPhase] = useState<"idle" | "confirming" | "navigating">("idle");
   const redirectingRef = useRef(false);
+  const redirectTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
 
   // Resolve the final post-auth destination. Prefer the search-param
   // redirect (e.g. /join/$token), fall back to any pending redirect stashed
@@ -78,6 +82,25 @@ function AuthPage() {
   const secsLeft = cooldown ? Math.max(0, Math.ceil((cooldown.until - Date.now()) / 1000)) : 0;
   const blocked = secsLeft > 0;
 
+  const clearRedirectTimeout = useCallback(() => {
+    if (!redirectTimeoutRef.current) return;
+    window.clearTimeout(redirectTimeoutRef.current);
+    redirectTimeoutRef.current = null;
+  }, []);
+
+  const startRedirectRecoveryTimer = useCallback(() => {
+    clearRedirectTimeout();
+    redirectTimeoutRef.current = window.setTimeout(() => {
+      console.warn("[auth] post-login navigation did not complete within 5s", { redirectTarget });
+      redirectingRef.current = false;
+      setRedirectPhase("idle");
+      setRedirectRecovery({
+        target: redirectTarget,
+        message: "Your session is ready, but navigation did not complete automatically.",
+      });
+    }, 5_000);
+  }, [clearRedirectTimeout, redirectTarget]);
+
   // Post-auth navigation. Safari (both regular and PWA) can freeze a
   // client-side transition mid-flight and serve the pre-login page from
   // bfcache on the next view. Force a real navigation with
@@ -86,21 +109,67 @@ function AuthPage() {
   const goToApp = useCallback(async (opts: { skipSessionCheck?: boolean } = {}) => {
     if (redirectingRef.current) return;
     redirectingRef.current = true;
-    const confirmed = opts.skipSessionCheck ? getAuthState() : await refreshAuthState();
+    setRedirectRecovery(null);
+    setRedirectPhase("confirming");
+    startRedirectRecoveryTimer();
+
+    console.info("[auth] confirming session before redirect", { redirectTarget });
+    const confirmed = opts.skipSessionCheck
+      ? getAuthState()
+      : await withTimeout(refreshAuthState(), 3_500, "Post-login session confirmation").catch(
+          (err) => {
+            console.warn("[auth] session confirmation failed before redirect", {
+              redirectTarget,
+              error: err instanceof Error ? err.message : String(err),
+            });
+            return getAuthState();
+          },
+        );
     if (!confirmed.session) {
       redirectingRef.current = false;
+      setRedirectPhase("idle");
+      clearRedirectTimeout();
       toast.error("We couldn't confirm your session yet. Please try again.");
       return;
     }
     consumePendingRedirect();
 
+    setRedirectPhase("navigating");
+    try {
+      console.info("[auth] router.invalidate called before redirect", { redirectTarget });
+      await withTimeout(router.invalidate(), 1_500, "Router invalidation after sign-in");
+    } catch (err) {
+      console.warn("[auth] router.invalidate failed or timed out before redirect", {
+        redirectTarget,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    try {
+      console.info("[auth] router.navigate called", { redirectTarget });
+      await withTimeout(router.navigate({ href: redirectTarget, replace: true }), 1_800, "Router navigation after sign-in");
+      if (typeof window !== "undefined" && window.location.pathname.startsWith("/auth")) {
+        console.info("[auth] location.replace called after router.navigate", { redirectTarget });
+        window.location.replace(redirectTarget);
+      }
+      return;
+    } catch (err) {
+      console.warn("[auth] router.navigate failed or timed out; falling back to location.replace", {
+        redirectTarget,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
     if (typeof window !== "undefined") {
+      console.info("[auth] location.replace called", { redirectTarget });
       window.location.replace(redirectTarget);
       return;
     }
-    await router.invalidate();
+
     await router.navigate({ href: redirectTarget, replace: true });
-  }, [router, redirectTarget]);
+  }, [clearRedirectTimeout, redirectTarget, router, startRedirectRecoveryTimer]);
+
+  useEffect(() => () => clearRedirectTimeout(), [clearRedirectTimeout]);
 
 
   // If a session already exists (e.g. user returned from OAuth redirect, or
@@ -301,9 +370,66 @@ function AuthPage() {
     );
   }
 
+  if (redirectRecovery) {
+    return (
+      <div
+        className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
+        style={{ background: "var(--gradient-hero)" }}
+      >
+        <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-8 text-center backdrop-blur">
+          <h1 className="font-display text-3xl">Continue to Tribe Trips</h1>
+          <p className="mt-3 text-sm text-muted-foreground">{redirectRecovery.message}</p>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button
+              type="button"
+              onClick={() => {
+                redirectingRef.current = false;
+                void goToApp({ skipSessionCheck: true });
+              }}
+            >
+              Continue
+            </Button>
+            <Button type="button" variant="outline" onClick={handleSessionReset} disabled={resettingSession}>
+              {resettingSession ? "Resetting…" : "Sign out and reset session"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (auth.ready && auth.session && !redirectingRef.current) {
+    return (
+      <div
+        className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
+        style={{ background: "var(--gradient-hero)" }}
+      >
+        <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-8 text-center backdrop-blur">
+          <h1 className="font-display text-3xl">Session confirmed</h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            You're signed in. Continue to Tribe Trips if you are not redirected automatically.
+          </p>
+          <Button
+            type="button"
+            className="mt-6 w-full"
+            onClick={() => void goToApp({ skipSessionCheck: true })}
+          >
+            Continue
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   // Initial session check has a hard timeout in auth-state, so this screen can
   // never hang indefinitely.
-  if (!auth.ready || auth.session || redirectingRef.current) {
+  if (!auth.ready || redirectingRef.current) {
+    const message =
+      redirectPhase === "navigating"
+        ? "Opening Tribe Trips…"
+        : redirectPhase === "confirming"
+          ? "Confirming your session…"
+          : "Checking your session…";
     return (
       <div
         className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
@@ -318,7 +444,7 @@ function AuthPage() {
             aria-hidden="true"
             className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
           />
-          Checking your session…
+          {message}
         </div>
       </div>
     );
