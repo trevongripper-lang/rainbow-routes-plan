@@ -155,7 +155,7 @@ export function startAuthStateListener(
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange((event, session) => {
-    const next = setAuthSession(session ?? null);
+    const next = event === "SIGNED_OUT" ? clearAuthSession() : setAuthSession(session ?? null);
     onEvent?.(event, next);
   });
 
