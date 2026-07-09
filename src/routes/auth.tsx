@@ -340,7 +340,7 @@ function AuthPage() {
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: confirmSent,
-        options: { emailRedirectTo: window.location.origin },
+        options: { emailRedirectTo: canonicalEmailOrigin() },
       });
       if (error) throw error;
       setResendState("sent");
