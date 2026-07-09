@@ -136,6 +136,21 @@ function AuthPage() {
     consumePendingRedirect();
 
     setRedirectPhase("navigating");
+
+    // On mobile browsers and installed PWAs, the in-place router transition
+    // after sign-in is unreliable (blank/stuck screen). A full-page load is
+    // proven reliable on these devices, so bypass the client router entirely.
+    const forceHardNav =
+      typeof window !== "undefined" &&
+      (window.matchMedia?.("(display-mode: standalone)").matches ||
+        /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+
+    if (forceHardNav) {
+      console.info("[auth] forceHardNav: window.location.assign", { redirectTarget });
+      window.location.assign(redirectTarget);
+      return;
+    }
+
     try {
       console.info("[auth] router.invalidate called before redirect", { redirectTarget });
       await withTimeout(router.invalidate(), 1_500, "Router invalidation after sign-in");
@@ -166,6 +181,7 @@ function AuthPage() {
       window.location.replace(redirectTarget);
       return;
     }
+
 
     await router.navigate({ href: redirectTarget, replace: true });
   }, [clearRedirectTimeout, redirectTarget, router, startRedirectRecoveryTimer]);
