@@ -1,90 +1,49 @@
-## Root cause
+## What's broken
 
-Three issues combine to make every route feel like it forces `/trips` and sign-out feel incomplete:
+Two related pieces of the database were lost (looks like a schema restore/remix stripped them):
 
-1. **`src/routes/__root.tsx` (lines 189–191)** — the global auth listener calls `router.navigate({ href: "/app" })` on every `SIGNED_IN` event. `/app` immediately redirects to `/trips`. OAuth returns, cross-tab sign-in, and (in some browsers) session restore all fire `SIGNED_IN`, dragging users off `/privacy`, `/terms`, `/pricing`, and `/auth` back to `/trips`. Post-login navigation is already owned by `AuthPage.goToApp()`; the root listener should not also navigate.
+1. **`authenticated` has no EXECUTE grant on the trip helper functions.** Every RLS policy on `destinations`, `trip_members`, `trip_costs`, `trip_flights`, `trip_tickets`, `trip_polls`, `trip_poll_options`, `trip_poll_votes`, `trip_ratings`, `trip_stays`, `trip_events`, `trip_invites`, etc. calls `public.is_trip_owner(...)`, `is_trip_member(...)`, `is_trip_co_organizer(...)`, or `is_trip_organizer_or_co(...)`. When the policy runs, Postgres refuses to invoke the function and returns `permission denied for function is_trip_owner` (SQLSTATE 42501). That's the "permission denied … trip_owner" message you saw when pitching a trip — the INSERT fires the SELECT policy for the `.select("id")` returning clause, and the policy explodes on the helper call.
 
-2. **`src/routes/_authenticated.tsx` `signOut` (lines 295–302)** races the async `SIGNED_OUT` event. `router.navigate({ to: "/auth" })` can run before the listener publishes `authStateFromSession(null)`, so `/auth`'s "already signed in" `useEffect` (auth.tsx L179–181) sees a stale `auth.session` snapshot and calls `goToApp()` → `/app` → `/trips`. `clearAuthSession()` is never called explicitly and `router.invalidate()` is not called before navigation.
+2. **All `public` schema triggers are missing** (`information_schema.triggers` in `public` returns 0 rows). The functions still exist, but nothing is wired up. That means: the trip creator is not auto-added to `trip_members` (`add_owner_as_member`), free-tier headcount cap is not enforced (`check_headcount_cap`), date-order validation is off (`check_trip_date_order`), fanout notifications don't fire for new costs / members / comments / settlements, `sync_member_travel_on_flight` doesn't run, `handle_new_user` doesn't seed `profiles` for new signups, and `email_queue_wake` doesn't kick the email queue.
 
-3. **`scheduleBrowserRedirectFallback` (`_authenticated.tsx` L96–111)** schedules a bare `window.setTimeout` with no handle stored. If a protected `beforeLoad` scheduled a fallback and the user signs out within 1.5 s, the timer still fires `window.location.replace(target)` to the previously-protected URL, undoing the sign-out.
+## Fix (single migration)
 
-`/privacy` and `/terms` themselves have no `beforeLoad` and no redirects — they render fine on their own. The `/trips` pull is coming from #1 above.
+**A. Grant EXECUTE on RLS helpers to `authenticated`**
 
-`clearBetaConsentLocal(userId)` already exists in `src/lib/beta-consent.ts`; no new export needed.
-
-## Fixes
-
-### 1. `src/routes/__root.tsx`
-Delete the `SIGNED_IN` → `router.navigate({ href: "/app" })` branch. Keep `router.invalidate()` and the filtered `queryClient.invalidateQueries()`.
-
-### 2. `src/routes/_authenticated.tsx`
-- Add a module-level `Set<number>` of pending fallback timer ids. `scheduleBrowserRedirectFallback` records its id; export `cancelPendingRedirectFallbacks()` that clears all of them.
-- Import `useRouter` and `clearAuthSession`.
-- Rewrite `signOut()` (dev-only `console.info("[signout] …")` at each step):
-  ```ts
-  async function signOut() {
-    console.info("[signout] clicked");
-    const before = await supabase.auth.getSession();
-    console.info("[signout] session before", { hasSession: !!before.data.session });
-
-    cancelPendingRedirectFallbacks();
-    await qc.cancelQueries();
-    qc.clear();
-
-    const userId = before.data.session?.user?.id;
-    const { error } = await supabase.auth.signOut();
-    console.info("[signout] supabase.auth.signOut result", { error });
-
-    clearAuthSession();
-    clearRedirectTrace();
-    if (userId) clearBetaConsentLocal(userId);
-    console.info("[signout] app auth state cleared");
-
-    const after = await supabase.auth.getSession();
-    console.info("[signout] session after", { hasSession: !!after.data.session });
-
-    await router.invalidate();
-    console.info("[signout] navigating to /auth");
-    await router.navigate({ to: "/auth", replace: true });
-  }
-  ```
-
-### 3. `src/routes/auth.tsx`
-Guard the "already signed in → goToApp" effect (L179–181) against a stale snapshot by re-confirming with Supabase before navigating:
-```ts
-useEffect(() => {
-  if (!auth.ready || !auth.session) return;
-  let cancelled = false;
-  void (async () => {
-    const { data } = await supabase.auth.getSession();
-    if (cancelled || !data.session) return;
-    void goToApp();
-  })();
-  return () => { cancelled = true; };
-}, [auth.ready, auth.session, goToApp]);
+```sql
+GRANT EXECUTE ON FUNCTION
+  public.is_trip_owner(uuid, uuid),
+  public.is_trip_member(uuid, uuid),
+  public.is_trip_co_organizer(uuid, uuid),
+  public.is_trip_organizer_or_co(uuid, uuid),
+  public.has_role(uuid, app_role)
+TO authenticated;
 ```
 
-No changes to schema, RLS, product behavior, or unrelated routes.
+Also grant EXECUTE on the user-callable RPCs that the app invokes directly (`redeem_promo_code`, `redeem_trip_invite`, `preview_trip_invite`, `set_trip_member_role`, `match_trip_events`, `get_trip_rating_aggregate`, `get_public_profiles`) — verify each and only add if missing. `unlock_destination` stays service-role only.
 
-## Verification (Playwright against localhost)
+**B. Re-attach the missing triggers on `public` tables**
 
-After the edits, run a headless Playwright script covering each acceptance case and report actual outcomes (URL + screenshot + `supabase.auth.getSession()` result) per test:
+Recreate the triggers using the existing functions:
 
-1. Signed-out → visit `/auth` → stays on `/auth`.
-2. Signed-out → visit `/privacy` → renders privacy page.
-3. Signed-out → visit `/terms` → renders terms page.
-4. Signed-out → visit `/trips` → redirects to `/auth?redirect=%2Ftrips`.
-5. Sign in from `/auth` (managed Supabase session injection) → lands on `/trips` or beta-consent → no manual refresh needed.
-6. Sign out from `/trips` → lands on `/auth`, `supabase.auth.getSession()` returns null, refresh keeps user signed out, `[signout]` logs show the full sequence.
-7. After sign-out → type `/auth` → stays on `/auth`.
-8. After sign-out → type `/privacy` and `/terms` → both render.
-9. Signed-in on `/privacy` → simulated `TOKEN_REFRESHED`/`SIGNED_IN` event no longer navigates away.
-10. Deep link `/trips` while signed out → sign in → returns to `/trips`.
+- `destinations`: `add_owner_as_member` (AFTER INSERT), `check_headcount_cap` (BEFORE INSERT OR UPDATE), `check_trip_date_order` (BEFORE INSERT OR UPDATE)
+- `trip_members`: `on_member_insert` (AFTER INSERT)
+- `trip_costs`: `on_cost_insert` (AFTER INSERT)
+- `comments`: `on_comment_insert` (AFTER INSERT)
+- `trip_settlements`: `on_settlement_insert` (AFTER INSERT)
+- `trip_flights`: `sync_member_travel_on_flight` (AFTER INSERT OR UPDATE)
+- `auth.users`: `handle_new_user` (AFTER INSERT) — this is the one exception outside `public`; needed so new signups get a `profiles` row and welcome notification.
+- Email queues (`pgmq.q_auth_emails`, `pgmq.q_transactional_emails`): `email_queue_wake` (AFTER INSERT). If pgmq's table structure has changed or these were intentionally cron-only, skip and note in the migration.
 
-Any failing case gets reported with the specific test, observed URL, screenshot, and the next suspected cause. No "resolved" claim without evidence.
+Each `CREATE TRIGGER` will be idempotent (`DROP TRIGGER IF EXISTS ... ; CREATE TRIGGER ...`).
 
-## Files touched
+## Out of scope
 
-- `src/routes/__root.tsx`
-- `src/routes/_authenticated.tsx`
-- `src/routes/auth.tsx`
+- No RLS policy changes, no GRANTs on tables (those look correct — the failure is purely the function EXECUTE bit).
+- No app / TypeScript changes.
+
+## Verification after migration
+
+- Pitch a trip end-to-end from the UI — should succeed and land you as `owner` in `trip_members`.
+- `SELECT count(*) FROM information_schema.triggers WHERE trigger_schema='public'` returns >0.
+- `has_function_privilege('authenticated', 'public.is_trip_owner(uuid,uuid)', 'EXECUTE')` returns true.
