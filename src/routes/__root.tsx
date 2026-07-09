@@ -16,6 +16,7 @@ import { RlsDebugPanel } from "@/components/rls-debug-panel";
 import { InstallAppBanner } from "@/components/install-app-banner";
 import {
   AuthProvider,
+  AuthLoadingScreen,
   startAuthStateListener,
   useAuthSnapshot,
   type AppAuthState,
@@ -186,6 +187,9 @@ function RootComponent() {
       window.setTimeout(() => {
         void router.invalidate();
         if (event !== "SIGNED_OUT" && nextAuth.session) void queryClient.invalidateQueries();
+        if (event === "SIGNED_IN" && nextAuth.session) {
+          void router.navigate({ href: "/app", replace: true });
+        }
       }, 0);
     });
     return () => stop();
@@ -253,3 +257,5 @@ function RootComponent() {
     </AuthProvider>
   );
 }
+
+export { AuthLoadingScreen };
