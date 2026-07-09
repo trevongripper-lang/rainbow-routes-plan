@@ -236,6 +236,30 @@ function AuthPage() {
     }
   }
 
+  // Initial session check hasn't completed yet — show a neutral loading state
+  // so we never flash the sign-in form to an already-authenticated user (that
+  // was the "stuck on /auth until refresh" symptom).
+  if (!sessionChecked) {
+    return (
+      <div
+        className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
+        style={{ background: "var(--gradient-hero)" }}
+      >
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center gap-3 text-sm text-muted-foreground"
+        >
+          <span
+            aria-hidden="true"
+            className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+          />
+          Checking your session…
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
