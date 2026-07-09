@@ -2,7 +2,9 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { recordBetaConsent, BETA_CONSENT_VERSION } from "@/lib/beta-consent";
+import { setBetaConsent } from "@/lib/auth-state";
 import { track } from "@/lib/analytics";
+
 
 type BetaConsentSearch = { next?: string; reason?: string };
 
