@@ -54,6 +54,7 @@ function BetaConsentPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const nextPath = safeNext(search.next);
+  const lookupFailed = search.reason === "error";
 
   const [state, setState] = useState<Record<CheckKey, boolean>>({
     age: false,
@@ -116,6 +117,13 @@ function BetaConsentPage() {
         </a>
         .
       </p>
+
+      {lookupFailed && (
+        <div className="mt-5 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          We couldn't verify your beta consent automatically. Review the beta terms below and
+          continue again, or sign out and try later.
+        </div>
+      )}
 
       <div className="mt-6 space-y-3">
         {checks.map((c) => (

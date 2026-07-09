@@ -58,12 +58,13 @@ import { checkBetaConsent, BETA_CONSENT_VERSION } from "@/lib/beta-consent";
 import { noteRedirect, clearRedirectTrace } from "@/lib/redirect-guard";
 import { track } from "@/lib/analytics";
 import { SESSION_HYDRATION_ERROR_MESSAGE, ensureAuthReady, getAuthState } from "@/lib/auth-state";
+import { withTimeout } from "@/lib/utils";
 
 // -----------------------------------------------------------------------------
 // beforeLoad phase store — lets the pending component distinguish the stages
 // so users never see a generic "Checking your session…" forever.
 // -----------------------------------------------------------------------------
-type AuthGatePhase = "session" | "consent" | "redirecting" | "idle";
+type AuthGatePhase = "checking-session" | "checking-beta-consent" | "redirecting" | "idle";
 let currentPhase: AuthGatePhase = "idle";
 const phaseSubscribers = new Set<() => void>();
 function setPhase(next: AuthGatePhase) {
@@ -79,27 +80,6 @@ function subscribePhase(fn: () => void) {
   return () => phaseSubscribers.delete(fn);
 }
 
-// -----------------------------------------------------------------------------
-// Timeout guard. `checkBetaConsent` and `ensureAuthReady` must never block the
-// gate forever — a hung Supabase fetch (Safari bfcache, network drop) would
-// otherwise leave the user on the loading screen until a manual refresh.
-// -----------------------------------------------------------------------------
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      },
-    );
-  });
-}
-
 const AUTH_READY_TIMEOUT_MS = 4_000;
 const BETA_CONSENT_TIMEOUT_MS = 5_000;
 
@@ -112,7 +92,7 @@ export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ location, context }) => {
     const t0 = performance.now();
     debugLog("enter beforeLoad", { path: location.pathname });
-    setPhase("session");
+    setPhase("checking-session");
 
     // ---- Session ----------------------------------------------------------
     let auth = context.auth.ready ? context.auth : getAuthState();
@@ -151,7 +131,7 @@ export const Route = createFileRoute("/_authenticated")({
 
     // ---- Beta consent -----------------------------------------------------
     if (location.pathname !== "/beta-consent") {
-      setPhase("consent");
+      setPhase("checking-beta-consent");
       track("consent_check_started", {
         route: location.pathname,
         version: BETA_CONSENT_VERSION,
@@ -225,8 +205,8 @@ export const Route = createFileRoute("/_authenticated")({
 function GatePendingIndicator() {
   const phase = useSyncExternalStore(subscribePhase, getPhase, getPhase);
   const message =
-    phase === "consent"
-      ? "Verifying your access…"
+    phase === "checking-beta-consent"
+      ? "Checking beta consent…"
       : phase === "redirecting"
         ? "Redirecting…"
         : "Checking your session…";
