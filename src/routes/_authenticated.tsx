@@ -304,18 +304,45 @@ function GatePendingIndicator() {
 
 function AppShell() {
   const navigate = useNavigate();
+  const router = useRouter();
   const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const search = useRouterState({ select: (s) => s.location.search as Record<string, unknown> });
 
   async function signOut() {
+    if (import.meta.env.DEV) console.info("[signout] clicked");
+    const before = await supabase.auth.getSession();
+    if (import.meta.env.DEV)
+      console.info("[signout] session before", { hasSession: !!before.data.session });
+    const userId = before.data.session?.user?.id;
+
+    // Cancel any protected-gate fallback timers so they can't fire
+    // window.location.replace() back into a protected URL after sign-out.
+    cancelPendingRedirectFallbacks();
     await qc.cancelQueries();
     qc.clear();
-    await supabase.auth.signOut();
-    track("signout_succeeded");
+
+    const { error } = await supabase.auth.signOut();
+    if (import.meta.env.DEV) console.info("[signout] supabase.auth.signOut result", { error });
+
+    // Publish cleared auth state synchronously so /auth's "already signed in"
+    // effect can't see a stale session snapshot and bounce back to /app.
+    clearAuthSession();
     clearRedirectTrace();
-    navigate({ to: "/auth", replace: true });
+    if (userId) clearBetaConsentLocal(userId);
+    if (import.meta.env.DEV) console.info("[signout] app auth state cleared");
+
+    const after = await supabase.auth.getSession();
+    if (import.meta.env.DEV)
+      console.info("[signout] session after", { hasSession: !!after.data.session });
+
+    track("signout_succeeded");
+
+    await router.invalidate();
+    if (import.meta.env.DEV) console.info("[signout] navigating to /auth");
+    await router.navigate({ to: "/auth", replace: true });
   }
+
 
   const navItems = [
     { to: "/events", label: "Events", icon: CalendarDays },
