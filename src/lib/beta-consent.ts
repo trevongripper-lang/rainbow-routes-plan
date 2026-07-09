@@ -54,6 +54,11 @@ export function clearBetaConsentLocal(userId: string) {
 
 export type BetaConsentStatus = "current" | "missing" | "error";
 
+function betaConsentDebug(message: string, details: Record<string, unknown> = {}) {
+  if (typeof window === "undefined") return;
+  console.info("[beta-consent]", message, details);
+}
+
 /**
  * Authoritative consent check. Always consults the DB for the current
  * BETA_CONSENT_VERSION — local cache is never a bypass, only a hint we
@@ -62,7 +67,10 @@ export type BetaConsentStatus = "current" | "missing" | "error";
  */
 export async function checkBetaConsent(userId: string): Promise<BetaConsentStatus> {
   if (!userId) return "missing";
+  const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+
   try {
+    betaConsentDebug("lookup started", { version: BETA_CONSENT_VERSION });
     const { data, error } = await withTimeout(
       supabase
         .from("beta_consents")
@@ -73,16 +81,35 @@ export async function checkBetaConsent(userId: string): Promise<BetaConsentStatu
       BETA_CONSENT_LOOKUP_TIMEOUT_MS,
       "Beta consent lookup",
     );
-    if (error) return "error";
+    if (error) {
+      betaConsentDebug("lookup returned error", {
+        elapsedMs: Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt),
+        message: error.message,
+        code: error.code,
+      });
+      return "error";
+    }
     if (data) {
       cacheBetaConsentLocal(userId);
+      betaConsentDebug("lookup current", {
+        elapsedMs: Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt),
+        version: BETA_CONSENT_VERSION,
+      });
       return "current";
     }
     // No row for this user/version — could be brand-new user OR a stale
     // version after a bump. Either way: require consent.
     clearBetaConsentLocal(userId);
+    betaConsentDebug("lookup missing", {
+      elapsedMs: Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt),
+      version: BETA_CONSENT_VERSION,
+    });
     return "missing";
-  } catch {
+  } catch (error) {
+    betaConsentDebug("lookup failed", {
+      elapsedMs: Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt),
+      message: error instanceof Error ? error.message : String(error),
+    });
     return "error";
   }
 }
