@@ -26,6 +26,7 @@ import {
   useAuth,
 } from "@/lib/auth-state";
 import { withTimeout } from "@/lib/utils";
+import { canonicalEmailOrigin } from "@/lib/canonical-origin";
 
 type AuthSearch = { redirect?: string };
 
