@@ -20,6 +20,7 @@ import {
   useAuthSnapshot,
   type AppAuthState,
 } from "@/lib/auth-state";
+import { startBuildVersionCheck } from "@/lib/build-version-check";
 
 function NotFoundComponent() {
   return (
@@ -189,6 +190,12 @@ function RootComponent() {
     });
     return () => stop();
   }, [router, queryClient]);
+
+  // Build version cache-busting check
+  useEffect(() => {
+    const stop = startBuildVersionCheck();
+    return () => stop();
+  }, []);
 
   // Page-load timing for tracked routes + offline toast
   useEffect(() => {
