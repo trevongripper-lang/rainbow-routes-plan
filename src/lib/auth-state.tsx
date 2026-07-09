@@ -2,7 +2,10 @@ import { createContext, useContext, useEffect, useSyncExternalStore, type ReactN
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
+export type AppAuthStatus = "loading" | "authenticated" | "unauthenticated";
+
 export type AppAuthState = {
+  status: AppAuthStatus;
   ready: boolean;
   session: Session | null;
   user: User | null;
@@ -10,11 +13,12 @@ export type AppAuthState = {
   timedOut: boolean;
 };
 
-export const SESSION_HYDRATION_TIMEOUT_MS = 7_000;
+export const SESSION_HYDRATION_TIMEOUT_MS = 3_000;
 export const SESSION_HYDRATION_ERROR_MESSAGE =
   "We had trouble restoring your session. Please sign in again.";
 
 export const defaultAuthState: AppAuthState = {
+  status: "loading",
   ready: false,
   session: null,
   user: null,
@@ -38,6 +42,7 @@ function publishAuthState(next: AppAuthState) {
 
 export function authStateFromSession(session: Session | null): AppAuthState {
   return {
+    status: session ? "authenticated" : "unauthenticated",
     ready: true,
     session,
     user: session?.user ?? null,
@@ -48,6 +53,7 @@ export function authStateFromSession(session: Session | null): AppAuthState {
 
 function authFailureState(timedOut: boolean): AppAuthState {
   return {
+    status: "unauthenticated",
     ready: true,
     session: null,
     user: null,
@@ -86,7 +92,7 @@ export function clearAuthSession() {
 
 export function resetAuthState() {
   authCheckVersion += 1;
-  return publishAuthState({ ...defaultAuthState, ready: true });
+  return publishAuthState(authStateFromSession(null));
 }
 
 type SessionCheckResult =
@@ -155,8 +161,6 @@ export function startAuthStateListener(
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange((event, session) => {
-    if (event === "INITIAL_SESSION" && !session && !currentAuthState.ready) return;
-    if (event === "INITIAL_SESSION" && !session && currentAuthState.timedOut) return;
     const next = event === "SIGNED_OUT" ? clearAuthSession() : setAuthSession(session ?? null);
     onEvent?.(event, next);
   });
@@ -181,11 +185,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void ensureAuthReady();
+
+    const fallbackId = window.setTimeout(() => {
+      if (!getAuthState().ready) void refreshAuthState(SESSION_HYDRATION_TIMEOUT_MS);
+    }, SESSION_HYDRATION_TIMEOUT_MS);
+
+    return () => window.clearTimeout(fallbackId);
   }, []);
+
+  if (auth.status === "loading") return <AuthLoadingScreen />;
 
   return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
   return useContext(AuthContext);
+}
+
+export function AuthLoadingScreen() {
+  return (
+    <div
+      className="safe-top safe-bottom grid min-h-screen place-items-center px-6 py-12"
+      style={{ background: "var(--gradient-hero)" }}
+    >
+      <div role="status" aria-live="polite" className="flex items-center gap-3 text-sm text-muted-foreground">
+        <span
+          aria-hidden="true"
+          className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+        />
+        Loading Tribe Trips…
+      </div>
+    </div>
+  );
 }
