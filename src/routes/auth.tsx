@@ -93,24 +93,13 @@ function AuthPage() {
     }
     consumePendingRedirect();
 
-    // iOS Safari in standalone/PWA mode occasionally stalls SPA navigation
-    // right after a session write — the URL updates but the view doesn't
-    // repaint until manual refresh. Force a full-page navigation there so
-    // the app boots fresh with the hydrated session. Desktop/browser tabs
-    // keep the SPA flow (invalidate + client navigate).
-    const isStandalone =
-      typeof window !== "undefined" &&
-      (window.matchMedia?.("(display-mode: standalone)").matches ||
-        // iOS legacy standalone flag
-        (window.navigator as Navigator & { standalone?: boolean }).standalone === true);
-
-    if (isStandalone) {
-      window.location.assign(redirectTarget);
-      return;
-    }
-
-    await router.invalidate();
-    await router.navigate({ href: redirectTarget, replace: true });
+    // Force a full-page navigation after auth on every browser. SPA
+    // invalidate+navigate occasionally leaves the view stuck on the auth
+    // screen (URL updates, view doesn't repaint) — most reproducibly on
+    // iOS standalone PWAs, but also seen on Safari and Chrome after a
+    // fresh session write. A full navigation reboots the app with the
+    // hydrated session and eliminates the stall class entirely.
+    window.location.href = redirectTarget;
   }, [router, redirectTarget]);
 
 
