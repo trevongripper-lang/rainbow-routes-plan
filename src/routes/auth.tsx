@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +38,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const search = Route.useSearch();
+  const router = useRouter();
   const rlCheck = useServerFn(rlCheckPublic);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -47,6 +48,10 @@ function AuthPage() {
   const [cooldown, setCooldown] = useState<{ scope: string; until: number } | null>(null);
   const [confirmSent, setConfirmSent] = useState<string | null>(null);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
+  // While we're still resolving whether the user already has a session, don't
+  // flash the sign-in form. Prevents a "sign in → back on /auth → refresh
+  // works" ping-pong when navigation and session hydration race.
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   // Resolve the final post-auth destination. Prefer the search-param
   // redirect (e.g. /join/$token), fall back to any pending redirect stashed
@@ -59,29 +64,45 @@ function AuthPage() {
   const secsLeft = cooldown ? Math.max(0, Math.ceil((cooldown.until - Date.now()) / 1000)) : 0;
   const blocked = secsLeft > 0;
 
+  // Client-side navigation to the post-auth destination. `redirectTarget` is
+  // an arbitrary sanitized same-origin path (e.g. `/join/<token>`), which
+  // TanStack's typed `to` cannot express — use `href` so the router matches
+  // the string against the route tree. `router.invalidate()` re-runs every
+  // `beforeLoad` (including `_authenticated`) against the fresh session so
+  // protected loaders see the signed-in user without a full page reload.
+  const goToApp = async () => {
+    await router.invalidate();
+    await router.navigate({ href: redirectTarget, replace: true });
+  };
+
   // If a session already exists (e.g. user returned from OAuth redirect, or
   // signed in in another tab), bounce off /auth immediately. Also react to
-  // SIGNED_IN events triggered after setSession() — iOS Safari can race the
-  // navigate() call in handleGoogle().
+  // SIGNED_IN / TOKEN_REFRESHED events so the moment Supabase confirms the
+  // session we navigate — no manual refresh required.
   useEffect(() => {
     let cancelled = false;
-    const go = () => {
-      // Use window.location so any same-origin path (including dynamic
-      // routes like /join/$token) works without router type wrangling.
-      window.location.replace(redirectTarget);
-    };
     supabase.auth.getSession().then(({ data }) => {
-      if (!cancelled && data.session) go();
+      if (cancelled) return;
+      if (data.session) {
+        void goToApp();
+      } else {
+        setSessionChecked(true);
+      }
     });
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) go();
+      if (cancelled) return;
+      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session) {
+        void goToApp();
+      }
     });
     return () => {
       cancelled = true;
       subscription.unsubscribe();
     };
+    // goToApp closes over `redirectTarget`; re-run when it changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [redirectTarget]);
 
   async function guard(scope: "login" | "reset" | "signup", emailVal: string): Promise<boolean> {
@@ -121,13 +142,13 @@ function AuthPage() {
         }
         // Auto-confirm enabled — straight into the app.
         track("signin_succeeded", { method: "signup_autoconfirm" });
-        window.location.replace(redirectTarget);
+        await goToApp();
       } else {
         if (!(await guard("login", email))) return;
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         track("signin_succeeded", { method: "password" });
-        window.location.replace(redirectTarget);
+        await goToApp();
       }
     } catch (err) {
       track("signin_failed", {
@@ -180,9 +201,9 @@ function AuthPage() {
         return;
       }
       if (result.redirected) return; // browser is navigating away
-      // Session is set; the onAuthStateChange listener above will navigate.
+      // Session is set inline (preview iframe / web_message flow); go now.
       track("signin_succeeded", { method: "google" });
-      window.location.replace(redirectTarget);
+      await goToApp();
     } catch (err) {
       track("google_signin_failed", {
         message: err instanceof Error ? err.message.slice(0, 140) : "unknown",
@@ -213,6 +234,30 @@ function AuthPage() {
       setResendState("idle");
       toast.error(err instanceof Error ? err.message : "Could not resend. Try again shortly.");
     }
+  }
+
+  // Initial session check hasn't completed yet — show a neutral loading state
+  // so we never flash the sign-in form to an already-authenticated user (that
+  // was the "stuck on /auth until refresh" symptom).
+  if (!sessionChecked) {
+    return (
+      <div
+        className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
+        style={{ background: "var(--gradient-hero)" }}
+      >
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center gap-3 text-sm text-muted-foreground"
+        >
+          <span
+            aria-hidden="true"
+            className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+          />
+          Checking your session…
+        </div>
+      </div>
+    );
   }
 
   return (
