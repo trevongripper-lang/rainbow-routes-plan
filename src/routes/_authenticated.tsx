@@ -199,71 +199,64 @@ export const Route = createFileRoute("/_authenticated")({
 
     // ---- Beta consent -----------------------------------------------------
     if (location.pathname !== "/beta-consent") {
-      setPhase("checking-beta-consent");
-      track("consent_check_started", {
-        route: location.pathname,
-        version: BETA_CONSENT_VERSION,
-      });
-      const tConsent = performance.now();
-      // Authoritative DB check — never trust localStorage as a bypass.
-      // Timeout-guarded so a hung fetch can't strand the user on the
-      // loading screen; on timeout we fall through to /beta-consent with
-      // reason=error so the user can recover instead of needing a refresh.
-      let status: Awaited<ReturnType<typeof checkBetaConsent>>;
-      try {
-        debugLog("before checkBetaConsent()", {
+      // Read the resolved status from auth state — it was primed at
+      // session hydration / SIGNED_IN, so this normally requires zero
+      // network work per navigation. Only if it's still "unknown" do we
+      // await the (shared, cached) lookup — never fresh per navigation.
+      let status: AppBetaConsentStatus = getAuthState().betaConsent;
+      if (status === "unknown") {
+        setPhase("checking-beta-consent");
+        track("consent_check_started", {
           route: location.pathname,
-          timeoutMs: BETA_CONSENT_TIMEOUT_MS,
           version: BETA_CONSENT_VERSION,
         });
-        status = await withTimeout(
-          checkBetaConsent(user.id),
-          BETA_CONSENT_TIMEOUT_MS,
-          "checkBetaConsent",
-        );
-        debugLog("after checkBetaConsent()", {
-          status,
-          elapsedMs: Math.round(performance.now() - tConsent),
-          version: BETA_CONSENT_VERSION,
-        });
-      } catch (err) {
-        debugLog("checkBetaConsent() failed or timed out", {
-          elapsedMs: Math.round(performance.now() - tConsent),
-          message: err instanceof Error ? err.message : String(err),
-        });
-        status = "error";
+        const tConsent = performance.now();
+        try {
+          debugLog("awaiting ensureBetaConsentResolved()", {
+            route: location.pathname,
+            timeoutMs: BETA_CONSENT_TIMEOUT_MS,
+            version: BETA_CONSENT_VERSION,
+          });
+          status = await ensureBetaConsentResolved(BETA_CONSENT_TIMEOUT_MS);
+          debugLog("after ensureBetaConsentResolved()", {
+            status,
+            elapsedMs: Math.round(performance.now() - tConsent),
+          });
+        } catch (err) {
+          debugLog("ensureBetaConsentResolved() failed", {
+            elapsedMs: Math.round(performance.now() - tConsent),
+            message: err instanceof Error ? err.message : String(err),
+          });
+          status = "error";
+        }
       }
 
       if (status === "current") {
         track("consent_current", { route: location.pathname, version: BETA_CONSENT_VERSION });
       } else {
-        if (status === "missing") {
-          track("consent_missing", {
-            route: location.pathname,
-            version: BETA_CONSENT_VERSION,
-          });
+        const reason: "missing" | "error" = status === "missing" ? "missing" : "error";
+        if (reason === "missing") {
+          track("consent_missing", { route: location.pathname, version: BETA_CONSENT_VERSION });
         } else {
-          track("consent_check_failed", {
-            route: location.pathname,
-            version: BETA_CONSENT_VERSION,
-          });
+          track("consent_check_failed", { route: location.pathname, version: BETA_CONSENT_VERSION });
         }
         track("consent_redirect_to_beta_consent", {
           route: location.pathname,
-          status,
+          status: reason,
           version: BETA_CONSENT_VERSION,
         });
         setPhase("redirecting");
-        const target = buildBetaConsentUrl(location.pathname, status);
-        debugLog("redirect → /beta-consent", { status, target });
+        const target = buildBetaConsentUrl(location.pathname, reason);
+        debugLog("redirect → /beta-consent", { status: reason, target });
         if (noteRedirect(location.pathname, "/beta-consent")) throw redirect({ to: "/recover" });
         scheduleBrowserRedirectFallback(target);
         throw redirect({
           to: "/beta-consent",
-          search: { next: location.pathname, reason: status },
+          search: { next: location.pathname, reason },
         });
       }
     }
+
 
     clearRedirectTrace();
     setPhase("idle");
