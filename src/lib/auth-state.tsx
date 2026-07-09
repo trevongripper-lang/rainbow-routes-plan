@@ -257,7 +257,16 @@ export function startAuthStateListener(
       return;
     }
     const next = event === "SIGNED_OUT" ? clearAuthSession() : setAuthSession(session ?? null);
+    // Re-prime beta consent on interactive sign-in and profile updates so
+    // the gate has a fresh authoritative status without a per-navigation
+    // network round-trip. setAuthSession already primes on user change;
+    // this covers same-user re-verification.
+    if ((event === "SIGNED_IN" || event === "USER_UPDATED") && next.user) {
+      clearBetaConsentCache();
+      void primeBetaConsent(next.user.id);
+    }
     onEvent?.(event, next);
+
   });
 
   stopListener = () => {
