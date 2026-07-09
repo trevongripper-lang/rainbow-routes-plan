@@ -144,6 +144,139 @@ BEGIN
 END $$;
 
 -- =========================================================================
+-- 6a. Co-organizer CAN read + insert their own flight, and update someone
+--     else's flight on the trip (Author or organizers update flights).
+-- =========================================================================
+-- Seed a flight authored by the owner.
+SET LOCAL "request.jwt.claims" = '{"sub":"11111111-1111-1111-1111-111111111111"}';
+INSERT INTO public.trip_flights (destination_id, user_id, airline, flight_number)
+VALUES ('99999999-9999-9999-9999-999999999999', '11111111-1111-1111-1111-111111111111', 'OwnAir', 'OA1');
+
+-- Back to co-organizer.
+SET LOCAL "request.jwt.claims" = '{"sub":"22222222-2222-2222-2222-222222222222"}';
+DO $$
+DECLARE cnt int;
+BEGIN
+  SELECT count(*) INTO cnt FROM public.trip_flights
+    WHERE destination_id = '99999999-9999-9999-9999-999999999999';
+  IF cnt < 1 THEN RAISE EXCEPTION 'FAIL 6a: co-organizer cannot read flights'; END IF;
+END $$;
+
+INSERT INTO public.trip_flights (destination_id, user_id, airline, flight_number)
+VALUES ('99999999-9999-9999-9999-999999999999', '22222222-2222-2222-2222-222222222222', 'CoAir', 'CA1');
+
+DO $$
+BEGIN
+  UPDATE public.trip_flights
+    SET notes = 'Edited by co-organizer'
+    WHERE destination_id = '99999999-9999-9999-9999-999999999999'
+      AND user_id = '11111111-1111-1111-1111-111111111111';
+  IF NOT FOUND THEN RAISE EXCEPTION 'FAIL 6a: co-organizer cannot edit owner-authored flight'; END IF;
+END $$;
+
+-- =========================================================================
+-- 6b. Co-organizer CAN read + insert their own ticket, and edit an
+--     owner-authored ticket (Author or organizers update tickets).
+-- =========================================================================
+SET LOCAL "request.jwt.claims" = '{"sub":"11111111-1111-1111-1111-111111111111"}';
+INSERT INTO public.trip_tickets (destination_id, user_id, name, currency)
+VALUES ('99999999-9999-9999-9999-999999999999', '11111111-1111-1111-1111-111111111111', 'Owner ticket', 'USD');
+
+SET LOCAL "request.jwt.claims" = '{"sub":"22222222-2222-2222-2222-222222222222"}';
+DO $$
+DECLARE cnt int;
+BEGIN
+  SELECT count(*) INTO cnt FROM public.trip_tickets
+    WHERE destination_id = '99999999-9999-9999-9999-999999999999';
+  IF cnt < 1 THEN RAISE EXCEPTION 'FAIL 6b: co-organizer cannot read tickets'; END IF;
+END $$;
+
+INSERT INTO public.trip_tickets (destination_id, user_id, name, currency)
+VALUES ('99999999-9999-9999-9999-999999999999', '22222222-2222-2222-2222-222222222222', 'Co ticket', 'USD');
+
+DO $$
+BEGIN
+  UPDATE public.trip_tickets
+    SET notes = 'Edited by co-organizer'
+    WHERE destination_id = '99999999-9999-9999-9999-999999999999'
+      AND name = 'Owner ticket';
+  IF NOT FOUND THEN RAISE EXCEPTION 'FAIL 6b: co-organizer cannot edit owner ticket'; END IF;
+END $$;
+
+-- =========================================================================
+-- 6c. Co-organizer CAN read + create a poll (as a member), edit their own
+--     poll, edit an owner-authored poll, and close it.
+-- =========================================================================
+-- Seed a poll authored by the owner.
+SET LOCAL "request.jwt.claims" = '{"sub":"11111111-1111-1111-1111-111111111111"}';
+INSERT INTO public.trip_polls (id, destination_id, user_id, question, kind, allow_multi)
+VALUES (
+  '55555555-5555-5555-5555-555555555501',
+  '99999999-9999-9999-9999-999999999999',
+  '11111111-1111-1111-1111-111111111111',
+  'Owner poll', 'single', false
+);
+
+SET LOCAL "request.jwt.claims" = '{"sub":"22222222-2222-2222-2222-222222222222"}';
+DO $$
+DECLARE cnt int;
+BEGIN
+  SELECT count(*) INTO cnt FROM public.trip_polls
+    WHERE destination_id = '99999999-9999-9999-9999-999999999999';
+  IF cnt < 1 THEN RAISE EXCEPTION 'FAIL 6c: co-organizer cannot read polls'; END IF;
+END $$;
+
+INSERT INTO public.trip_polls (id, destination_id, user_id, question, kind, allow_multi)
+VALUES (
+  '55555555-5555-5555-5555-555555555502',
+  '99999999-9999-9999-9999-999999999999',
+  '22222222-2222-2222-2222-222222222222',
+  'Co-org poll', 'single', false
+);
+
+DO $$
+BEGIN
+  UPDATE public.trip_polls
+    SET question = 'Owner poll (edited by co-org)', closed_at = now()
+    WHERE id = '55555555-5555-5555-5555-555555555501';
+  IF NOT FOUND THEN RAISE EXCEPTION 'FAIL 6c: co-organizer cannot edit owner poll'; END IF;
+END $$;
+
+-- =========================================================================
+-- 6d. Co-organizer CAN add, read, and edit poll options on a poll they did
+--     not author (Creator or organizers edit options).
+-- =========================================================================
+-- Seed an option on the owner's poll (as owner).
+SET LOCAL "request.jwt.claims" = '{"sub":"11111111-1111-1111-1111-111111111111"}';
+INSERT INTO public.trip_poll_options (id, poll_id, label, sort_order)
+VALUES (
+  '66666666-6666-6666-6666-666666666601',
+  '55555555-5555-5555-5555-555555555501',
+  'Owner option', 0
+);
+
+-- Back to co-organizer.
+SET LOCAL "request.jwt.claims" = '{"sub":"22222222-2222-2222-2222-222222222222"}';
+DO $$
+DECLARE cnt int;
+BEGIN
+  SELECT count(*) INTO cnt FROM public.trip_poll_options
+    WHERE poll_id = '55555555-5555-5555-5555-555555555501';
+  IF cnt < 1 THEN RAISE EXCEPTION 'FAIL 6d: co-organizer cannot read poll options'; END IF;
+END $$;
+
+INSERT INTO public.trip_poll_options (poll_id, label, sort_order)
+VALUES ('55555555-5555-5555-5555-555555555501', 'Co-org option', 1);
+
+DO $$
+BEGIN
+  UPDATE public.trip_poll_options
+    SET label = 'Owner option (edited by co-org)'
+    WHERE id = '66666666-6666-6666-6666-666666666601';
+  IF NOT FOUND THEN RAISE EXCEPTION 'FAIL 6d: co-organizer cannot edit owner poll option'; END IF;
+END $$;
+
+-- =========================================================================
 -- 7. Co-organizer CANNOT promote to owner via set_trip_member_role
 --    (RPC guards: only is_trip_owner() may change roles, and _role must be
 --    one of 'co_organizer' | 'member' — 'owner' is not accepted.)
@@ -265,6 +398,113 @@ BEGIN
     );
     RAISE EXCEPTION 'FAIL 11c: plain member was able to change roles';
   EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+END $$;
+
+-- =========================================================================
+-- 11d. Plain member CANNOT edit or delete another user's flight/ticket
+--      (write policies scope to author OR organizer/co-organizer).
+-- =========================================================================
+DO $$
+DECLARE affected int;
+BEGIN
+  WITH u AS (
+    UPDATE public.trip_flights
+      SET notes = 'member should not touch this'
+      WHERE destination_id = '99999999-9999-9999-9999-999999999999'
+        AND user_id = '11111111-1111-1111-1111-111111111111'
+      RETURNING 1
+  )
+  SELECT count(*) INTO affected FROM u;
+  IF affected <> 0 THEN
+    RAISE EXCEPTION 'FAIL 11d: plain member was able to edit another user''s flight';
+  END IF;
+END $$;
+
+DO $$
+DECLARE affected int;
+BEGIN
+  WITH d AS (
+    DELETE FROM public.trip_tickets
+      WHERE destination_id = '99999999-9999-9999-9999-999999999999'
+        AND user_id = '11111111-1111-1111-1111-111111111111'
+      RETURNING 1
+  )
+  SELECT count(*) INTO affected FROM d;
+  IF affected <> 0 THEN
+    RAISE EXCEPTION 'FAIL 11d: plain member was able to delete another user''s ticket';
+  END IF;
+END $$;
+
+-- =========================================================================
+-- 11e. Plain member CANNOT edit or delete a poll they did not create
+--      (Creator or organizers update/delete poll).
+-- =========================================================================
+DO $$
+DECLARE affected int;
+BEGIN
+  WITH u AS (
+    UPDATE public.trip_polls
+      SET question = 'member should not touch this'
+      WHERE id = '55555555-5555-5555-5555-555555555501'
+      RETURNING 1
+  )
+  SELECT count(*) INTO affected FROM u;
+  IF affected <> 0 THEN
+    RAISE EXCEPTION 'FAIL 11e: plain member was able to edit a poll they did not create';
+  END IF;
+END $$;
+
+DO $$
+DECLARE affected int;
+BEGIN
+  WITH d AS (
+    DELETE FROM public.trip_polls
+      WHERE id = '55555555-5555-5555-5555-555555555501'
+      RETURNING 1
+  )
+  SELECT count(*) INTO affected FROM d;
+  IF affected <> 0 THEN
+    RAISE EXCEPTION 'FAIL 11e: plain member was able to delete a poll they did not create';
+  END IF;
+END $$;
+
+-- =========================================================================
+-- 11f. Plain member CANNOT edit a poll option they did not add (options
+--      belonging to a poll they did not author).
+-- =========================================================================
+DO $$
+DECLARE affected int;
+BEGIN
+  WITH u AS (
+    UPDATE public.trip_poll_options
+      SET label = 'member should not touch this'
+      WHERE id = '66666666-6666-6666-6666-666666666601'
+      RETURNING 1
+  )
+  SELECT count(*) INTO affected FROM u;
+  IF affected <> 0 THEN
+    RAISE EXCEPTION 'FAIL 11f: plain member was able to edit another user''s poll option';
+  END IF;
+END $$;
+
+-- =========================================================================
+-- 11g. Plain member CANNOT call unlock_destination (owner-only, service_role
+--      EXECUTE). Same guarantee as test 10 but from a member identity.
+-- =========================================================================
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.unlock_destination(
+      '99999999-9999-9999-9999-999999999999',
+      false,
+      0
+    );
+    RAISE EXCEPTION 'FAIL 11g: plain member was able to call unlock_destination';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  WHEN undefined_function THEN
     NULL;
   END;
 END $$;
