@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const search = Route.useSearch();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const auth = useAuth();
   const rlCheck = useServerFn(rlCheckPublic);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -227,6 +229,8 @@ function AuthPage() {
   async function handleSessionReset() {
     setResettingSession(true);
     try {
+      await queryClient.cancelQueries();
+      queryClient.clear();
       resetAuthState();
       await supabase.auth.signOut();
       resetAuthState();
