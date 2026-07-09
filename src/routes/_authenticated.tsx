@@ -6,7 +6,7 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { getTripTabLinkProps } from "@/lib/trip-tab-link";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -59,31 +59,126 @@ import { noteRedirect, clearRedirectTrace } from "@/lib/redirect-guard";
 import { track } from "@/lib/analytics";
 import { SESSION_HYDRATION_ERROR_MESSAGE, ensureAuthReady, getAuthState } from "@/lib/auth-state";
 
+// -----------------------------------------------------------------------------
+// beforeLoad phase store — lets the pending component distinguish the stages
+// so users never see a generic "Checking your session…" forever.
+// -----------------------------------------------------------------------------
+type AuthGatePhase = "session" | "consent" | "redirecting" | "idle";
+let currentPhase: AuthGatePhase = "idle";
+const phaseSubscribers = new Set<() => void>();
+function setPhase(next: AuthGatePhase) {
+  if (currentPhase === next) return;
+  currentPhase = next;
+  phaseSubscribers.forEach((fn) => fn());
+}
+function getPhase() {
+  return currentPhase;
+}
+function subscribePhase(fn: () => void) {
+  phaseSubscribers.add(fn);
+  return () => phaseSubscribers.delete(fn);
+}
+
+// -----------------------------------------------------------------------------
+// Timeout guard. `checkBetaConsent` and `ensureAuthReady` must never block the
+// gate forever — a hung Supabase fetch (Safari bfcache, network drop) would
+// otherwise leave the user on the loading screen until a manual refresh.
+// -----------------------------------------------------------------------------
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
+const AUTH_READY_TIMEOUT_MS = 4_000;
+const BETA_CONSENT_TIMEOUT_MS = 5_000;
+
+function debugLog(...args: unknown[]) {
+  if (import.meta.env.DEV) console.log("[auth-gate]", ...args);
+}
+
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location, context }) => {
-    const auth = context.auth.ready ? context.auth : await ensureAuthReady();
+    const t0 = performance.now();
+    debugLog("enter beforeLoad", { path: location.pathname });
+    setPhase("session");
+
+    // ---- Session ----------------------------------------------------------
+    let auth = context.auth.ready ? context.auth : getAuthState();
+    if (!auth.ready) {
+      const tAuth = performance.now();
+      try {
+        auth = await withTimeout(ensureAuthReady(), AUTH_READY_TIMEOUT_MS, "ensureAuthReady");
+        debugLog(`ensureAuthReady() ok in ${(performance.now() - tAuth).toFixed(0)}ms`, {
+          hasUser: Boolean(auth.user),
+          error: auth.error,
+        });
+      } catch (err) {
+        debugLog(`ensureAuthReady() FAILED after ${(performance.now() - tAuth).toFixed(0)}ms`, err);
+        setPhase("redirecting");
+        throw redirect({ to: "/auth", search: { redirect: location.href } });
+      }
+    } else {
+      debugLog("session already ready from router context", { hasUser: Boolean(auth.user) });
+    }
+
     if (auth.error) {
-      if (import.meta.env.DEV) console.error("[auth] Protected route session recovery required.");
+      debugLog("auth error → redirect /auth", auth.error);
+      setPhase("redirecting");
       throw redirect({ to: "/auth", search: { redirect: location.href } });
     }
     const user = auth.user ?? getAuthState().user;
     if (!user) {
+      debugLog("no user → redirect /auth");
+      setPhase("redirecting");
       if (noteRedirect(location.pathname, "/auth")) throw redirect({ to: "/recover" });
       throw redirect({
         to: "/auth",
         search: { redirect: location.href },
       });
     }
+
+    // ---- Beta consent -----------------------------------------------------
     if (location.pathname !== "/beta-consent") {
+      setPhase("consent");
       track("consent_check_started", {
         route: location.pathname,
         version: BETA_CONSENT_VERSION,
       });
+      const tConsent = performance.now();
       // Authoritative DB check — never trust localStorage as a bypass.
-      // A previous tester on the same browser must not satisfy a new
-      // user's gate, and a version bump must force re-consent.
-      const status = await checkBetaConsent(user.id);
+      // Timeout-guarded so a hung fetch can't strand the user on the
+      // loading screen; on timeout we fall through to /beta-consent with
+      // reason=error so the user can recover instead of needing a refresh.
+      let status: Awaited<ReturnType<typeof checkBetaConsent>>;
+      try {
+        status = await withTimeout(
+          checkBetaConsent(user.id),
+          BETA_CONSENT_TIMEOUT_MS,
+          "checkBetaConsent",
+        );
+        debugLog(
+          `checkBetaConsent() → ${status} in ${(performance.now() - tConsent).toFixed(0)}ms`,
+        );
+      } catch (err) {
+        debugLog(
+          `checkBetaConsent() TIMED OUT after ${(performance.now() - tConsent).toFixed(0)}ms`,
+          err,
+        );
+        status = "error";
+      }
+
       if (status === "current") {
         track("consent_current", { route: location.pathname, version: BETA_CONSENT_VERSION });
       } else {
@@ -93,7 +188,6 @@ export const Route = createFileRoute("/_authenticated")({
             version: BETA_CONSENT_VERSION,
           });
         } else {
-          // Fail closed on lookup failure — never silently allow access.
           track("consent_check_failed", {
             route: location.pathname,
             version: BETA_CONSENT_VERSION,
@@ -104,6 +198,8 @@ export const Route = createFileRoute("/_authenticated")({
           status,
           version: BETA_CONSENT_VERSION,
         });
+        setPhase("redirecting");
+        debugLog(`redirect → /beta-consent (reason=${status})`);
         if (noteRedirect(location.pathname, "/beta-consent")) throw redirect({ to: "/recover" });
         throw redirect({
           to: "/beta-consent",
@@ -111,14 +207,13 @@ export const Route = createFileRoute("/_authenticated")({
         });
       }
     }
+
     clearRedirectTrace();
+    setPhase("idle");
+    debugLog(`beforeLoad done in ${(performance.now() - t0).toFixed(0)}ms`);
     return { user };
   },
-  pendingComponent: () => (
-    <div className="grid min-h-[50vh] place-items-center text-sm text-muted-foreground">
-      Checking your session…
-    </div>
-  ),
+  pendingComponent: GatePendingIndicator,
   errorComponent: () => (
     <div className="grid min-h-[50vh] place-items-center px-6 text-center text-sm text-muted-foreground">
       {SESSION_HYDRATION_ERROR_MESSAGE}
@@ -126,6 +221,31 @@ export const Route = createFileRoute("/_authenticated")({
   ),
   component: AppShell,
 });
+
+function GatePendingIndicator() {
+  const phase = useSyncExternalStore(subscribePhase, getPhase, getPhase);
+  const message =
+    phase === "consent"
+      ? "Verifying your access…"
+      : phase === "redirecting"
+        ? "Redirecting…"
+        : "Checking your session…";
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="grid min-h-[50vh] place-items-center gap-3 text-sm text-muted-foreground"
+    >
+      <span className="flex items-center gap-3">
+        <span
+          aria-hidden="true"
+          className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+        />
+        {message}
+      </span>
+    </div>
+  );
+}
 
 function AppShell() {
   const navigate = useNavigate();
