@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { checkBetaConsent, type BetaConsentStatus } from "@/lib/beta-consent";
 
 
-export type AppAuthStatus = "loading" | "authenticated" | "unauthenticated";
+export type AppBetaConsentStatus = "unknown" | BetaConsentStatus;
 
 export type AppAuthState = {
   status: AppAuthStatus;
@@ -13,9 +13,11 @@ export type AppAuthState = {
   user: User | null;
   error: string | null;
   timedOut: boolean;
+  betaConsent: AppBetaConsentStatus;
 };
 
 export const SESSION_HYDRATION_TIMEOUT_MS = 3_000;
+export const BETA_CONSENT_RESOLVE_TIMEOUT_MS = 5_000;
 export const SESSION_HYDRATION_ERROR_MESSAGE =
   "We had trouble restoring your session. Please sign in again.";
 
@@ -26,7 +28,9 @@ export const defaultAuthState: AppAuthState = {
   user: null,
   error: null,
   timedOut: false,
+  betaConsent: "unknown",
 };
+
 
 let currentAuthState: AppAuthState = defaultAuthState;
 let initPromise: Promise<AppAuthState> | null = null;
