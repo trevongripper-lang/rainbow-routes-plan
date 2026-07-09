@@ -4,6 +4,7 @@ import {
   Outlet,
   Link,
   useNavigate,
+  useRouter,
   useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -54,10 +55,15 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-import { checkBetaConsent, BETA_CONSENT_VERSION } from "@/lib/beta-consent";
+import { checkBetaConsent, BETA_CONSENT_VERSION, clearBetaConsentLocal } from "@/lib/beta-consent";
 import { noteRedirect, clearRedirectTrace } from "@/lib/redirect-guard";
 import { track } from "@/lib/analytics";
-import { SESSION_HYDRATION_ERROR_MESSAGE, ensureAuthReady, getAuthState } from "@/lib/auth-state";
+import {
+  SESSION_HYDRATION_ERROR_MESSAGE,
+  clearAuthSession,
+  ensureAuthReady,
+  getAuthState,
+} from "@/lib/auth-state";
 import { withTimeout } from "@/lib/utils";
 
 // -----------------------------------------------------------------------------
@@ -93,9 +99,18 @@ function buildBetaConsentUrl(pathname: string, status: Awaited<ReturnType<typeof
   return `/beta-consent?${params.toString()}`;
 }
 
+const pendingFallbackTimers = new Set<number>();
+
+export function cancelPendingRedirectFallbacks() {
+  if (typeof window === "undefined") return;
+  for (const id of pendingFallbackTimers) window.clearTimeout(id);
+  pendingFallbackTimers.clear();
+}
+
 function scheduleBrowserRedirectFallback(target: string) {
   if (typeof window === "undefined") return;
-  window.setTimeout(() => {
+  const id = window.setTimeout(() => {
+    pendingFallbackTimers.delete(id);
     const current = `${window.location.pathname}${window.location.search}`;
     const statusText = document.querySelector('[role="status"]')?.textContent ?? "";
     const stillShowingGate = /Checking your session|Checking beta consent|Redirecting/i.test(statusText);
@@ -108,6 +123,7 @@ function scheduleBrowserRedirectFallback(target: string) {
       window.location.replace(target);
     }
   }, 1_500);
+  pendingFallbackTimers.add(id);
 }
 
 export const Route = createFileRoute("/_authenticated")({
@@ -288,18 +304,45 @@ function GatePendingIndicator() {
 
 function AppShell() {
   const navigate = useNavigate();
+  const router = useRouter();
   const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const search = useRouterState({ select: (s) => s.location.search as Record<string, unknown> });
 
   async function signOut() {
+    if (import.meta.env.DEV) console.info("[signout] clicked");
+    const before = await supabase.auth.getSession();
+    if (import.meta.env.DEV)
+      console.info("[signout] session before", { hasSession: !!before.data.session });
+    const userId = before.data.session?.user?.id;
+
+    // Cancel any protected-gate fallback timers so they can't fire
+    // window.location.replace() back into a protected URL after sign-out.
+    cancelPendingRedirectFallbacks();
     await qc.cancelQueries();
     qc.clear();
-    await supabase.auth.signOut();
-    track("signout_succeeded");
+
+    const { error } = await supabase.auth.signOut();
+    if (import.meta.env.DEV) console.info("[signout] supabase.auth.signOut result", { error });
+
+    // Publish cleared auth state synchronously so /auth's "already signed in"
+    // effect can't see a stale session snapshot and bounce back to /app.
+    clearAuthSession();
     clearRedirectTrace();
-    navigate({ to: "/auth", replace: true });
+    if (userId) clearBetaConsentLocal(userId);
+    if (import.meta.env.DEV) console.info("[signout] app auth state cleared");
+
+    const after = await supabase.auth.getSession();
+    if (import.meta.env.DEV)
+      console.info("[signout] session after", { hasSession: !!after.data.session });
+
+    track("signout_succeeded");
+
+    await router.invalidate();
+    if (import.meta.env.DEV) console.info("[signout] navigating to /auth");
+    await router.navigate({ to: "/auth", replace: true });
   }
+
 
   const navItems = [
     { to: "/events", label: "Events", icon: CalendarDays },

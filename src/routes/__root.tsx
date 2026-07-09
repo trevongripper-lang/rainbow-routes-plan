@@ -186,9 +186,10 @@ function RootComponent() {
       window.setTimeout(() => {
         void router.invalidate();
         if (event !== "SIGNED_OUT" && nextAuth.session) void queryClient.invalidateQueries();
-        if (event === "SIGNED_IN" && nextAuth.session) {
-          void router.navigate({ href: "/app", replace: true });
-        }
+        // NOTE: post-login navigation is owned by AuthPage.goToApp().
+        // The root listener MUST NOT force-navigate on SIGNED_IN — doing so
+        // yanked signed-in users off /privacy, /terms, and /auth back to
+        // /app → /trips on token refresh / cross-tab sign-in / OAuth return.
       }, 0);
     });
     return () => stop();
