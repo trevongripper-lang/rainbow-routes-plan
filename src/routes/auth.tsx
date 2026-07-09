@@ -15,7 +15,12 @@ import {
   getPendingRedirect,
   consumePendingRedirect,
 } from "@/lib/redirect-guard";
-import { refreshAuthState, useAuth } from "@/lib/auth-state";
+import {
+  SESSION_HYDRATION_ERROR_MESSAGE,
+  refreshAuthState,
+  resetAuthState,
+  useAuth,
+} from "@/lib/auth-state";
 
 type AuthSearch = { redirect?: string };
 
@@ -51,6 +56,8 @@ function AuthPage() {
   const [cooldown, setCooldown] = useState<{ scope: string; until: number } | null>(null);
   const [confirmSent, setConfirmSent] = useState<string | null>(null);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
+  const [retryingSession, setRetryingSession] = useState(false);
+  const [resettingSession, setResettingSession] = useState(false);
   const redirectingRef = useRef(false);
 
   // Resolve the final post-auth destination. Prefer the search-param
@@ -207,6 +214,29 @@ function AuthPage() {
     }
   }
 
+  async function handleSessionRetry() {
+    setRetryingSession(true);
+    try {
+      const next = await refreshAuthState();
+      if (next.session) await goToApp();
+    } finally {
+      setRetryingSession(false);
+    }
+  }
+
+  async function handleSessionReset() {
+    setResettingSession(true);
+    try {
+      resetAuthState();
+      await supabase.auth.signOut();
+      resetAuthState();
+      await router.invalidate();
+      await router.navigate({ to: "/auth", replace: true });
+    } finally {
+      setResettingSession(false);
+    }
+  }
+
   async function handleResendConfirmation() {
     if (!confirmSent || resendState === "sending") return;
     setResendState("sending");
@@ -229,9 +259,37 @@ function AuthPage() {
     }
   }
 
-  // Initial session check hasn't completed yet — show a neutral loading state
-  // so we never flash the sign-in form to an already-authenticated user (that
-  // was the "stuck on /auth until refresh" symptom).
+  if (auth.ready && auth.error) {
+    return (
+      <div
+        className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
+        style={{ background: "var(--gradient-hero)" }}
+      >
+        <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-8 text-center backdrop-blur">
+          <h1 className="font-display text-3xl">Session recovery</h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            {auth.error || SESSION_HYDRATION_ERROR_MESSAGE}
+          </p>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button type="button" onClick={handleSessionRetry} disabled={retryingSession}>
+              {retryingSession ? "Checking…" : "Try again"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSessionReset}
+              disabled={resettingSession}
+            >
+              {resettingSession ? "Resetting…" : "Sign out and reset session"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Initial session check has a hard timeout in auth-state, so this screen can
+  // never hang indefinitely.
   if (!auth.ready || auth.session || redirectingRef.current) {
     return (
       <div
