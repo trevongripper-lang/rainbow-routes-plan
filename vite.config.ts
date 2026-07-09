@@ -14,8 +14,8 @@ function buildVersionPlugin(): Plugin {
     apply: "build",
     generateBundle() {
       // Only emit into the client bundle (skip SSR/server environments)
-      // @ts-expect-error - environment is available on Rollup plugin ctx in Vite 6+
-      const envName: string | undefined = this.environment?.name;
+      const ctx = this as unknown as { environment?: { name?: string } };
+      const envName = ctx.environment?.name;
       if (envName && envName !== "client") return;
       this.emitFile({
         type: "asset",
