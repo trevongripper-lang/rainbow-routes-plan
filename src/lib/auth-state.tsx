@@ -6,18 +6,27 @@ export type AppAuthState = {
   ready: boolean;
   session: Session | null;
   user: User | null;
+  error: string | null;
+  timedOut: boolean;
 };
+
+export const SESSION_HYDRATION_TIMEOUT_MS = 7_000;
+export const SESSION_HYDRATION_ERROR_MESSAGE =
+  "We had trouble restoring your session. Please sign in again.";
 
 export const defaultAuthState: AppAuthState = {
   ready: false,
   session: null,
   user: null,
+  error: null,
+  timedOut: false,
 };
 
 let currentAuthState: AppAuthState = defaultAuthState;
 let initPromise: Promise<AppAuthState> | null = null;
 let listenerStarted = false;
 let stopListener: (() => void) | null = null;
+let authCheckVersion = 0;
 
 const subscribers = new Set<() => void>();
 
@@ -32,7 +41,28 @@ export function authStateFromSession(session: Session | null): AppAuthState {
     ready: true,
     session,
     user: session?.user ?? null,
+    error: null,
+    timedOut: false,
   };
+}
+
+function authFailureState(timedOut: boolean): AppAuthState {
+  return {
+    ready: true,
+    session: null,
+    user: null,
+    error: SESSION_HYDRATION_ERROR_MESSAGE,
+    timedOut,
+  };
+}
+
+function logHydrationFailure(message: string, error?: unknown) {
+  if (!import.meta.env.DEV) return;
+  if (error) {
+    console.error(`[auth] ${message}`, error);
+  } else {
+    console.error(`[auth] ${message}`);
+  }
 }
 
 export function getAuthState() {
@@ -45,12 +75,63 @@ export function subscribeAuthState(subscriber: () => void) {
 }
 
 export function setAuthSession(session: Session | null) {
+  if (session) authCheckVersion += 1;
   return publishAuthState(authStateFromSession(session));
 }
 
-export async function refreshAuthState() {
-  const { data } = await supabase.auth.getSession();
-  return setAuthSession(data.session ?? null);
+export function clearAuthSession() {
+  authCheckVersion += 1;
+  return publishAuthState(authStateFromSession(null));
+}
+
+export function resetAuthState() {
+  authCheckVersion += 1;
+  return publishAuthState({ ...defaultAuthState, ready: true });
+}
+
+type SessionCheckResult =
+  | { status: "success"; session: Session | null }
+  | { status: "error"; error: unknown }
+  | { status: "timeout" };
+
+export async function refreshAuthState(timeoutMs = SESSION_HYDRATION_TIMEOUT_MS) {
+  const requestVersion = authCheckVersion + 1;
+  authCheckVersion = requestVersion;
+
+  let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
+  const sessionPromise: Promise<SessionCheckResult> = Promise.resolve()
+    .then(() => supabase.auth.getSession())
+    .then(({ data }) => ({ status: "success", session: data.session ?? null }) as const)
+    .catch((error) => ({ status: "error", error }) as const);
+
+  const timeoutPromise = new Promise<SessionCheckResult>((resolve) => {
+    timeoutId = globalThis.setTimeout(() => resolve({ status: "timeout" }), timeoutMs);
+  });
+
+  const result = await Promise.race([sessionPromise, timeoutPromise]);
+  if (timeoutId) globalThis.clearTimeout(timeoutId);
+
+  if (requestVersion !== authCheckVersion) return currentAuthState;
+
+  if (result.status === "timeout") {
+    logHydrationFailure(`Session hydration timed out after ${timeoutMs}ms.`);
+    void sessionPromise.then((lateResult) => {
+      if (requestVersion !== authCheckVersion) return;
+      if (lateResult.status === "success" && lateResult.session) {
+        publishAuthState(authStateFromSession(lateResult.session));
+      } else if (lateResult.status === "error") {
+        logHydrationFailure("Session hydration failed after timing out.", lateResult.error);
+      }
+    });
+    return publishAuthState(authFailureState(true));
+  }
+
+  if (result.status === "error") {
+    logHydrationFailure("Session hydration failed.", result.error);
+    return publishAuthState(authFailureState(false));
+  }
+
+  return publishAuthState(authStateFromSession(result.session));
 }
 
 export async function ensureAuthReady() {
@@ -74,7 +155,9 @@ export function startAuthStateListener(
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange((event, session) => {
-    const next = setAuthSession(session ?? null);
+    if (event === "INITIAL_SESSION" && !session && !currentAuthState.ready) return;
+    if (event === "INITIAL_SESSION" && !session && currentAuthState.timedOut) return;
+    const next = event === "SIGNED_OUT" ? clearAuthSession() : setAuthSession(session ?? null);
     onEvent?.(event, next);
   });
 
