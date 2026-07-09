@@ -31,34 +31,8 @@ export const defaultAuthState: AppAuthState = {
   betaConsent: "unknown",
 };
 
-export type AppAuthStatus = "loading" | "authenticated" | "unauthenticated";
 
-export type AppBetaConsentStatus = "unknown" | BetaConsentStatus;
 
-export type AppAuthState = {
-  status: AppAuthStatus;
-  ready: boolean;
-  session: Session | null;
-  user: User | null;
-  error: string | null;
-  timedOut: boolean;
-  betaConsent: AppBetaConsentStatus;
-};
-
-export const SESSION_HYDRATION_TIMEOUT_MS = 3_000;
-export const BETA_CONSENT_RESOLVE_TIMEOUT_MS = 5_000;
-export const SESSION_HYDRATION_ERROR_MESSAGE =
-  "We had trouble restoring your session. Please sign in again.";
-
-export const defaultAuthState: AppAuthState = {
-  status: "loading",
-  ready: false,
-  session: null,
-  user: null,
-  error: null,
-  timedOut: false,
-  betaConsent: "unknown",
-};
 
 
 let currentAuthState: AppAuthState = defaultAuthState;
