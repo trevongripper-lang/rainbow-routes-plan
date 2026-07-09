@@ -16,7 +16,6 @@ import { RlsDebugPanel } from "@/components/rls-debug-panel";
 import { InstallAppBanner } from "@/components/install-app-banner";
 import {
   AuthProvider,
-  AuthLoadingScreen,
   startAuthStateListener,
   useAuthSnapshot,
   type AppAuthState,
@@ -257,5 +256,3 @@ function RootComponent() {
     </AuthProvider>
   );
 }
-
-export { AuthLoadingScreen };

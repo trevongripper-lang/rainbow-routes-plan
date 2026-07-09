@@ -161,6 +161,10 @@ export function startAuthStateListener(
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange((event, session) => {
+    if (event === "INITIAL_SESSION" && !session && !currentAuthState.ready) {
+      onEvent?.(event, currentAuthState);
+      return;
+    }
     const next = event === "SIGNED_OUT" ? clearAuthSession() : setAuthSession(session ?? null);
     onEvent?.(event, next);
   });

@@ -97,7 +97,7 @@ function AuthPage() {
 
     await router.invalidate();
     await router.navigate({ href: redirectTarget, replace: true });
-  }, [auth, router, redirectTarget]);
+  }, [router, redirectTarget]);
 
 
   // If a session already exists (e.g. user returned from OAuth redirect, or
