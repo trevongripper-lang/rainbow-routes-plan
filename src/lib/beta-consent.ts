@@ -1,6 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
+import { withTimeout } from "@/lib/utils";
 
 export const BETA_CONSENT_VERSION = "2026-06-beta-v1";
+export const BETA_CONSENT_LOOKUP_TIMEOUT_MS = 5_000;
 
 /**
  * Per-user cache key. Tying the key to userId prevents cross-user
@@ -61,12 +63,16 @@ export type BetaConsentStatus = "current" | "missing" | "error";
 export async function checkBetaConsent(userId: string): Promise<BetaConsentStatus> {
   if (!userId) return "missing";
   try {
-    const { data, error } = await supabase
-      .from("beta_consents")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("version", BETA_CONSENT_VERSION)
-      .maybeSingle();
+    const { data, error } = await withTimeout(
+      supabase
+        .from("beta_consents")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("version", BETA_CONSENT_VERSION)
+        .maybeSingle(),
+      BETA_CONSENT_LOOKUP_TIMEOUT_MS,
+      "Beta consent lookup",
+    );
     if (error) return "error";
     if (data) {
       cacheBetaConsentLocal(userId);
