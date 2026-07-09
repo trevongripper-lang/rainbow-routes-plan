@@ -86,8 +86,12 @@ function BetaConsentPage() {
         return;
       }
       await recordBetaConsent(uid);
+      // Publish the resolved status synchronously so the /_authenticated
+      // gate passes on the next navigation without another DB round-trip.
+      setBetaConsent("current");
       track("consent_accepted", { version: BETA_CONSENT_VERSION });
       navigate({ to: nextPath as "/trips", replace: true });
+
     } catch (e) {
       const msg = e instanceof Error ? e.message.slice(0, 140) : "unknown";
       track("consent_save_failed", { version: BETA_CONSENT_VERSION, message: msg });
