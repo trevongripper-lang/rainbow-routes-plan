@@ -75,8 +75,13 @@ export function subscribeAuthState(subscriber: () => void) {
 }
 
 export function setAuthSession(session: Session | null) {
-  authCheckVersion += 1;
+  if (session) authCheckVersion += 1;
   return publishAuthState(authStateFromSession(session));
+}
+
+export function clearAuthSession() {
+  authCheckVersion += 1;
+  return publishAuthState(authStateFromSession(null));
 }
 
 export function resetAuthState() {
