@@ -213,7 +213,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: canonicalEmailOrigin(),
             data: { full_name: name || email.split("@")[0] },
           },
         });
