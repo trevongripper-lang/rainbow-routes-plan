@@ -183,6 +183,14 @@ function RootComponent() {
         return;
       }
 
+      // On interactive sign-in, AuthPage.goToApp() already owns the
+      // post-login navigation and invalidation. Running the global
+      // router.invalidate() / queryClient.invalidateQueries() here at the
+      // same time re-enters the auth gate mid-navigation and can orphan the
+      // /trips mount, leaving the user stuck on a blank/loading screen.
+      const onAuthRoute = window.location.pathname.startsWith("/auth");
+      if (event === "SIGNED_IN" && onAuthRoute) return;
+
       window.setTimeout(() => {
         void router.invalidate();
         if (event !== "SIGNED_OUT" && nextAuth.session) void queryClient.invalidateQueries();
