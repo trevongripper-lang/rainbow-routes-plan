@@ -19,6 +19,7 @@ import {
 import {
   SESSION_HYDRATION_ERROR_MESSAGE,
   clearAuthSession,
+  getAuthState,
   refreshAuthState,
   resetAuthState,
   setAuthSession,
@@ -86,7 +87,7 @@ function AuthPage() {
   const goToApp = useCallback(async (opts: { skipSessionCheck?: boolean } = {}) => {
     if (redirectingRef.current) return;
     redirectingRef.current = true;
-    const confirmed = opts.skipSessionCheck ? auth : await refreshAuthState();
+    const confirmed = opts.skipSessionCheck ? getAuthState() : await refreshAuthState();
     if (!confirmed.session) {
       redirectingRef.current = false;
       toast.error("We couldn't confirm your session yet. Please try again.");
