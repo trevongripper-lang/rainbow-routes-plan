@@ -78,12 +78,6 @@ function AuthPage() {
   const secsLeft = cooldown ? Math.max(0, Math.ceil((cooldown.until - Date.now()) / 1000)) : 0;
   const blocked = secsLeft > 0;
 
-  // Client-side navigation to the post-auth destination. `redirectTarget` is
-  // an arbitrary sanitized same-origin path (e.g. `/join/<token>`), which
-  // TanStack's typed `to` cannot express — use `href` so the router matches
-  // the string against the route tree. `router.invalidate()` re-runs every
-  // `beforeLoad` (including `_authenticated`) against the fresh session so
-  // protected loaders see the signed-in user without a full page reload.
   // Post-auth navigation. Safari (both regular and PWA) can freeze a
   // client-side transition mid-flight and serve the pre-login page from
   // bfcache on the next view. Force a real navigation with
