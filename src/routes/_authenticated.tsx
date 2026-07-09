@@ -84,14 +84,40 @@ const AUTH_READY_TIMEOUT_MS = 4_000;
 const BETA_CONSENT_TIMEOUT_MS = 5_000;
 
 function debugLog(...args: unknown[]) {
-  if (import.meta.env.DEV) console.log("[auth-gate]", ...args);
+  if (typeof window === "undefined") return;
+  console.info("[auth-gate]", ...args);
+}
+
+function buildBetaConsentUrl(pathname: string, status: Awaited<ReturnType<typeof checkBetaConsent>>) {
+  const params = new URLSearchParams({ next: pathname, reason: status });
+  return `/beta-consent?${params.toString()}`;
+}
+
+function scheduleBrowserRedirectFallback(target: string) {
+  if (typeof window === "undefined") return;
+  window.setTimeout(() => {
+    const current = `${window.location.pathname}${window.location.search}`;
+    if (current !== target) {
+      console.warn("[auth-gate] router redirect did not complete; using browser fallback", {
+        current,
+        target,
+      });
+      window.location.replace(target);
+    }
+  }, 1_500);
 }
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location, context }) => {
     const t0 = performance.now();
-    debugLog("enter beforeLoad", { path: location.pathname });
+    debugLog("entering beforeLoad", {
+      path: location.pathname,
+      contextAuthReady: context.auth.ready,
+      contextAuthStatus: context.auth.status,
+      snapshotAuthReady: getAuthState().ready,
+      snapshotAuthStatus: getAuthState().status,
+    });
     setPhase("checking-session");
 
     // ---- Session ----------------------------------------------------------
@@ -99,23 +125,41 @@ export const Route = createFileRoute("/_authenticated")({
     if (!auth.ready) {
       const tAuth = performance.now();
       try {
+        debugLog("before ensureAuthReady()", {
+          timeoutMs: AUTH_READY_TIMEOUT_MS,
+          contextAuthReady: context.auth.ready,
+          snapshotAuthReady: getAuthState().ready,
+        });
         auth = await withTimeout(ensureAuthReady(), AUTH_READY_TIMEOUT_MS, "ensureAuthReady");
-        debugLog(`ensureAuthReady() ok in ${(performance.now() - tAuth).toFixed(0)}ms`, {
+        debugLog("after ensureAuthReady()", {
+          elapsedMs: Math.round(performance.now() - tAuth),
+          ready: auth.ready,
+          status: auth.status,
           hasUser: Boolean(auth.user),
           error: auth.error,
         });
       } catch (err) {
-        debugLog(`ensureAuthReady() FAILED after ${(performance.now() - tAuth).toFixed(0)}ms`, err);
+        debugLog("ensureAuthReady() failed or timed out", {
+          elapsedMs: Math.round(performance.now() - tAuth),
+          message: err instanceof Error ? err.message : String(err),
+        });
         setPhase("redirecting");
+        scheduleBrowserRedirectFallback(`/auth?redirect=${encodeURIComponent(location.href)}`);
         throw redirect({ to: "/auth", search: { redirect: location.href } });
       }
     } else {
-      debugLog("session already ready from router context", { hasUser: Boolean(auth.user) });
+      debugLog("auth already ready before ensureAuthReady()", {
+        source: context.auth.ready ? "router context" : "auth snapshot",
+        ready: auth.ready,
+        status: auth.status,
+        hasUser: Boolean(auth.user),
+      });
     }
 
     if (auth.error) {
       debugLog("auth error → redirect /auth", auth.error);
       setPhase("redirecting");
+      scheduleBrowserRedirectFallback(`/auth?redirect=${encodeURIComponent(location.href)}`);
       throw redirect({ to: "/auth", search: { redirect: location.href } });
     }
     const user = auth.user ?? getAuthState().user;
@@ -123,6 +167,7 @@ export const Route = createFileRoute("/_authenticated")({
       debugLog("no user → redirect /auth");
       setPhase("redirecting");
       if (noteRedirect(location.pathname, "/auth")) throw redirect({ to: "/recover" });
+      scheduleBrowserRedirectFallback(`/auth?redirect=${encodeURIComponent(location.href)}`);
       throw redirect({
         to: "/auth",
         search: { redirect: location.href },
@@ -143,19 +188,26 @@ export const Route = createFileRoute("/_authenticated")({
       // reason=error so the user can recover instead of needing a refresh.
       let status: Awaited<ReturnType<typeof checkBetaConsent>>;
       try {
+        debugLog("before checkBetaConsent()", {
+          route: location.pathname,
+          timeoutMs: BETA_CONSENT_TIMEOUT_MS,
+          version: BETA_CONSENT_VERSION,
+        });
         status = await withTimeout(
           checkBetaConsent(user.id),
           BETA_CONSENT_TIMEOUT_MS,
           "checkBetaConsent",
         );
-        debugLog(
-          `checkBetaConsent() → ${status} in ${(performance.now() - tConsent).toFixed(0)}ms`,
-        );
+        debugLog("after checkBetaConsent()", {
+          status,
+          elapsedMs: Math.round(performance.now() - tConsent),
+          version: BETA_CONSENT_VERSION,
+        });
       } catch (err) {
-        debugLog(
-          `checkBetaConsent() TIMED OUT after ${(performance.now() - tConsent).toFixed(0)}ms`,
-          err,
-        );
+        debugLog("checkBetaConsent() failed or timed out", {
+          elapsedMs: Math.round(performance.now() - tConsent),
+          message: err instanceof Error ? err.message : String(err),
+        });
         status = "error";
       }
 
@@ -179,8 +231,10 @@ export const Route = createFileRoute("/_authenticated")({
           version: BETA_CONSENT_VERSION,
         });
         setPhase("redirecting");
-        debugLog(`redirect → /beta-consent (reason=${status})`);
+        const target = buildBetaConsentUrl(location.pathname, status);
+        debugLog("redirect → /beta-consent", { status, target });
         if (noteRedirect(location.pathname, "/beta-consent")) throw redirect({ to: "/recover" });
+        scheduleBrowserRedirectFallback(target);
         throw redirect({
           to: "/beta-consent",
           search: { next: location.pathname, reason: status },
@@ -209,7 +263,9 @@ function GatePendingIndicator() {
       ? "Checking beta consent…"
       : phase === "redirecting"
         ? "Redirecting…"
-        : "Checking your session…";
+        : phase === "idle"
+          ? "Opening Tribe Trips…"
+          : "Checking your session…";
   return (
     <div
       role="status"
