@@ -402,6 +402,113 @@ BEGIN
   END;
 END $$;
 
+-- =========================================================================
+-- 11d. Plain member CANNOT edit or delete another user's flight/ticket
+--      (write policies scope to author OR organizer/co-organizer).
+-- =========================================================================
+DO $$
+DECLARE affected int;
+BEGIN
+  WITH u AS (
+    UPDATE public.trip_flights
+      SET notes = 'member should not touch this'
+      WHERE destination_id = '99999999-9999-9999-9999-999999999999'
+        AND user_id = '11111111-1111-1111-1111-111111111111'
+      RETURNING 1
+  )
+  SELECT count(*) INTO affected FROM u;
+  IF affected <> 0 THEN
+    RAISE EXCEPTION 'FAIL 11d: plain member was able to edit another user''s flight';
+  END IF;
+END $$;
+
+DO $$
+DECLARE affected int;
+BEGIN
+  WITH d AS (
+    DELETE FROM public.trip_tickets
+      WHERE destination_id = '99999999-9999-9999-9999-999999999999'
+        AND user_id = '11111111-1111-1111-1111-111111111111'
+      RETURNING 1
+  )
+  SELECT count(*) INTO affected FROM d;
+  IF affected <> 0 THEN
+    RAISE EXCEPTION 'FAIL 11d: plain member was able to delete another user''s ticket';
+  END IF;
+END $$;
+
+-- =========================================================================
+-- 11e. Plain member CANNOT edit or delete a poll they did not create
+--      (Creator or organizers update/delete poll).
+-- =========================================================================
+DO $$
+DECLARE affected int;
+BEGIN
+  WITH u AS (
+    UPDATE public.trip_polls
+      SET question = 'member should not touch this'
+      WHERE id = '55555555-5555-5555-5555-555555555501'
+      RETURNING 1
+  )
+  SELECT count(*) INTO affected FROM u;
+  IF affected <> 0 THEN
+    RAISE EXCEPTION 'FAIL 11e: plain member was able to edit a poll they did not create';
+  END IF;
+END $$;
+
+DO $$
+DECLARE affected int;
+BEGIN
+  WITH d AS (
+    DELETE FROM public.trip_polls
+      WHERE id = '55555555-5555-5555-5555-555555555501'
+      RETURNING 1
+  )
+  SELECT count(*) INTO affected FROM d;
+  IF affected <> 0 THEN
+    RAISE EXCEPTION 'FAIL 11e: plain member was able to delete a poll they did not create';
+  END IF;
+END $$;
+
+-- =========================================================================
+-- 11f. Plain member CANNOT edit a poll option they did not add (options
+--      belonging to a poll they did not author).
+-- =========================================================================
+DO $$
+DECLARE affected int;
+BEGIN
+  WITH u AS (
+    UPDATE public.trip_poll_options
+      SET label = 'member should not touch this'
+      WHERE id = '66666666-6666-6666-6666-666666666601'
+      RETURNING 1
+  )
+  SELECT count(*) INTO affected FROM u;
+  IF affected <> 0 THEN
+    RAISE EXCEPTION 'FAIL 11f: plain member was able to edit another user''s poll option';
+  END IF;
+END $$;
+
+-- =========================================================================
+-- 11g. Plain member CANNOT call unlock_destination (owner-only, service_role
+--      EXECUTE). Same guarantee as test 10 but from a member identity.
+-- =========================================================================
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.unlock_destination(
+      '99999999-9999-9999-9999-999999999999',
+      false,
+      0
+    );
+    RAISE EXCEPTION 'FAIL 11g: plain member was able to call unlock_destination';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  WHEN undefined_function THEN
+    NULL;
+  END;
+END $$;
+
 -- Done. Rollback so the DB is unchanged.
 ROLLBACK;
 
