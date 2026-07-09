@@ -194,7 +194,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!getAuthState().ready) void refreshAuthState(SESSION_HYDRATION_TIMEOUT_MS);
     }, SESSION_HYDRATION_TIMEOUT_MS);
 
-    return () => window.clearTimeout(fallbackId);
+    // Safari bfcache: when the page is restored from the back-forward cache
+    // its JS state is frozen and won't reflect a session that changed in
+    // another tab or during a full-page OAuth round-trip. Force a real reload
+    // so the app re-hydrates from Supabase. Skip while mid-auth (on /auth,
+    // /reset-password, or an OAuth callback with tokens in the URL) to avoid
+    // interrupting the sign-in handshake.
+    const isMidAuthFlow = () => {
+      if (typeof window === "undefined") return false;
+      const p = window.location.pathname;
+      if (p.startsWith("/auth") || p.startsWith("/reset-password")) return true;
+      const hash = window.location.hash || "";
+      if (hash.includes("access_token=") || hash.includes("type=recovery")) return true;
+      return false;
+    };
+
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted && !isMidAuthFlow()) {
+        window.location.reload();
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      if (isMidAuthFlow()) return;
+      void refreshAuthState();
+    };
+
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.clearTimeout(fallbackId);
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   if (auth.status === "loading") return <AuthLoadingScreen />;
