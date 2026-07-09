@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
@@ -231,6 +231,7 @@ function MyAccount({
   displayName: string;
   isPro: boolean;
 }) {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [name, setName] = useState(displayName);
   useEffect(() => {
@@ -258,7 +259,7 @@ function MyAccount({
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
-    window.location.assign("/auth");
+    navigate({ to: "/auth", replace: true });
   }
 
   const deleteFn = useServerFn(deleteMyAccount);
@@ -273,7 +274,7 @@ function MyAccount({
       await qc.cancelQueries();
       qc.clear();
       await supabase.auth.signOut();
-      window.location.assign("/auth");
+      navigate({ to: "/auth", replace: true });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to delete account"),
   });

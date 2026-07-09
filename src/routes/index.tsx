@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import howItWorksHero from "@/assets/how-it-works-hero.png";
 import { Reveal } from "@/components/reveal";
+import { ensureAuthReady } from "@/lib/auth-state";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -39,8 +40,8 @@ export const Route = createFileRoute("/")({
     links: [{ rel: "canonical", href: "https://jointribetrips.com/" }],
   }),
   beforeLoad: async () => {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) throw redirect({ to: "/trips" });
+    const auth = await ensureAuthReady();
+    if (auth.session) throw redirect({ to: "/app" });
   },
   component: Landing,
 });
