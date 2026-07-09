@@ -179,7 +179,7 @@ export function startAuthStateListener(
 }
 
 export function useAuthSnapshot() {
-  return useSyncExternalStore(subscribeAuthState, getAuthState, getAuthState);
+  return useSyncExternalStore(subscribeAuthState, getAuthState, () => defaultAuthState);
 }
 
 const AuthContext = createContext<AppAuthState>(defaultAuthState);
@@ -230,8 +230,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
-
-  if (auth.status === "loading") return <AuthLoadingScreen />;
 
   return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
 }
