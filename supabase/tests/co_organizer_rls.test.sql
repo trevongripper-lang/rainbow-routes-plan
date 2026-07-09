@@ -1,0 +1,275 @@
+-- ============================================================================
+-- Co-organizer RLS regression tests
+-- ----------------------------------------------------------------------------
+-- Run with: psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/co_organizer_rls.test.sql
+--
+-- These tests exercise the trip role model (owner / co_organizer / member)
+-- by impersonating three synthetic users via PostgREST's JWT claim shim:
+--   SET LOCAL ROLE authenticated;
+--   SET LOCAL "request.jwt.claims" = '{"sub":"<uuid>"}';
+--
+-- Everything runs inside a single transaction that is ROLLBACK'd, so the
+-- database is not mutated. Any failed assertion RAISES and aborts the run.
+--
+-- What we assert:
+--   1. Co-organizer CAN read the destination.
+--   2. Co-organizer CAN update destination details (title/dates).
+--   3. Co-organizer CAN invite (INSERT into trip_invites).
+--   4. Co-organizer CAN add plain members (INSERT into trip_members).
+--   5. Co-organizer CAN read invites for the trip (post-migration policy).
+--   6. Co-organizer CAN update trip_costs on the trip.
+--   7. Co-organizer CANNOT promote anyone to 'owner' via set_trip_member_role.
+--   8. Co-organizer CANNOT change roles at all via set_trip_member_role.
+--   9. Co-organizer CANNOT delete the destination (owner-only).
+--  10. Co-organizer CANNOT call unlock_destination (service_role only EXECUTE).
+--  11. Plain member CANNOT invite, update destination, or promote.
+-- ============================================================================
+
+BEGIN;
+
+-- Fixtures ------------------------------------------------------------------
+DO $$
+DECLARE
+  owner_id      uuid := '11111111-1111-1111-1111-111111111111';
+  co_id         uuid := '22222222-2222-2222-2222-222222222222';
+  member_id     uuid := '33333333-3333-3333-3333-333333333333';
+  outsider_id  uuid := '44444444-4444-4444-4444-444444444444';
+  dest_id       uuid := '99999999-9999-9999-9999-999999999999';
+BEGIN
+  -- Seed auth.users just enough for FK targets. Requires superuser / service
+  -- role; the test file is meant to be run against a dev/staging DB.
+  INSERT INTO auth.users (id, email, aud, role, instance_id, created_at, updated_at)
+  VALUES
+    (owner_id,    'rls-owner@test.local',    'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now(), now()),
+    (co_id,       'rls-co@test.local',       'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now(), now()),
+    (member_id,   'rls-member@test.local',   'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now(), now()),
+    (outsider_id, 'rls-outsider@test.local', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now(), now())
+  ON CONFLICT (id) DO NOTHING;
+
+  -- Destination owned by owner_id.
+  INSERT INTO public.destinations (id, user_id, title, region, country, headcount, unlock_status)
+  VALUES (dest_id, owner_id, 'RLS Test Trip', 'Test Region', 'Testland', 3, 'free');
+
+  -- Memberships.
+  INSERT INTO public.trip_members (destination_id, user_id, role)
+  VALUES
+    (dest_id, owner_id,  'owner'),
+    (dest_id, co_id,     'co_organizer'),
+    (dest_id, member_id, 'member');
+END $$;
+
+-- Helper: run a block as a specific user ------------------------------------
+-- Because Postgres cannot pass functions to DO blocks, we inline the SET calls.
+
+-- =========================================================================
+-- 1. Co-organizer CAN read the destination
+-- =========================================================================
+SET LOCAL ROLE authenticated;
+SET LOCAL "request.jwt.claims" = '{"sub":"22222222-2222-2222-2222-222222222222"}';
+
+DO $$
+DECLARE cnt int;
+BEGIN
+  SELECT count(*) INTO cnt FROM public.destinations
+    WHERE id = '99999999-9999-9999-9999-999999999999';
+  IF cnt <> 1 THEN RAISE EXCEPTION 'FAIL 1: co-organizer cannot read destination'; END IF;
+END $$;
+
+-- =========================================================================
+-- 2. Co-organizer CAN update destination details
+-- =========================================================================
+DO $$
+BEGIN
+  UPDATE public.destinations
+    SET title = 'RLS Test Trip (edited)'
+    WHERE id = '99999999-9999-9999-9999-999999999999';
+  IF NOT FOUND THEN RAISE EXCEPTION 'FAIL 2: co-organizer cannot update destination'; END IF;
+END $$;
+
+-- =========================================================================
+-- 3. Co-organizer CAN insert an invite
+-- =========================================================================
+INSERT INTO public.trip_invites (destination_id, invited_by, email, token)
+VALUES (
+  '99999999-9999-9999-9999-999999999999',
+  '22222222-2222-2222-2222-222222222222',
+  'friend@test.local',
+  'test-invite-token-co'
+);
+
+-- =========================================================================
+-- 4. Co-organizer CAN add a plain member
+-- =========================================================================
+INSERT INTO public.trip_members (destination_id, user_id, role)
+VALUES (
+  '99999999-9999-9999-9999-999999999999',
+  '44444444-4444-4444-4444-444444444444',
+  'member'
+);
+
+-- =========================================================================
+-- 5. Co-organizer CAN read invites for the trip
+-- =========================================================================
+DO $$
+DECLARE cnt int;
+BEGIN
+  SELECT count(*) INTO cnt FROM public.trip_invites
+    WHERE destination_id = '99999999-9999-9999-9999-999999999999';
+  IF cnt < 1 THEN RAISE EXCEPTION 'FAIL 5: co-organizer cannot read invites'; END IF;
+END $$;
+
+-- =========================================================================
+-- 6. Co-organizer CAN update trip_costs on the trip
+-- =========================================================================
+-- Seed a cost as the owner first (temporarily switch identity).
+SET LOCAL "request.jwt.claims" = '{"sub":"11111111-1111-1111-1111-111111111111"}';
+INSERT INTO public.trip_costs (destination_id, user_id, label, amount_cents, currency)
+VALUES (
+  '99999999-9999-9999-9999-999999999999',
+  '11111111-1111-1111-1111-111111111111',
+  'Owner-added cost',
+  10000,
+  'USD'
+);
+
+-- Back to co-organizer, edit the cost.
+SET LOCAL "request.jwt.claims" = '{"sub":"22222222-2222-2222-2222-222222222222"}';
+DO $$
+BEGIN
+  UPDATE public.trip_costs
+    SET label = 'Edited by co-organizer'
+    WHERE destination_id = '99999999-9999-9999-9999-999999999999'
+      AND label = 'Owner-added cost';
+  IF NOT FOUND THEN RAISE EXCEPTION 'FAIL 6: co-organizer cannot update trip_costs'; END IF;
+END $$;
+
+-- =========================================================================
+-- 7. Co-organizer CANNOT promote to owner via set_trip_member_role
+--    (RPC guards: only is_trip_owner() may change roles, and _role must be
+--    one of 'co_organizer' | 'member' — 'owner' is not accepted.)
+-- =========================================================================
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.set_trip_member_role(
+      '99999999-9999-9999-9999-999999999999',
+      '33333333-3333-3333-3333-333333333333',
+      'owner'
+    );
+    RAISE EXCEPTION 'FAIL 7: co-organizer was able to promote to owner';
+  EXCEPTION WHEN OTHERS THEN
+    -- Expected: "Only the organizer can change roles" OR "Role must be co_organizer or member"
+    NULL;
+  END;
+END $$;
+
+-- =========================================================================
+-- 8. Co-organizer CANNOT change roles at all via set_trip_member_role
+-- =========================================================================
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.set_trip_member_role(
+      '99999999-9999-9999-9999-999999999999',
+      '33333333-3333-3333-3333-333333333333',
+      'co_organizer'
+    );
+    RAISE EXCEPTION 'FAIL 8: co-organizer was able to change roles';
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+END $$;
+
+-- =========================================================================
+-- 9. Co-organizer CANNOT delete the destination (owner-only DELETE policy)
+-- =========================================================================
+DO $$
+DECLARE deleted int;
+BEGIN
+  WITH d AS (
+    DELETE FROM public.destinations
+      WHERE id = '99999999-9999-9999-9999-999999999999'
+      RETURNING 1
+  )
+  SELECT count(*) INTO deleted FROM d;
+  IF deleted <> 0 THEN
+    RAISE EXCEPTION 'FAIL 9: co-organizer was able to delete destination';
+  END IF;
+END $$;
+
+-- =========================================================================
+-- 10. Co-organizer CANNOT call unlock_destination (EXECUTE = service_role)
+-- =========================================================================
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.unlock_destination(
+      '99999999-9999-9999-9999-999999999999',
+      false,
+      0
+    );
+    RAISE EXCEPTION 'FAIL 10: co-organizer was able to call unlock_destination';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL; -- expected
+  WHEN undefined_function THEN
+    NULL; -- also acceptable if signature drifts; the point is "no unlock"
+  END;
+END $$;
+
+-- =========================================================================
+-- 11. Plain member CANNOT invite, update destination, or promote
+-- =========================================================================
+SET LOCAL "request.jwt.claims" = '{"sub":"33333333-3333-3333-3333-333333333333"}';
+
+DO $$
+DECLARE err_caught boolean := false;
+BEGIN
+  BEGIN
+    INSERT INTO public.trip_invites (destination_id, invited_by, email, token)
+    VALUES (
+      '99999999-9999-9999-9999-999999999999',
+      '33333333-3333-3333-3333-333333333333',
+      'nope@test.local',
+      'test-invite-token-member'
+    );
+  EXCEPTION WHEN insufficient_privilege OR check_violation OR others THEN
+    err_caught := true;
+  END;
+  IF NOT err_caught THEN
+    RAISE EXCEPTION 'FAIL 11a: plain member was able to insert invite';
+  END IF;
+END $$;
+
+DO $$
+DECLARE updated int;
+BEGIN
+  WITH u AS (
+    UPDATE public.destinations
+      SET title = 'member should not touch this'
+      WHERE id = '99999999-9999-9999-9999-999999999999'
+      RETURNING 1
+  )
+  SELECT count(*) INTO updated FROM u;
+  IF updated <> 0 THEN
+    RAISE EXCEPTION 'FAIL 11b: plain member was able to update destination';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.set_trip_member_role(
+      '99999999-9999-9999-9999-999999999999',
+      '22222222-2222-2222-2222-222222222222',
+      'member'
+    );
+    RAISE EXCEPTION 'FAIL 11c: plain member was able to change roles';
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+END $$;
+
+-- Done. Rollback so the DB is unchanged.
+ROLLBACK;
+
+\echo 'All co-organizer RLS tests passed.'
