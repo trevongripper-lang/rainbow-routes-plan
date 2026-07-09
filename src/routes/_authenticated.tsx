@@ -55,16 +55,19 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-import { checkBetaConsent, BETA_CONSENT_VERSION, clearBetaConsentLocal } from "@/lib/beta-consent";
+import { BETA_CONSENT_VERSION, clearBetaConsentLocal } from "@/lib/beta-consent";
 import { noteRedirect, clearRedirectTrace } from "@/lib/redirect-guard";
 import { track } from "@/lib/analytics";
 import {
   SESSION_HYDRATION_ERROR_MESSAGE,
   clearAuthSession,
   ensureAuthReady,
+  ensureBetaConsentResolved,
   getAuthState,
+  type AppBetaConsentStatus,
 } from "@/lib/auth-state";
 import { withTimeout } from "@/lib/utils";
+
 
 // -----------------------------------------------------------------------------
 // beforeLoad phase store — lets the pending component distinguish the stages
