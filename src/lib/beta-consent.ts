@@ -68,29 +68,16 @@ function betaConsentDebug(message: string, details: Record<string, unknown> = {}
 export async function checkBetaConsent(userId: string): Promise<BetaConsentStatus> {
   if (!userId) return "missing";
   const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
-  const abortController =
-    typeof AbortController !== "undefined" ? new AbortController() : null;
-  let abortTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
 
   try {
     betaConsentDebug("lookup started", { version: BETA_CONSENT_VERSION });
-    abortTimer = globalThis.setTimeout(() => {
-      betaConsentDebug("lookup aborting after timeout", {
-        timeoutMs: BETA_CONSENT_LOOKUP_TIMEOUT_MS,
-        version: BETA_CONSENT_VERSION,
-      });
-      abortController?.abort();
-    }, BETA_CONSENT_LOOKUP_TIMEOUT_MS);
-
-    const query = supabase
-      .from("beta_consents")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("version", BETA_CONSENT_VERSION)
-      .maybeSingle();
-
     const { data, error } = await withTimeout(
-      abortController ? query.abortSignal(abortController.signal) : query,
+      supabase
+        .from("beta_consents")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("version", BETA_CONSENT_VERSION)
+        .maybeSingle(),
       BETA_CONSENT_LOOKUP_TIMEOUT_MS,
       "Beta consent lookup",
     );
@@ -124,8 +111,6 @@ export async function checkBetaConsent(userId: string): Promise<BetaConsentStatu
       message: error instanceof Error ? error.message : String(error),
     });
     return "error";
-  } finally {
-    if (abortTimer) globalThis.clearTimeout(abortTimer);
   }
 }
 
