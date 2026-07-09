@@ -97,10 +97,11 @@ function debugLog(...args: unknown[]) {
   console.info("[auth-gate]", ...args);
 }
 
-function buildBetaConsentUrl(pathname: string, status: Awaited<ReturnType<typeof checkBetaConsent>>) {
+function buildBetaConsentUrl(pathname: string, status: AppBetaConsentStatus) {
   const params = new URLSearchParams({ next: pathname, reason: status });
   return `/beta-consent?${params.toString()}`;
 }
+
 
 const pendingFallbackTimers = new Set<number>();
 
