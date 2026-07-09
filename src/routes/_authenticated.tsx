@@ -99,9 +99,18 @@ function buildBetaConsentUrl(pathname: string, status: Awaited<ReturnType<typeof
   return `/beta-consent?${params.toString()}`;
 }
 
+const pendingFallbackTimers = new Set<number>();
+
+export function cancelPendingRedirectFallbacks() {
+  if (typeof window === "undefined") return;
+  for (const id of pendingFallbackTimers) window.clearTimeout(id);
+  pendingFallbackTimers.clear();
+}
+
 function scheduleBrowserRedirectFallback(target: string) {
   if (typeof window === "undefined") return;
-  window.setTimeout(() => {
+  const id = window.setTimeout(() => {
+    pendingFallbackTimers.delete(id);
     const current = `${window.location.pathname}${window.location.search}`;
     const statusText = document.querySelector('[role="status"]')?.textContent ?? "";
     const stillShowingGate = /Checking your session|Checking beta consent|Redirecting/i.test(statusText);
@@ -114,6 +123,7 @@ function scheduleBrowserRedirectFallback(target: string) {
       window.location.replace(target);
     }
   }, 1_500);
+  pendingFallbackTimers.add(id);
 }
 
 export const Route = createFileRoute("/_authenticated")({
