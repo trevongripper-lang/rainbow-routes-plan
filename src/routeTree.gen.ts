@@ -23,6 +23,7 @@ import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedMapRouteImport } from './routes/_authenticated/map'
 import { Route as AuthenticatedEventsRouteImport } from './routes/_authenticated/events'
 import { Route as AuthenticatedBetaConsentRouteImport } from './routes/_authenticated/beta-consent'
+import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedTripsIndexRouteImport } from './routes/_authenticated/trips.index'
 import { Route as ApiPublicPaddleWebhookRouteImport } from './routes/api/public/paddle-webhook'
 import { Route as AuthenticatedTripsIdRouteImport } from './routes/_authenticated/trips.$id'
@@ -105,6 +106,11 @@ const AuthenticatedBetaConsentRoute =
     path: '/beta-consent',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedTripsIndexRoute = AuthenticatedTripsIndexRouteImport.update({
   id: '/trips/',
   path: '/trips/',
@@ -175,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/recover': typeof RecoverRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/app': typeof AuthenticatedAppRoute
   '/beta-consent': typeof AuthenticatedBetaConsentRoute
   '/events': typeof AuthenticatedEventsRoute
   '/map': typeof AuthenticatedMapRoute
@@ -201,6 +208,7 @@ export interface FileRoutesByTo {
   '/recover': typeof RecoverRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/app': typeof AuthenticatedAppRoute
   '/beta-consent': typeof AuthenticatedBetaConsentRoute
   '/events': typeof AuthenticatedEventsRoute
   '/map': typeof AuthenticatedMapRoute
@@ -229,6 +237,7 @@ export interface FileRoutesById {
   '/recover': typeof RecoverRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/_authenticated/app': typeof AuthenticatedAppRoute
   '/_authenticated/beta-consent': typeof AuthenticatedBetaConsentRoute
   '/_authenticated/events': typeof AuthenticatedEventsRoute
   '/_authenticated/map': typeof AuthenticatedMapRoute
@@ -257,6 +266,7 @@ export interface FileRouteTypes {
     | '/recover'
     | '/reset-password'
     | '/terms'
+    | '/app'
     | '/beta-consent'
     | '/events'
     | '/map'
@@ -283,6 +293,7 @@ export interface FileRouteTypes {
     | '/recover'
     | '/reset-password'
     | '/terms'
+    | '/app'
     | '/beta-consent'
     | '/events'
     | '/map'
@@ -310,6 +321,7 @@ export interface FileRouteTypes {
     | '/recover'
     | '/reset-password'
     | '/terms'
+    | '/_authenticated/app'
     | '/_authenticated/beta-consent'
     | '/_authenticated/events'
     | '/_authenticated/map'
@@ -445,6 +457,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBetaConsentRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/app': {
+      id: '/_authenticated/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AuthenticatedAppRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/trips/': {
       id: '/_authenticated/trips/'
       path: '/trips'
@@ -526,6 +545,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedAppRoute: typeof AuthenticatedAppRoute
   AuthenticatedBetaConsentRoute: typeof AuthenticatedBetaConsentRoute
   AuthenticatedEventsRoute: typeof AuthenticatedEventsRoute
   AuthenticatedMapRoute: typeof AuthenticatedMapRoute
@@ -541,6 +561,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAppRoute: AuthenticatedAppRoute,
   AuthenticatedBetaConsentRoute: AuthenticatedBetaConsentRoute,
   AuthenticatedEventsRoute: AuthenticatedEventsRoute,
   AuthenticatedMapRoute: AuthenticatedMapRoute,
