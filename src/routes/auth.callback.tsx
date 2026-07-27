@@ -19,7 +19,7 @@ import {
  * After a successful exchange, we route by tier:
  *   - password recovery (`type=recovery`)          → /reset-password
  *   - permanent, current consent                   → /app
- *   - permanent, missing consent                   → /beta-consent
+ *   - permanent, missing consent                   → /auth/consent
  *   - anonymous (shouldn't happen post-exchange)   → /
  *   - signed out (exchange failed / user missing)  → /auth with error
  */
@@ -99,7 +99,7 @@ function AuthCallback() {
           return;
         case "confirmed_permanent_without_consent":
           void navigate({
-            to: "/beta-consent",
+            to: "/auth/consent",
             search: { next: "/app", reason: "missing" },
             replace: true,
           });

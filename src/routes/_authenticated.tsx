@@ -100,7 +100,7 @@ function debugLog(...args: unknown[]) {
 
 function buildBetaConsentUrl(pathname: string, status: AppBetaConsentStatus) {
   const params = new URLSearchParams({ next: pathname, reason: status });
-  return `/beta-consent?${params.toString()}`;
+  return `/auth/consent?${params.toString()}`;
 }
 
 
@@ -202,7 +202,10 @@ export const Route = createFileRoute("/_authenticated")({
     }
 
     // ---- Beta consent -----------------------------------------------------
-    if (location.pathname !== "/beta-consent") {
+    // The canonical consent page lives at PUBLIC /auth/consent, outside this
+    // gate — so we no longer need a pathname bypass here. The legacy protected
+    // /beta-consent route redirects to /auth/consent in its own beforeLoad.
+    {
       // Read the resolved status from auth state — it was primed at
       // session hydration / SIGNED_IN, so this normally requires zero
       // network work per navigation. Only if it's still "unknown" do we
@@ -251,11 +254,11 @@ export const Route = createFileRoute("/_authenticated")({
         });
         setPhase("redirecting");
         const target = buildBetaConsentUrl(location.pathname, reason);
-        debugLog("redirect → /beta-consent", { status: reason, target });
-        if (noteRedirect(location.pathname, "/beta-consent")) throw redirect({ to: "/recover" });
+        debugLog("redirect → /auth/consent", { status: reason, target });
+        if (noteRedirect(location.pathname, "/auth/consent")) throw redirect({ to: "/recover" });
         scheduleBrowserRedirectFallback(target);
         throw redirect({
-          to: "/beta-consent",
+          to: "/auth/consent",
           search: { next: location.pathname, reason },
         });
       }

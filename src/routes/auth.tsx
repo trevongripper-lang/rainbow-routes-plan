@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouter, useRouterState } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
@@ -50,6 +50,12 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
+  // Child routes (/auth/callback, /auth/consent, /auth/set-password) mount
+  // under this parent; render their outlet instead of the sign-in shell.
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  if (pathname !== "/auth" && pathname !== "/auth/") {
+    return <Outlet />;
+  }
   const search = Route.useSearch();
   const router = useRouter();
   const queryClient = useQueryClient();

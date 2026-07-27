@@ -135,7 +135,7 @@ function SettingsPage() {
               <span className="font-mono text-foreground">{BETA_CONSENT_VERSION}</span>.
             </p>
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              <Link to="/beta-consent" className="text-primary hover:underline">
+              <Link to="/auth/consent" className="text-primary hover:underline">
                 Review beta agreement
               </Link>
             </div>

@@ -18,6 +18,8 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as JoinTokenRouteImport } from './routes/join.$token'
+import { Route as AuthSetPasswordRouteImport } from './routes/auth.set-password'
+import { Route as AuthConsentRouteImport } from './routes/auth.consent'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
@@ -80,6 +82,16 @@ const JoinTokenRoute = JoinTokenRouteImport.update({
   id: '/join/$token',
   path: '/join/$token',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthSetPasswordRoute = AuthSetPasswordRouteImport.update({
+  id: '/set-password',
+  path: '/set-password',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthConsentRoute = AuthConsentRouteImport.update({
+  id: '/consent',
+  path: '/consent',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/callback',
@@ -194,6 +206,8 @@ export interface FileRoutesByFullPath {
   '/me': typeof AuthenticatedMeRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/consent': typeof AuthConsentRoute
+  '/auth/set-password': typeof AuthSetPasswordRoute
   '/join/$token': typeof JoinTokenRoute
   '/console/analytics': typeof AuthenticatedConsoleAnalyticsRoute
   '/console/diagnostics': typeof AuthenticatedConsoleDiagnosticsRoute
@@ -222,6 +236,8 @@ export interface FileRoutesByTo {
   '/me': typeof AuthenticatedMeRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/consent': typeof AuthConsentRoute
+  '/auth/set-password': typeof AuthSetPasswordRoute
   '/join/$token': typeof JoinTokenRoute
   '/console/analytics': typeof AuthenticatedConsoleAnalyticsRoute
   '/console/diagnostics': typeof AuthenticatedConsoleDiagnosticsRoute
@@ -252,6 +268,8 @@ export interface FileRoutesById {
   '/_authenticated/me': typeof AuthenticatedMeRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/consent': typeof AuthConsentRoute
+  '/auth/set-password': typeof AuthSetPasswordRoute
   '/join/$token': typeof JoinTokenRoute
   '/_authenticated/console/analytics': typeof AuthenticatedConsoleAnalyticsRoute
   '/_authenticated/console/diagnostics': typeof AuthenticatedConsoleDiagnosticsRoute
@@ -282,6 +300,8 @@ export interface FileRouteTypes {
     | '/me'
     | '/settings'
     | '/auth/callback'
+    | '/auth/consent'
+    | '/auth/set-password'
     | '/join/$token'
     | '/console/analytics'
     | '/console/diagnostics'
@@ -310,6 +330,8 @@ export interface FileRouteTypes {
     | '/me'
     | '/settings'
     | '/auth/callback'
+    | '/auth/consent'
+    | '/auth/set-password'
     | '/join/$token'
     | '/console/analytics'
     | '/console/diagnostics'
@@ -339,6 +361,8 @@ export interface FileRouteTypes {
     | '/_authenticated/me'
     | '/_authenticated/settings'
     | '/auth/callback'
+    | '/auth/consent'
+    | '/auth/set-password'
     | '/join/$token'
     | '/_authenticated/console/analytics'
     | '/_authenticated/console/diagnostics'
@@ -433,6 +457,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/join/$token'
       preLoaderRoute: typeof JoinTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/auth/set-password': {
+      id: '/auth/set-password'
+      path: '/set-password'
+      fullPath: '/auth/set-password'
+      preLoaderRoute: typeof AuthSetPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/consent': {
+      id: '/auth/consent'
+      path: '/consent'
+      fullPath: '/auth/consent'
+      preLoaderRoute: typeof AuthConsentRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/auth/callback': {
       id: '/auth/callback'
@@ -601,10 +639,14 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 
 interface AuthRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthConsentRoute: typeof AuthConsentRoute
+  AuthSetPasswordRoute: typeof AuthSetPasswordRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthConsentRoute: AuthConsentRoute,
+  AuthSetPasswordRoute: AuthSetPasswordRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
