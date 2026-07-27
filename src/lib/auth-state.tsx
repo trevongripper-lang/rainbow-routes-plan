@@ -339,6 +339,25 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
+/**
+ * Derived access-state (tier + anonymous / email-confirmed flags) for the
+ * frictionless-signup rework. Prefer this over reading `session.user.*`
+ * fields directly in components and gates.
+ */
+export function useAccessState(): AccessState {
+  const auth = useAuthSnapshot();
+  return useMemo(
+    () => deriveAccessState(auth.session, auth.betaConsent),
+    [auth.session, auth.betaConsent],
+  );
+}
+
+/** Non-hook read for use inside route `beforeLoad` handlers. */
+export function getAccessState(): AccessState {
+  const s = getAuthState();
+  return deriveAccessState(s.session, s.betaConsent);
+}
+
 export function AuthLoadingScreen() {
   return (
     <div
