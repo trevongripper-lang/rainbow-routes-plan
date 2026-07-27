@@ -48,9 +48,11 @@ export function sanitizeReturnPath(input: unknown): string {
 }
 
 /** Convenience: sanitize `pathname + search` from a router location. */
-export function sanitizeRouterLocation(loc: { pathname?: string; search?: string } | null | undefined): string {
+export function sanitizeRouterLocation(
+  loc: { pathname?: string; search?: string; searchStr?: string } | null | undefined,
+): string {
   if (!loc) return DEFAULT_RETURN_PATH;
   const p = loc.pathname ?? "";
-  const s = loc.search ?? "";
+  const s = typeof loc.searchStr === "string" ? loc.searchStr : typeof loc.search === "string" ? loc.search : "";
   return sanitizeReturnPath(`${p}${s}`);
 }
