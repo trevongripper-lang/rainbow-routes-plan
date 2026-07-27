@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { checkBetaConsent, type BetaConsentStatus } from "@/lib/beta-consent";
+import { deriveAccessState, type AccessState } from "@/lib/access-state";
 
 export type AppAuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -336,6 +337,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   return useContext(AuthContext);
+}
+
+/**
+ * Derived access-state (tier + anonymous / email-confirmed flags) for the
+ * frictionless-signup rework. Prefer this over reading `session.user.*`
+ * fields directly in components and gates.
+ */
+export function useAccessState(): AccessState {
+  const auth = useAuthSnapshot();
+  return useMemo(
+    () => deriveAccessState(auth.session, auth.betaConsent),
+    [auth.session, auth.betaConsent],
+  );
+}
+
+/** Non-hook read for use inside route `beforeLoad` handlers. */
+export function getAccessState(): AccessState {
+  const s = getAuthState();
+  return deriveAccessState(s.session, s.betaConsent);
 }
 
 export function AuthLoadingScreen() {

@@ -18,6 +18,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as JoinTokenRouteImport } from './routes/join.$token'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedMapRouteImport } from './routes/_authenticated/map'
@@ -79,6 +80,11 @@ const JoinTokenRoute = JoinTokenRouteImport.update({
   id: '/join/$token',
   path: '/join/$token',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
@@ -175,7 +181,7 @@ const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/recover': typeof RecoverRoute
@@ -187,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/map': typeof AuthenticatedMapRoute
   '/me': typeof AuthenticatedMeRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/join/$token': typeof JoinTokenRoute
   '/console/analytics': typeof AuthenticatedConsoleAnalyticsRoute
   '/console/diagnostics': typeof AuthenticatedConsoleDiagnosticsRoute
@@ -202,7 +209,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/recover': typeof RecoverRoute
@@ -214,6 +221,7 @@ export interface FileRoutesByTo {
   '/map': typeof AuthenticatedMapRoute
   '/me': typeof AuthenticatedMeRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/join/$token': typeof JoinTokenRoute
   '/console/analytics': typeof AuthenticatedConsoleAnalyticsRoute
   '/console/diagnostics': typeof AuthenticatedConsoleDiagnosticsRoute
@@ -231,7 +239,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/recover': typeof RecoverRoute
@@ -243,6 +251,7 @@ export interface FileRoutesById {
   '/_authenticated/map': typeof AuthenticatedMapRoute
   '/_authenticated/me': typeof AuthenticatedMeRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/join/$token': typeof JoinTokenRoute
   '/_authenticated/console/analytics': typeof AuthenticatedConsoleAnalyticsRoute
   '/_authenticated/console/diagnostics': typeof AuthenticatedConsoleDiagnosticsRoute
@@ -272,6 +281,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/me'
     | '/settings'
+    | '/auth/callback'
     | '/join/$token'
     | '/console/analytics'
     | '/console/diagnostics'
@@ -299,6 +309,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/me'
     | '/settings'
+    | '/auth/callback'
     | '/join/$token'
     | '/console/analytics'
     | '/console/diagnostics'
@@ -327,6 +338,7 @@ export interface FileRouteTypes {
     | '/_authenticated/map'
     | '/_authenticated/me'
     | '/_authenticated/settings'
+    | '/auth/callback'
     | '/join/$token'
     | '/_authenticated/console/analytics'
     | '/_authenticated/console/diagnostics'
@@ -344,7 +356,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   RecoverRoute: typeof RecoverRoute
@@ -421,6 +433,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/join/$token'
       preLoaderRoute: typeof JoinTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
@@ -580,10 +599,20 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface AuthRouteChildren {
+  AuthCallbackRoute: typeof AuthCallbackRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthCallbackRoute: AuthCallbackRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   RecoverRoute: RecoverRoute,
