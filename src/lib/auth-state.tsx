@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { checkBetaConsent, type BetaConsentStatus } from "@/lib/beta-consent";
+import { deriveAccessState, type AccessState } from "@/lib/access-state";
 
 export type AppAuthStatus = "loading" | "authenticated" | "unauthenticated";
 
