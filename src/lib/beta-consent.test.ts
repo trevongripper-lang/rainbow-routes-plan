@@ -1,16 +1,21 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-const maybeSingleMock = vi.fn();
+const rpcMock = vi.fn();
 
 vi.mock("@/integrations/supabase/client", () => {
   const chain = {
-    select: () => chain,
-    eq: () => chain,
-    maybeSingle: () => maybeSingleMock(),
     insert: () => Promise.resolve({ error: null }),
   };
   return {
     supabase: {
+      // checkBetaConsent now uses the my_consent_status RPC.
+      // recordBetaConsent still uses .from().insert() + current_consent_version RPC.
+      rpc: (name: string) => {
+        if (name === "current_consent_version") {
+          return Promise.resolve({ data: "2026-06-beta-v1", error: null });
+        }
+        return rpcMock();
+      },
       from: () => chain,
     },
   };
@@ -29,35 +34,37 @@ const UID_B = "user-b";
 
 beforeEach(() => {
   window.localStorage.clear();
-  maybeSingleMock.mockReset();
+  rpcMock.mockReset();
 });
 
 describe("beta consent gate", () => {
   it("new confirmed user with no consent row resolves to 'missing'", async () => {
-    maybeSingleMock.mockResolvedValueOnce({ data: null, error: null });
+    rpcMock.mockResolvedValueOnce({ data: false, error: null });
     expect(await checkBetaConsent(UID_A)).toBe("missing");
   });
 
   it("user with current-version row resolves to 'current'", async () => {
-    maybeSingleMock.mockResolvedValueOnce({ data: { id: "row-1" }, error: null });
+    rpcMock.mockResolvedValueOnce({ data: true, error: null });
     expect(await checkBetaConsent(UID_A)).toBe("current");
   });
 
-  it("DB lookup error resolves to 'error' (fail-closed for the gate)", async () => {
-    maybeSingleMock.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
+  it("RPC error resolves to 'error' (fail-closed for the gate)", async () => {
+    rpcMock.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
     expect(await checkBetaConsent(UID_A)).toBe("error");
   });
 
   it("thrown lookup also resolves to 'error', never silently 'current'", async () => {
-    maybeSingleMock.mockRejectedValueOnce(new Error("network"));
+    rpcMock.mockRejectedValueOnce(new Error("network"));
     expect(await checkBetaConsent(UID_A)).toBe("error");
   });
 
+  it("null RPC data resolves to 'missing', never silently 'current'", async () => {
+    rpcMock.mockResolvedValueOnce({ data: null, error: null });
+    expect(await checkBetaConsent(UID_A)).toBe("missing");
+  });
+
   it("a previous tester's localStorage flag never satisfies another user", () => {
-    // User B accepted earlier on this browser.
     cacheBetaConsentLocal(UID_B);
-    // User A now signs in on the same browser. Their per-user cache is empty,
-    // so the local check must be false — the gate will then hit the DB.
     expect(hasBetaConsentLocal(UID_A)).toBe(false);
     expect(hasBetaConsentLocal(UID_B)).toBe(true);
   });
@@ -70,16 +77,24 @@ describe("beta consent gate", () => {
     expect(hasBetaConsentLocal(UID_A)).toBe(false);
   });
 
-  it("checkBetaConsent clears a stale per-user cache when DB says 'missing'", async () => {
+  it("checkBetaConsent clears a stale per-user cache when RPC says 'missing'", async () => {
     cacheBetaConsentLocal(UID_A);
     expect(window.localStorage.getItem(betaConsentCacheKey(UID_A))).not.toBeNull();
-    maybeSingleMock.mockResolvedValueOnce({ data: null, error: null });
+    rpcMock.mockResolvedValueOnce({ data: false, error: null });
     expect(await checkBetaConsent(UID_A)).toBe("missing");
     expect(window.localStorage.getItem(betaConsentCacheKey(UID_A))).toBeNull();
   });
 
-  it("checkBetaConsent caches per-user after a successful DB hit", async () => {
-    maybeSingleMock.mockResolvedValueOnce({ data: { id: "row-1" }, error: null });
+  it("checkBetaConsent clears a per-user cache on RPC error (fail-closed)", async () => {
+    cacheBetaConsentLocal(UID_A);
+    expect(window.localStorage.getItem(betaConsentCacheKey(UID_A))).not.toBeNull();
+    rpcMock.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
+    expect(await checkBetaConsent(UID_A)).toBe("error");
+    expect(window.localStorage.getItem(betaConsentCacheKey(UID_A))).toBeNull();
+  });
+
+  it("checkBetaConsent caches per-user after a successful RPC hit", async () => {
+    rpcMock.mockResolvedValueOnce({ data: true, error: null });
     expect(await checkBetaConsent(UID_A)).toBe("current");
     expect(hasBetaConsentLocal(UID_A)).toBe(true);
   });

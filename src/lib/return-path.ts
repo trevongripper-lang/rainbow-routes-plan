@@ -39,7 +39,8 @@ export function sanitizeReturnPath(input: unknown): string {
     pathnameOnly === "/auth" ||
     pathnameOnly.startsWith("/auth/") ||
     pathnameOnly === "/reset-password" ||
-    pathnameOnly === "/beta-consent"
+    pathnameOnly === "/beta-consent" ||
+    pathnameOnly === "/recover"
   ) {
     return DEFAULT_RETURN_PATH;
   }

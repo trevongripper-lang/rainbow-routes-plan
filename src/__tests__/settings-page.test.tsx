@@ -18,6 +18,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => ({ ...(options as Record<string, unknown>) }),
+  useNavigate: () => vi.fn(),
   Link: ({
     to,
     children,
