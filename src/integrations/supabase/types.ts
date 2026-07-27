@@ -1527,6 +1527,7 @@ export type Database = {
         Args: { _invitee: string; _inviter: string }
         Returns: boolean
       }
+      has_confirmed_consent: { Args: { _user: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1534,6 +1535,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_confirmed_permanent: { Args: { _user: string }; Returns: boolean }
       is_trip_co_organizer: {
         Args: { _dest: string; _user: string }
         Returns: boolean
@@ -1583,6 +1585,7 @@ export type Database = {
         }
         Returns: number
       }
+      my_consent_status: { Args: never; Returns: boolean }
       payments_enabled: { Args: never; Returns: boolean }
       preview_trip_invite: {
         Args: { _token: string }
@@ -1624,6 +1627,10 @@ export type Database = {
       unlock_destination: {
         Args: { _dest: string; _paid_cents?: number; _use_credit: boolean }
         Returns: Json
+      }
+      update_profile_basics: {
+        Args: { _avatar_url: string; _display_name: string }
+        Returns: undefined
       }
     }
     Enums: {
