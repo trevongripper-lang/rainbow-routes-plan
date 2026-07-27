@@ -58,6 +58,7 @@ import {
 import { BETA_CONSENT_VERSION, clearBetaConsentLocal } from "@/lib/beta-consent";
 import { noteRedirect, clearRedirectTrace } from "@/lib/redirect-guard";
 import { track } from "@/lib/analytics";
+import { sanitizeRouterLocation } from "@/lib/return-path";
 import {
   SESSION_HYDRATION_ERROR_MESSAGE,
   clearAuthSession,
