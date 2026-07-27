@@ -168,8 +168,9 @@ export const Route = createFileRoute("/_authenticated")({
           message: err instanceof Error ? err.message : String(err),
         });
         setPhase("redirecting");
-        scheduleBrowserRedirectFallback(`/auth?redirect=${encodeURIComponent(location.href)}`);
-        throw redirect({ to: "/auth", search: { redirect: location.href } });
+        const safeReturn = sanitizeRouterLocation(location);
+        scheduleBrowserRedirectFallback(`/auth?redirect=${encodeURIComponent(safeReturn)}`);
+        throw redirect({ to: "/auth", search: { redirect: safeReturn } });
       }
     } else {
       debugLog("auth already ready before ensureAuthReady()", {
@@ -183,18 +184,20 @@ export const Route = createFileRoute("/_authenticated")({
     if (auth.error) {
       debugLog("auth error → redirect /auth", auth.error);
       setPhase("redirecting");
-      scheduleBrowserRedirectFallback(`/auth?redirect=${encodeURIComponent(location.href)}`);
-      throw redirect({ to: "/auth", search: { redirect: location.href } });
+      const safeReturn = sanitizeRouterLocation(location);
+      scheduleBrowserRedirectFallback(`/auth?redirect=${encodeURIComponent(safeReturn)}`);
+      throw redirect({ to: "/auth", search: { redirect: safeReturn } });
     }
     const user = auth.user ?? getAuthState().user;
     if (!user) {
       debugLog("no user → redirect /auth");
       setPhase("redirecting");
       if (noteRedirect(location.pathname, "/auth")) throw redirect({ to: "/recover" });
-      scheduleBrowserRedirectFallback(`/auth?redirect=${encodeURIComponent(location.href)}`);
+      const safeReturn = sanitizeRouterLocation(location);
+      scheduleBrowserRedirectFallback(`/auth?redirect=${encodeURIComponent(safeReturn)}`);
       throw redirect({
         to: "/auth",
-        search: { redirect: location.href },
+        search: { redirect: safeReturn },
       });
     }
 
