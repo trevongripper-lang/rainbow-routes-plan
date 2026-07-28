@@ -7,6 +7,9 @@ import {
   getAccessState,
 } from "@/lib/auth-state";
 import { logAuthStage } from "@/lib/auth-diagnostics";
+import { clearOAuthPending } from "@/lib/oauth-return";
+import { consumePendingRedirect, sanitizeRedirectPath } from "@/lib/redirect-guard";
+
 
 /**
  * PKCE callback route.
