@@ -228,7 +228,7 @@ BEGIN
       ('trip_events',            0, 0, 0),  -- no seed row; policy shape only
       ('trip_ratings',           1, 0, 0),  -- owner-scoped (aggregate via RPC)
       ('votes',                  1, 1, 0),
-      ('notifications',          1, 0, 0),  -- owner-scoped
+      ('notifications',          1, 1, 1),  -- includes handle_new_user welcome row per persona
       ('event_reports',          0, 0, 0),  -- no seed row; policy shape only
       ('credit_events',          1, 0, 0),  -- owner-scoped
       ('user_credits',           1, 0, 0),  -- owner-scoped
