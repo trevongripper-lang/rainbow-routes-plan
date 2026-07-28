@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { rlCheckPublic } from "@/lib/rate-limit.functions";
 import { track } from "@/lib/analytics";
+import { beginAuthCorrelation, logAuthStage } from "@/lib/auth-diagnostics";
 import {
   sanitizeRedirectPath,
   stashPendingRedirect,
