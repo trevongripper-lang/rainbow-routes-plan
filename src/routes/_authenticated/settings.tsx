@@ -61,7 +61,12 @@ function SettingsPage() {
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    // Full-page navigation so PWA/BFCache doesn't restore protected shell.
+    if (typeof window !== "undefined") {
+      window.location.assign("/auth");
+    } else {
+      navigate({ to: "/auth", replace: true });
+    }
   }
 
   const consented = typeof window !== "undefined" && userId ? hasBetaConsentLocal(userId) : true;
