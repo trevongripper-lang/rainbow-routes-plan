@@ -80,6 +80,11 @@ function AuthPage() {
   const [resettingSession, setResettingSession] = useState(false);
   const [redirectRecovery, setRedirectRecovery] = useState<{ target: string; message: string } | null>(null);
   const [redirectPhase, setRedirectPhase] = useState<"idle" | "confirming" | "navigating">("idle");
+  const [oauthReconcile, setOauthReconcile] = useState<
+    | { phase: "reconciling"; message: string }
+    | { phase: "error"; title: string; message: string }
+    | null
+  >(null);
   const redirectingRef = useRef(false);
   const redirectTimeoutRef = useRef<number | null>(null);
 
