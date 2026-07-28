@@ -64,9 +64,7 @@ VALUES
 INSERT INTO public.user_credits (user_id, source, remaining, earned_at)
 VALUES ('00000000-0000-0000-0000-000000005001', 'promo', 3, now());
 
--- Baseline paid_trip_count.
-UPDATE public.profiles SET paid_trip_count = 0
-  WHERE id = '00000000-0000-0000-0000-000000005001';
+-- (baseline paid_trip_count already reset above via is_pro update)
 
 -- ── §1. Obsolete generic RPC is gone ──────────────────────────────────────
 DO $t1$
