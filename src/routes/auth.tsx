@@ -386,12 +386,27 @@ function AuthPage() {
         redirect_uri: window.location.origin + "/auth",
       });
       if (result.error) {
-        clearOAuthPending();
-        logAuthStage("oauth_start", { ok: false, code: "google", msg: result.error.message });
+        const persistenceFailure = "sessionPersistenceFailed" in result && result.sessionPersistenceFailed;
+        const safeCode =
+          "sessionErrorCode" in result && typeof result.sessionErrorCode === "string"
+            ? result.sessionErrorCode
+            : "oauth_provider_failed";
+        logAuthStage("oauth_start", { ok: false, code: safeCode });
         track("google_signin_failed", {
-          message: result.error.message?.slice(0, 140) ?? "unknown",
+          message: safeCode,
         });
-        toast.error(result.error.message ?? "Google sign-in failed");
+        if (persistenceFailure) {
+          setOauthReconcile({
+            phase: "error",
+            title: "Google sign-in didn't complete",
+            message:
+              "Google approved the sign-in, but this browser couldn't confirm the saved session. Retry to check again or restart Google sign-in.",
+            intendedOrigin: window.location.origin,
+          });
+        } else {
+          clearOAuthPending();
+          toast.error("Google sign-in failed. Please try again.");
+        }
         return;
       }
       if (result.redirected) {
