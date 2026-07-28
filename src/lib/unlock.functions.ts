@@ -84,14 +84,15 @@ export const unlockTripWithCredit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { destinationId: string }) => d)
   .handler(async ({ data, context }) => {
-    const { data: result, error } = await context.supabase.rpc(
-      "unlock_destination_with_credit",
-      { _dest: data.destinationId },
-    );
-    if (error) {
-      // Bubble up a stable message; the DB uses lowercase snake_case codes.
-      throw new Error(error.message);
-    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rpc = context.supabase.rpc as unknown as (fn: string, args: unknown) => Promise<{
+      data: unknown;
+      error: { message: string } | null;
+    }>;
+    const { data: result, error } = await rpc("unlock_destination_with_credit", {
+      _dest: data.destinationId,
+    });
+    if (error) throw new Error(error.message);
     const parsed = (result ?? {}) as { status?: string; already?: boolean };
     return {
       ok: true,
