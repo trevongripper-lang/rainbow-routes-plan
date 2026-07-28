@@ -76,12 +76,13 @@ function AuthCallback() {
         return;
       }
 
-      // Exchange ownership: /auth/callback is the single owner of the code
-      // exchange. `detectSessionInUrl: true` (Supabase-wide, required for
-      // email confirmation + password reset flows) may auto-consume the code
-      // before this effect runs. In that case exchangeCodeForSession returns
-      // an error but getSession() shows a live session — treat that as
-      // success (same auth-state outcome, single code redemption).
+      // Exchange ownership: /auth/callback is the SINGLE owner of the code
+      // exchange. `detectSessionInUrl` is off in the Supabase client so no
+      // other page-load path can consume `?code=` before we do. See
+      // docs/runbooks/google-oauth-callback.md. The `auto_detected_session`
+      // branch below is a belt-and-braces fallback in case a future change
+      // (or a stale service worker) re-enables auto-detection — treat an
+      // already-established session as success rather than a hard failure.
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
