@@ -62,7 +62,7 @@ VALUES
 
 -- Give the owner 3 credits for the credit-path tests.
 INSERT INTO public.user_credits (user_id, source, remaining, earned_at)
-VALUES ('00000000-0000-0000-0000-000000005001', 'promo', 3, now());
+VALUES ('00000000-0000-0000-0000-000000005001', 'loyalty', 3, now());
 
 -- (baseline paid_trip_count already reset above via is_pro update)
 
