@@ -107,7 +107,7 @@ INSERT INTO public.trip_stays (destination_id, user_id, title)
 VALUES (:DEST, :P4, 'seed stay');
 
 INSERT INTO public.trip_polls (id, destination_id, user_id, question, kind, allow_multi)
-VALUES (:POLL, :DEST, :P4, 'seed poll', 'single', false);
+VALUES (:POLL, :DEST, :P4, 'seed poll', 'general', false);
 
 INSERT INTO public.trip_poll_options (poll_id, label, sort_order)
 VALUES (:POLL, 'opt a', 0), (:POLL, 'opt b', 1);
@@ -135,10 +135,10 @@ INSERT INTO public.notifications (user_id, destination_id, kind, payload)
 VALUES (:P4, :DEST, 'seed', '{}'::jsonb);
 
 INSERT INTO public.user_credits (user_id, source, remaining, earned_at)
-VALUES (:P4, 'seed', 1, now());
+VALUES (:P4, 'loyalty', 1, now());
 
 INSERT INTO public.credit_events (user_id, kind, amount, destination_id)
-VALUES (:P4, 'earned_promo', 1, :DEST);
+VALUES (:P4, 'earned_loyalty', 1, :DEST);
 
 INSERT INTO public.promo_codes (code, credits, validity_days)
 VALUES ('CONSENTSUITE', 1, 30);
