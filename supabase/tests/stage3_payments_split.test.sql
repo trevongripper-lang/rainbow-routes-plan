@@ -47,6 +47,10 @@ BEGIN
 END $seed$;
 
 -- Two trips: T1 (paid path, headcount 8), T2 (credit path, headcount 8), T3 (paid path, second event).
+-- Owner must be flagged is_pro so the headcount>5 fixtures pass check_headcount_cap.
+UPDATE public.profiles SET is_pro = true, paid_trip_count = 0
+  WHERE id = '00000000-0000-0000-0000-000000005001';
+
 INSERT INTO public.destinations (id, user_id, title, region, country, headcount, unlock_status)
 VALUES
   ('00000000-0000-0000-0000-000000006001', '00000000-0000-0000-0000-000000005001',
