@@ -20,6 +20,7 @@ export type AuthStage =
   | "oauth_start"
   | "oauth_redirect_initiated"
   | "oauth_inline_tokens_received"
+  | "oauth_return_detected"
   | "callback_reached"
   | "callback_error_param"
   | "code_exchange_ok"

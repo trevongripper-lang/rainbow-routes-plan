@@ -28,6 +28,12 @@ import {
 } from "@/lib/auth-state";
 import { withTimeout } from "@/lib/utils";
 import { canonicalEmailOrigin } from "@/lib/canonical-origin";
+import {
+  clearOAuthPending,
+  isBrowserStorageUsable,
+  markOAuthPending,
+  readOAuthPending,
+} from "@/lib/oauth-return";
 
 type AuthSearch = { redirect?: string };
 
@@ -74,6 +80,11 @@ function AuthPage() {
   const [resettingSession, setResettingSession] = useState(false);
   const [redirectRecovery, setRedirectRecovery] = useState<{ target: string; message: string } | null>(null);
   const [redirectPhase, setRedirectPhase] = useState<"idle" | "confirming" | "navigating">("idle");
+  const [oauthReconcile, setOauthReconcile] = useState<
+    | { phase: "reconciling"; message: string }
+    | { phase: "error"; title: string; message: string }
+    | null
+  >(null);
   const redirectingRef = useRef(false);
   const redirectTimeoutRef = useRef<number | null>(null);
 
@@ -179,6 +190,104 @@ function AuthPage() {
     };
   }, [auth.ready, auth.session, goToApp]);
 
+  // OAuth-return reconciliation. If a pending marker exists from a prior
+  // `signInWithOAuth` call, we're mid-return: DO NOT render the login shell.
+  // Poll for a real session (bounded), verify persistence via read-back,
+  // then hard-navigate. On failure, surface a recoverable error UI.
+  useEffect(() => {
+    const pending = readOAuthPending();
+    if (!pending) return;
+    let cancelled = false;
+
+    // Storage availability check — the top failure mode on iOS in-app
+    // browsers / private mode: setSession has nothing to persist to.
+    if (!isBrowserStorageUsable()) {
+      logAuthStage("session_hydration_timeout", { ok: false, code: "storage_unavailable" });
+      clearOAuthPending();
+      setOauthReconcile({
+        phase: "error",
+        title: "Browser storage is blocked",
+        message:
+          "This browser is blocking site storage, so we can't finish signing you in. Try a normal browser window (not private mode) or another browser.",
+      });
+      return;
+    }
+
+    // Origin mismatch — started on www but landed on apex (or vice versa)
+    // will fail because the session was written to a different origin's storage.
+    const currentOrigin = window.location.origin;
+    if (pending.origin && pending.origin !== currentOrigin) {
+      logAuthStage("session_hydration_timeout", {
+        ok: false,
+        code: "origin_mismatch",
+        msg: `${pending.originCategory}→${currentOrigin.replace(/^https?:\/\//, "")}`,
+      });
+      clearOAuthPending();
+      setOauthReconcile({
+        phase: "error",
+        title: "Sign-in returned to a different address",
+        message:
+          "Google sent you back to a different address than the one you started on. Reset and sign in again from the same address.",
+      });
+      return;
+    }
+
+    logAuthStage("oauth_return_detected", { ok: true, code: pending.mode });
+    setOauthReconcile({ phase: "reconciling", message: "Finishing Google sign-in…" });
+
+    let attempts = 0;
+    const MAX_ATTEMPTS = 16; // ~8s at 500ms
+    const poll = async () => {
+      if (cancelled) return;
+      attempts += 1;
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (data.session) {
+        // Read-back to prove the session actually persisted to storage before
+        // we do a full-page navigation.
+        const verify = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (!verify.data.session) {
+          // Persistence did not stick — treat as failure.
+          logAuthStage("session_hydration_timeout", { ok: false, code: "persist_readback_missing" });
+          clearOAuthPending();
+          setOauthReconcile({
+            phase: "error",
+            title: "Session didn't persist",
+            message:
+              "We received your Google sign-in but this browser didn't store the session. Try again, or use a normal browser window.",
+          });
+          return;
+        }
+        logAuthStage("session_hydrated", { ok: true, code: "oauth_return" });
+        clearOAuthPending();
+        setAuthSession(verify.data.session);
+        setOauthReconcile(null);
+        void goToApp({ skipSessionCheck: true });
+        return;
+      }
+      if (attempts >= MAX_ATTEMPTS) {
+        logAuthStage("session_hydration_timeout", { ok: false, code: "oauth_return_poll" });
+        clearOAuthPending();
+        setOauthReconcile({
+          phase: "error",
+          title: "Google sign-in didn't complete",
+          message:
+            "We couldn't confirm your session after returning from Google. Try again, or reset the session and start over.",
+        });
+        return;
+      }
+      window.setTimeout(() => void poll(), 500);
+    };
+    void poll();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [goToApp]);
+
+
+
   async function guard(scope: "login" | "reset" | "signup", emailVal: string): Promise<boolean> {
     const r = await rlCheck({ data: { scope, email: emailVal } });
     if (!r.allowed) {
@@ -264,15 +373,16 @@ function AuthPage() {
     logAuthStage("oauth_start", { code: "google" });
     try {
       track("google_signin_started");
-      // Stash the intended redirect so we can honor it after the full-page
-      // OAuth round-trip returns to /auth (or the origin) with a fresh
-      // session. `redirect_uri` MUST stay a public same-origin URL, never a
-      // protected route.
       stashPendingRedirect(redirectTarget);
+      // Mark OAuth as pending BEFORE navigation so the return path (or a
+      // full-page reload) can recognise it and enter reconciliation instead
+      // of rendering the login shell.
+      markOAuthPending("google", cid);
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin + "/auth",
       });
       if (result.error) {
+        clearOAuthPending();
         logAuthStage("oauth_start", { ok: false, code: "google", msg: result.error.message });
         track("google_signin_failed", {
           message: result.error.message?.slice(0, 140) ?? "unknown",
@@ -282,7 +392,7 @@ function AuthPage() {
       }
       if (result.redirected) {
         logAuthStage("oauth_redirect_initiated", { ok: true, code: "google" });
-        return; // browser is navigating away
+        return; // browser is navigating away; pending marker survives the redirect
       }
       logAuthStage("oauth_inline_tokens_received", { ok: true, code: "google" });
       // Session is set inline (preview iframe / web_message flow); confirm it and go now.
@@ -292,9 +402,11 @@ function AuthPage() {
         throw new Error("Google sign-in succeeded, but the session is not ready yet.");
       }
       logAuthStage("session_hydrated", { ok: true, code: "google" });
+      clearOAuthPending();
       track("signin_succeeded", { method: "google" });
       await goToApp({ skipSessionCheck: true });
     } catch (err) {
+      clearOAuthPending();
       logAuthStage("session_hydration_timeout", {
         ok: false,
         code: "google",
@@ -356,6 +468,65 @@ function AuthPage() {
       setResendState("idle");
       toast.error(err instanceof Error ? err.message : "Could not resend. Try again shortly.");
     }
+  }
+
+  // OAuth reconciliation takes precedence over EVERY other render branch:
+  // while a Google return is being reconciled we must never render the login
+  // shell, otherwise the user sees "Sign in" and thinks Google failed.
+  if (oauthReconcile) {
+    if (oauthReconcile.phase === "reconciling") {
+      return (
+        <div
+          className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
+          style={{ background: "var(--gradient-hero)" }}
+        >
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex items-center gap-3 text-sm text-muted-foreground"
+          >
+            <span
+              aria-hidden="true"
+              className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+            />
+            {oauthReconcile.message}
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div
+        className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
+        style={{ background: "var(--gradient-hero)" }}
+      >
+        <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-8 text-center backdrop-blur">
+          <h1 className="font-display text-3xl">{oauthReconcile.title}</h1>
+          <p className="mt-3 text-sm text-muted-foreground">{oauthReconcile.message}</p>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button
+              type="button"
+              onClick={() => {
+                setOauthReconcile(null);
+                void handleGoogle();
+              }}
+            >
+              Retry Google sign-in
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={async () => {
+                setOauthReconcile(null);
+                await handleSessionReset();
+              }}
+              disabled={resettingSession}
+            >
+              {resettingSession ? "Resetting…" : "Reset session and start over"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (auth.ready && auth.error) {
