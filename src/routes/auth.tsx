@@ -935,7 +935,25 @@ function AuthPage() {
               Get your tribe out of the text thread and off to the next adventure.
             </p>
 
-            <div className="mt-6" />
+            <Button
+              onClick={handleGoogle}
+              disabled={loading}
+              variant="outline"
+              className="mt-6 w-full"
+            >
+              <svg viewBox="0 0 24 24" className="size-4">
+                <path
+                  fill="currentColor"
+                  d="M21.35 11.1H12v3.2h5.35c-.5 2.4-2.6 4-5.35 4a5.85 5.85 0 1 1 0-11.7c1.5 0 2.9.55 4 1.55l2.35-2.35A9.15 9.15 0 0 0 12 3.05a9 9 0 1 0 9.35 9.35c0-.45-.05-.85-.1-1.3Z"
+                />
+              </svg>
+              Continue with Google
+            </Button>
+
+            <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="h-px flex-1 bg-border" /> or <div className="h-px flex-1 bg-border" />
+            </div>
+
 
 
             <form onSubmit={handleEmail} className="space-y-3">
