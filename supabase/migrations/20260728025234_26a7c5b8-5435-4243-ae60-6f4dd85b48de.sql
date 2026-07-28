@@ -1,14 +1,9 @@
--- Pending forward-only migration — NOT yet applied to production.
--- Staged here because supabase/migrations/ is managed by the migration tool.
--- Applied to DEV_SUPABASE_DB_URL only for regression testing.
--- Promote via the supabase--migration tool after approval.
-
 CREATE OR REPLACE FUNCTION public.on_cost_insert()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
-AS $$
+AS $fn$
 BEGIN
   PERFORM public.fanout_notification(
     NEW.destination_id,
@@ -22,11 +17,11 @@ BEGIN
   );
   RETURN NEW;
 END;
-$$;
+$fn$;
 
 DROP TRIGGER IF EXISTS trg_on_cost_insert ON public.trip_costs;
 
-DO $$
+DO $blk$
 DECLARE
   n int;
 BEGIN
@@ -50,4 +45,5 @@ BEGIN
   IF n <> 1 THEN
     RAISE EXCEPTION 'expected exactly one on_cost_insert trigger on trip_costs, found %', n;
   END IF;
-END $$;
+END $blk$;
+-- end of migration
