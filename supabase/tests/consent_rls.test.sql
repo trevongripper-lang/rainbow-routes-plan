@@ -226,7 +226,7 @@ BEGIN
       ('trip_itinerary_order',   1, 1, 0),
       ('trip_settlements',       1, 1, 0),
       ('trip_events',            0, 0, 0),  -- no seed row; policy shape only
-      ('trip_ratings',           1, 1, 0),
+      ('trip_ratings',           1, 0, 0),  -- owner-scoped (aggregate via RPC)
       ('votes',                  1, 1, 0),
       ('notifications',          1, 0, 0),  -- owner-scoped
       ('event_reports',          0, 0, 0),  -- no seed row; policy shape only
