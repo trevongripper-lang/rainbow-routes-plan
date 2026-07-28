@@ -107,7 +107,7 @@ INSERT INTO public.trip_stays (destination_id, user_id, title)
 VALUES (:DEST, :P4, 'seed stay');
 
 INSERT INTO public.trip_polls (id, destination_id, user_id, question, kind, allow_multi)
-VALUES (:POLL, :DEST, :P4, 'seed poll', 'single', false);
+VALUES (:POLL, :DEST, :P4, 'seed poll', 'general', false);
 
 INSERT INTO public.trip_poll_options (poll_id, label, sort_order)
 VALUES (:POLL, 'opt a', 0), (:POLL, 'opt b', 1);
