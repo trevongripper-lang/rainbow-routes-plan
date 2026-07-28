@@ -258,6 +258,7 @@ function AuthPage() {
           setOauthReconcile({
             phase: "error",
             title: "Session didn't persist",
+            code: "persist_readback_missing",
             message:
               "We received your Google sign-in but this browser didn't store the session. Try again, or use a normal browser window.",
             intendedOrigin: pending.origin ?? currentOrigin,
