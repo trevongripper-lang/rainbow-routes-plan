@@ -562,12 +562,10 @@ function AuthPage() {
           <div className="mt-6 flex flex-col gap-2">
             <Button
               type="button"
-              onClick={() => {
-                setOauthReconcile(null);
-                void handleGoogle();
-              }}
+              onClick={() => void handleReconcileRetry()}
+              disabled={reconcileRetrying || loading}
             >
-              Retry Google sign-in
+              {reconcileRetrying ? "Retrying…" : "Retry Google sign-in"}
             </Button>
             <Button
               type="button"
