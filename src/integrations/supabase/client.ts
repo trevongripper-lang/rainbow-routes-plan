@@ -30,10 +30,14 @@ function createSupabaseClient() {
       storage: typeof window !== "undefined" ? localStorage : undefined,
       persistSession: true,
       autoRefreshToken: true,
-      // PKCE — see header comment. `detectSessionInUrl` lets the SDK
-      // pick up `?code=…` on `/auth/callback` and complete the exchange.
+      // PKCE — `/auth/callback` is the single owner of the code-for-session
+      // exchange. `detectSessionInUrl` must stay OFF: with it on, the SDK
+      // races the callback route to consume the one-time authorization code
+      // and either the callback fails ("code already used") or a stray
+      // `/auth?code=…` landing silently consumes it and never reaches the
+      // callback owner. See docs/runbooks/google-oauth-callback.md.
       flowType: "pkce",
-      detectSessionInUrl: true,
+      detectSessionInUrl: false,
     },
   });
 }
