@@ -28,6 +28,12 @@ import {
 } from "@/lib/auth-state";
 import { withTimeout } from "@/lib/utils";
 import { canonicalEmailOrigin } from "@/lib/canonical-origin";
+import {
+  clearOAuthPending,
+  isBrowserStorageUsable,
+  markOAuthPending,
+  readOAuthPending,
+} from "@/lib/oauth-return";
 
 type AuthSearch = { redirect?: string };
 
