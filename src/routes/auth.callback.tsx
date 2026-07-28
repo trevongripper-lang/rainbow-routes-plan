@@ -6,6 +6,7 @@ import {
   primeBetaConsent,
   getAccessState,
 } from "@/lib/auth-state";
+import { logAuthStage } from "@/lib/auth-diagnostics";
 
 /**
  * PKCE callback route.
@@ -38,12 +39,14 @@ function AuthCallback() {
     let cancelled = false;
 
     async function run() {
+      logAuthStage("callback_reached");
       const url = new URL(window.location.href);
       const code = url.searchParams.get("code");
       const flowType = url.searchParams.get("type"); // supabase sends 'recovery' etc.
       const errorParam = url.searchParams.get("error_description") ?? url.searchParams.get("error");
 
       if (errorParam) {
+        logAuthStage("callback_error_param", { ok: false, msg: errorParam });
         if (!cancelled) {
           setErrorMessage(decodeURIComponent(errorParam));
           setPhase("error");
@@ -59,6 +62,7 @@ function AuthCallback() {
         if (error) {
           const { data: existing } = await supabase.auth.getSession();
           if (!existing.session) {
+            logAuthStage("code_exchange_failed", { ok: false, msg: error.message });
             if (!cancelled) {
               setErrorMessage(
                 "This confirmation link has expired or was already used. Request a new one from the sign-in screen.",
@@ -67,6 +71,9 @@ function AuthCallback() {
             }
             return;
           }
+          logAuthStage("code_exchange_ok", { ok: true, msg: "existing_session" });
+        } else {
+          logAuthStage("code_exchange_ok", { ok: true });
         }
       }
 
@@ -78,26 +85,33 @@ function AuthCallback() {
       // read the tier for routing.
       await ensureAuthReady();
       const state = getAccessState();
+      logAuthStage("session_hydrated", { ok: true, code: state.tier });
 
       // Prime beta consent so the destination gate has it warm.
       if (state.isConfirmedPermanent) {
         const userId = (await supabase.auth.getSession()).data.session?.user?.id;
         if (userId) void primeBetaConsent(userId);
+        logAuthStage("consent_primed", { ok: true });
       }
 
       if (cancelled) return;
       setPhase("routing");
 
       if (flowType === "recovery") {
+        logAuthStage("final_navigate", { ok: true, code: "/reset-password" });
         void navigate({ to: "/reset-password", replace: true });
         return;
       }
 
       switch (state.tier) {
         case "confirmed_permanent_with_current_consent":
+          logAuthStage("consent_route_current", { ok: true });
+          logAuthStage("final_navigate", { ok: true, code: "/app" });
           void navigate({ to: "/app", replace: true });
           return;
         case "confirmed_permanent_without_consent":
+          logAuthStage("consent_route_missing", { ok: true });
+          logAuthStage("final_navigate", { ok: true, code: "/auth/consent" });
           void navigate({
             to: "/auth/consent",
             search: { next: "/app", reason: "missing" },
@@ -106,10 +120,12 @@ function AuthCallback() {
           return;
         case "exploring_anonymously":
           // Anonymous shouldn't come through the callback; fall through to home.
+          logAuthStage("final_navigate", { ok: true, code: "/" });
           void navigate({ to: "/", replace: true });
           return;
         case "signed_out":
         default:
+          logAuthStage("session_hydration_timeout", { ok: false, code: state.tier });
           if (!cancelled) {
             setErrorMessage(
               "We couldn't complete the sign-in. Please try again from the sign-in screen.",

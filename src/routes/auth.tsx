@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { rlCheckPublic } from "@/lib/rate-limit.functions";
 import { track } from "@/lib/analytics";
+import { beginAuthCorrelation, logAuthStage } from "@/lib/auth-diagnostics";
 import {
   sanitizeRedirectPath,
   stashPendingRedirect,
@@ -148,6 +149,12 @@ function AuthPage() {
     // (blank/stuck screen), especially after Google OAuth return and inside
     // installed PWAs. A hard nav reloads the app cleanly against the fresh
     // session. `redirectTarget` is already a sanitized same-origin path.
+    // Full-page navigation on ALL platforms. The client-side SPA transition
+    // after sign-in races the root onAuthStateChange listener and stalls
+    // (blank/stuck screen), especially after Google OAuth return and inside
+    // installed PWAs. A hard nav reloads the app cleanly against the fresh
+    // session. `redirectTarget` is already a sanitized same-origin path.
+    logAuthStage("final_navigate", { ok: true, code: redirectTarget });
     console.info("[auth] goToApp: window.location.assign", { redirectTarget });
     window.location.assign(redirectTarget);
   }, [clearRedirectTimeout, redirectTarget, router, startRedirectRecoveryTimer]);
@@ -253,6 +260,8 @@ function AuthPage() {
 
   async function handleGoogle() {
     setLoading(true);
+    const cid = beginAuthCorrelation();
+    logAuthStage("oauth_start", { code: "google" });
     try {
       track("google_signin_started");
       // Stash the intended redirect so we can honor it after the full-page
@@ -264,25 +273,41 @@ function AuthPage() {
         redirect_uri: window.location.origin + "/auth",
       });
       if (result.error) {
+        logAuthStage("oauth_start", { ok: false, code: "google", msg: result.error.message });
         track("google_signin_failed", {
           message: result.error.message?.slice(0, 140) ?? "unknown",
         });
         toast.error(result.error.message ?? "Google sign-in failed");
         return;
       }
-      if (result.redirected) return; // browser is navigating away
+      if (result.redirected) {
+        logAuthStage("oauth_redirect_initiated", { ok: true, code: "google" });
+        return; // browser is navigating away
+      }
+      logAuthStage("oauth_inline_tokens_received", { ok: true, code: "google" });
       // Session is set inline (preview iframe / web_message flow); confirm it and go now.
       const confirmed = await refreshAuthState();
-      if (!confirmed.session) throw new Error("Google sign-in succeeded, but the session is not ready yet.");
+      if (!confirmed.session) {
+        logAuthStage("session_hydration_timeout", { ok: false, code: "google" });
+        throw new Error("Google sign-in succeeded, but the session is not ready yet.");
+      }
+      logAuthStage("session_hydrated", { ok: true, code: "google" });
       track("signin_succeeded", { method: "google" });
       await goToApp({ skipSessionCheck: true });
     } catch (err) {
+      logAuthStage("session_hydration_timeout", {
+        ok: false,
+        code: "google",
+        msg: err instanceof Error ? err.message : String(err),
+      });
       track("google_signin_failed", {
         message: err instanceof Error ? err.message.slice(0, 140) : "unknown",
       });
       toast.error(err instanceof Error ? err.message : "Google sign-in failed");
     } finally {
       setLoading(false);
+      // Reference cid so future stages inherit it via sessionStorage.
+      void cid;
     }
   }
 
