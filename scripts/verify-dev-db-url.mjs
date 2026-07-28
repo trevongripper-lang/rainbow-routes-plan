@@ -7,7 +7,7 @@
 // Never prints the password or the full URL.
 
 const url = process.env.DEV_SUPABASE_DB_URL;
-const expected = process.env.EXPECTED_REF || "wuxpfelvcijjbuijxkofb";
+const expected = process.env.EXPECTED_REF || "wuxpfelvcijjbujxkofb";
 const forbidden = process.env.FORBIDDEN_REF || "oohyehpikrweipgdxpxd";
 
 function fail(msg) {
