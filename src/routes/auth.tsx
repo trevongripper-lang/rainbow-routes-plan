@@ -195,7 +195,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            emailRedirectTo: canonicalEmailOrigin(),
+            emailRedirectTo: canonicalEmailOrigin() + "/auth/callback",
             data: { full_name: name || email.split("@")[0] },
           },
         });
@@ -322,7 +322,7 @@ function AuthPage() {
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: confirmSent,
-        options: { emailRedirectTo: canonicalEmailOrigin() },
+        options: { emailRedirectTo: canonicalEmailOrigin() + "/auth/callback" },
       });
       if (error) throw error;
       setResendState("sent");
