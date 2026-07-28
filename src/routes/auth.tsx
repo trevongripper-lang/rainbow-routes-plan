@@ -177,6 +177,28 @@ function AuthPage() {
   useEffect(() => () => clearRedirectTimeout(), [clearRedirectTimeout]);
 
 
+  // Callback-parameter forwarding. Some Google returns (misconfigured
+  // upstream redirects, browser back-nav after Google, PWAs that intercept
+  // the callback path) land on `/auth?code=…` or `/auth?error=…` instead of
+  // `/auth/callback?…`. `/auth/callback` is the SINGLE owner of the PKCE
+  // exchange — forward the full query there before any polling / login-shell
+  // render so the code is exchanged exactly once. Fixes the
+  // `oauth_return_poll_timeout` seen when polling replaced the exchange.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.pathname !== "/auth" && url.pathname !== "/auth/") return;
+    const hasCallbackParam =
+      url.searchParams.has("code") ||
+      url.searchParams.has("error") ||
+      url.searchParams.has("error_description");
+    if (!hasCallbackParam) return;
+    logAuthStage("callback_reached", { ok: true, code: "forwarded_from_auth" });
+    // Preserve every param; `/auth/callback` reads `code`, `error`,
+    // `error_description`, and `type` (for password recovery).
+    window.location.replace(`/auth/callback${url.search}`);
+  }, []);
+
   // If a session already exists (e.g. user returned from OAuth redirect, or
   // signed in in another tab), bounce off /auth. Re-confirm with Supabase
   // before navigating so a just-cleared sign-out (whose in-memory snapshot
