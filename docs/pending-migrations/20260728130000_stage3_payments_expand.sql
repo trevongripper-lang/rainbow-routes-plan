@@ -272,6 +272,24 @@ REVOKE ALL ON FUNCTION public.process_paddle_unlock_event(text,text,jsonb,uuid,i
 REVOKE ALL ON FUNCTION public.process_paddle_unlock_event(text,text,jsonb,uuid,int) FROM anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.process_paddle_unlock_event(text,text,jsonb,uuid,int) TO service_role;
 
--- ---- Drop obsolete generic RPC --------------------------------------------
-DROP FUNCTION IF EXISTS public.unlock_destination(uuid, boolean, integer);
--- end of migration
+-- ---- Legacy compatibility RPC: least-privilege lockdown -------------------
+-- Retain the old signature so any un-redeployed server code can still call it
+-- (as service_role via supabaseAdmin) while the rollout completes. All broad
+-- grants are revoked. The CONTRACT migration drops the function outright.
+DO $legacy$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = 'unlock_destination'
+      AND pg_get_function_identity_arguments(p.oid) = '_dest uuid, _use_credit boolean, _paid_cents integer'
+  ) THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION public.unlock_destination(uuid, boolean, integer) FROM PUBLIC';
+    EXECUTE 'REVOKE ALL ON FUNCTION public.unlock_destination(uuid, boolean, integer) FROM anon, authenticated';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.unlock_destination(uuid, boolean, integer) TO service_role';
+  END IF;
+END
+$legacy$;
+-- end of expand migration
+
