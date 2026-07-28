@@ -402,9 +402,11 @@ function AuthPage() {
         throw new Error("Google sign-in succeeded, but the session is not ready yet.");
       }
       logAuthStage("session_hydrated", { ok: true, code: "google" });
+      clearOAuthPending();
       track("signin_succeeded", { method: "google" });
       await goToApp({ skipSessionCheck: true });
     } catch (err) {
+      clearOAuthPending();
       logAuthStage("session_hydration_timeout", {
         ok: false,
         code: "google",
