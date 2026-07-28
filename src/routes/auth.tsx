@@ -386,11 +386,13 @@ function AuthPage() {
     const browserMode = detectBrowserMode();
     logAuthStage("oauth_start", {
       code: "google",
-      msg: `origin=${originCategory} mode=${browserMode}`,
+      msg: `origin=${originCategory} mode=${browserMode} flow=pkce_fullpage`,
     });
     try {
-      // Pre-flight 1: browser storage must be writable BEFORE we hand off to
-      // Google, otherwise setSession() on return has nothing to persist to.
+      // Pre-flight 1: browser storage must be writable — Supabase writes the
+      // PKCE verifier to localStorage BEFORE the redirect, then reads it back
+      // on the /auth/callback return to complete the exchange. Without it the
+      // exchange fails silently with "invalid request".
       if (!isBrowserStorageUsable()) {
         logAuthStage("oauth_start", {
           ok: false,
@@ -404,12 +406,13 @@ function AuthPage() {
           message:
             "This browser is blocking site storage, so we can't sign you in. Try a normal browser window (not private mode) or another browser.",
         });
+        setLoading(false);
         return;
       }
 
-      // Pre-flight 2: OAuth must start and finish on the SAME origin, or
-      // Supabase's session (written to the return-origin's localStorage) is
-      // invisible when we later poll. Canonicalize www→apex before starting.
+      // Pre-flight 2: PKCE verifier is written to THIS origin's localStorage.
+      // If we start on www but Google returns to apex (or vice versa), the
+      // verifier is invisible and the exchange fails. Force apex before start.
       if (needsOAuthOriginCanonicalization()) {
         const target =
           canonicalOAuthOrigin() +
@@ -427,43 +430,62 @@ function AuthPage() {
 
       track("google_signin_started");
       stashPendingRedirect(redirectTarget);
-      // Mark OAuth as pending BEFORE navigation so the return path (or a
-      // full-page reload) can recognise it and enter reconciliation instead
-      // of rendering the login shell.
+      // Mark OAuth as pending so a return to /auth (instead of /auth/callback,
+      // e.g. user hits back) can enter reconciliation instead of rendering the
+      // signed-out login shell.
       markOAuthPending("google", cid);
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + "/auth",
+
+      // Canonical full-page PKCE authorization-code flow. Supabase generates
+      // the verifier, stores it in localStorage on THIS origin, and redirects
+      // to Google. Google returns to /auth/callback?code=… which exchanges
+      // once via supabase.auth.exchangeCodeForSession(code).
+      //
+      // We do NOT use the lovable.auth web-message broker for Google: its
+      // inline token handoff has proven unreliable on Safari / installed PWAs
+      // (see oauth_return_poll_timeout reports).
+      const redirectTo = window.location.origin + "/auth/callback";
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          queryParams: { prompt: "select_account" },
+          // We drive the redirect ourselves so we can log the stage transition
+          // and short-circuit cleanly if Supabase returned an error instead.
+          skipBrowserRedirect: true,
+        },
       });
-      if (result.error) {
-        const persistenceFailure = "sessionPersistenceFailed" in result && result.sessionPersistenceFailed;
-        const rawCode =
-          "sessionErrorCode" in result && typeof result.sessionErrorCode === "string"
-            ? result.sessionErrorCode
-            : "oauth_provider_failed";
-        const publicCode = toPublicOAuthErrorCode(rawCode);
+
+      if (error || !data?.url) {
+        const publicCode = toPublicOAuthErrorCode(
+          error ? "oauth_provider_failed" : "oauth_token_delivery_missing",
+        );
         logAuthStage("oauth_start", {
           ok: false,
           code: publicCode,
           durationMs: Date.now() - startedAt,
         });
         track("google_signin_failed", { message: publicCode });
-        if (persistenceFailure) {
-          setOauthReconcile({
-            phase: "error",
-            title: "Google sign-in didn't complete",
-            code: publicCode,
-            message:
-              publicCode === "oauth_set_session_failed"
-                ? "Google approved the sign-in, but the session handoff failed on this browser. Retry to try again."
-                : "Google approved the sign-in, but this browser couldn't confirm the saved session. Retry to check again or restart Google sign-in.",
-            intendedOrigin: window.location.origin,
-          });
-        } else {
-          clearOAuthPending();
-          toast.error("Google sign-in failed. Please try again.");
-        }
+        clearOAuthPending();
+        setOauthReconcile({
+          phase: "error",
+          title: "Couldn't start Google sign-in",
+          code: publicCode,
+          message: "We couldn't start the Google sign-in flow. Please try again.",
+          intendedOrigin: window.location.origin,
+        });
+        setLoading(false);
         return;
       }
+
+      logAuthStage("oauth_redirect_initiated", {
+        ok: true,
+        code: "google",
+        durationMs: Date.now() - startedAt,
+      });
+      // Full-page navigation — pending marker + PKCE verifier survive.
+      window.location.assign(data.url);
+      return;
+
       if (result.redirected) {
         logAuthStage("oauth_redirect_initiated", {
           ok: true,
