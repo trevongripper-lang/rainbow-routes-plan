@@ -342,7 +342,7 @@ BEGIN
   RAISE NOTICE 'PASS §10 paid unlock does not consume credit';
 END $t10$;
 
-RAISE_ALL_OK: DO $ok$ BEGIN RAISE NOTICE 'Stage 3 suite: ALL PASS'; END $ok$;
+DO $ok$ BEGIN RAISE NOTICE 'Stage 3 suite: ALL PASS'; END $ok$;
 
 ROLLBACK;
 -- end of test
