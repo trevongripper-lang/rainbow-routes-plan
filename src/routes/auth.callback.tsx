@@ -6,6 +6,7 @@ import {
   primeBetaConsent,
   getAccessState,
 } from "@/lib/auth-state";
+import { logAuthStage } from "@/lib/auth-diagnostics";
 
 /**
  * PKCE callback route.
