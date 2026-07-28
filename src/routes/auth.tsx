@@ -149,6 +149,12 @@ function AuthPage() {
     // (blank/stuck screen), especially after Google OAuth return and inside
     // installed PWAs. A hard nav reloads the app cleanly against the fresh
     // session. `redirectTarget` is already a sanitized same-origin path.
+    // Full-page navigation on ALL platforms. The client-side SPA transition
+    // after sign-in races the root onAuthStateChange listener and stalls
+    // (blank/stuck screen), especially after Google OAuth return and inside
+    // installed PWAs. A hard nav reloads the app cleanly against the fresh
+    // session. `redirectTarget` is already a sanitized same-origin path.
+    logAuthStage("final_navigate", { ok: true, path: redirectTarget });
     console.info("[auth] goToApp: window.location.assign", { redirectTarget });
     window.location.assign(redirectTarget);
   }, [clearRedirectTimeout, redirectTarget, router, startRedirectRecoveryTimer]);
