@@ -437,6 +437,59 @@ function AuthPage() {
     }
   }
 
+  // Retry from the OAuth reconciliation error screen:
+  //   1. Clear any lingering pending marker.
+  //   2. Re-check session read-back — if Supabase has since hydrated the
+  //      session (slow storage write, late token), navigate to /app.
+  //   3. Otherwise restart Google sign-in on the canonical origin the user
+  //      originally started on (prevents apex↔www mismatch loops).
+  async function handleReconcileRetry() {
+    if (reconcileRetrying) return;
+    setReconcileRetrying(true);
+    try {
+      const intendedOrigin =
+        oauthReconcile && oauthReconcile.phase === "error"
+          ? oauthReconcile.intendedOrigin
+          : undefined;
+      clearOAuthPending();
+      logAuthStage("oauth_start", { code: "google", msg: "retry_from_reconcile" });
+
+      // Read-back: if a session did land after the error was shown, use it.
+      const first = await supabase.auth.getSession();
+      if (first.data.session) {
+        const verify = await supabase.auth.getSession();
+        if (verify.data.session) {
+          logAuthStage("session_hydrated", { ok: true, code: "retry_readback" });
+          setAuthSession(verify.data.session);
+          setOauthReconcile(null);
+          await goToApp({ skipSessionCheck: true });
+          return;
+        }
+      }
+
+      // If the previous attempt started on a different origin, bounce there
+      // so OAuth begins and returns on the same canonical origin.
+      if (
+        intendedOrigin &&
+        typeof window !== "undefined" &&
+        intendedOrigin !== window.location.origin
+      ) {
+        const target =
+          intendedOrigin.replace(/\/$/, "") +
+          "/auth" +
+          (search.redirect ? `?redirect=${encodeURIComponent(search.redirect)}` : "");
+        window.location.assign(target);
+        return;
+      }
+
+      setOauthReconcile(null);
+      await handleGoogle();
+    } finally {
+      setReconcileRetrying(false);
+    }
+  }
+
+
   async function handleSessionReset() {
     setResettingSession(true);
     try {
