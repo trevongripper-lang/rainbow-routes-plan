@@ -82,9 +82,10 @@ function AuthPage() {
   const [redirectPhase, setRedirectPhase] = useState<"idle" | "confirming" | "navigating">("idle");
   const [oauthReconcile, setOauthReconcile] = useState<
     | { phase: "reconciling"; message: string }
-    | { phase: "error"; title: string; message: string }
+    | { phase: "error"; title: string; message: string; intendedOrigin?: string }
     | null
   >(null);
+  const [reconcileRetrying, setReconcileRetrying] = useState(false);
   const redirectingRef = useRef(false);
   const redirectTimeoutRef = useRef<number | null>(null);
 
@@ -227,7 +228,8 @@ function AuthPage() {
         phase: "error",
         title: "Sign-in returned to a different address",
         message:
-          "Google sent you back to a different address than the one you started on. Reset and sign in again from the same address.",
+          "Google sent you back to a different address than the one you started on. Retry to continue on the original address.",
+        intendedOrigin: pending.origin,
       });
       return;
     }
@@ -256,6 +258,7 @@ function AuthPage() {
             title: "Session didn't persist",
             message:
               "We received your Google sign-in but this browser didn't store the session. Try again, or use a normal browser window.",
+            intendedOrigin: pending.origin ?? currentOrigin,
           });
           return;
         }
@@ -274,6 +277,7 @@ function AuthPage() {
           title: "Google sign-in didn't complete",
           message:
             "We couldn't confirm your session after returning from Google. Try again, or reset the session and start over.",
+          intendedOrigin: pending.origin ?? currentOrigin,
         });
         return;
       }
@@ -433,6 +437,59 @@ function AuthPage() {
     }
   }
 
+  // Retry from the OAuth reconciliation error screen:
+  //   1. Clear any lingering pending marker.
+  //   2. Re-check session read-back — if Supabase has since hydrated the
+  //      session (slow storage write, late token), navigate to /app.
+  //   3. Otherwise restart Google sign-in on the canonical origin the user
+  //      originally started on (prevents apex↔www mismatch loops).
+  async function handleReconcileRetry() {
+    if (reconcileRetrying) return;
+    setReconcileRetrying(true);
+    try {
+      const intendedOrigin =
+        oauthReconcile && oauthReconcile.phase === "error"
+          ? oauthReconcile.intendedOrigin
+          : undefined;
+      clearOAuthPending();
+      logAuthStage("oauth_start", { code: "google", msg: "retry_from_reconcile" });
+
+      // Read-back: if a session did land after the error was shown, use it.
+      const first = await supabase.auth.getSession();
+      if (first.data.session) {
+        const verify = await supabase.auth.getSession();
+        if (verify.data.session) {
+          logAuthStage("session_hydrated", { ok: true, code: "retry_readback" });
+          setAuthSession(verify.data.session);
+          setOauthReconcile(null);
+          await goToApp({ skipSessionCheck: true });
+          return;
+        }
+      }
+
+      // If the previous attempt started on a different origin, bounce there
+      // so OAuth begins and returns on the same canonical origin.
+      if (
+        intendedOrigin &&
+        typeof window !== "undefined" &&
+        intendedOrigin !== window.location.origin
+      ) {
+        const target =
+          intendedOrigin.replace(/\/$/, "") +
+          "/auth" +
+          (search.redirect ? `?redirect=${encodeURIComponent(search.redirect)}` : "");
+        window.location.assign(target);
+        return;
+      }
+
+      setOauthReconcile(null);
+      await handleGoogle();
+    } finally {
+      setReconcileRetrying(false);
+    }
+  }
+
+
   async function handleSessionReset() {
     setResettingSession(true);
     try {
@@ -505,12 +562,10 @@ function AuthPage() {
           <div className="mt-6 flex flex-col gap-2">
             <Button
               type="button"
-              onClick={() => {
-                setOauthReconcile(null);
-                void handleGoogle();
-              }}
+              onClick={() => void handleReconcileRetry()}
+              disabled={reconcileRetrying || loading}
             >
-              Retry Google sign-in
+              {reconcileRetrying ? "Retrying…" : "Retry Google sign-in"}
             </Button>
             <Button
               type="button"
