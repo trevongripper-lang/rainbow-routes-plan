@@ -322,7 +322,7 @@ function AuthPage() {
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: confirmSent,
-        options: { emailRedirectTo: canonicalEmailOrigin() },
+        options: { emailRedirectTo: canonicalEmailOrigin() + "/auth/callback" },
       });
       if (error) throw error;
       setResendState("sent");
