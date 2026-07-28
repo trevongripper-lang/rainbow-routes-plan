@@ -190,6 +190,104 @@ function AuthPage() {
     };
   }, [auth.ready, auth.session, goToApp]);
 
+  // OAuth-return reconciliation. If a pending marker exists from a prior
+  // `signInWithOAuth` call, we're mid-return: DO NOT render the login shell.
+  // Poll for a real session (bounded), verify persistence via read-back,
+  // then hard-navigate. On failure, surface a recoverable error UI.
+  useEffect(() => {
+    const pending = readOAuthPending();
+    if (!pending) return;
+    let cancelled = false;
+
+    // Storage availability check — the top failure mode on iOS in-app
+    // browsers / private mode: setSession has nothing to persist to.
+    if (!isBrowserStorageUsable()) {
+      logAuthStage("session_hydration_timeout", { ok: false, code: "storage_unavailable" });
+      clearOAuthPending();
+      setOauthReconcile({
+        phase: "error",
+        title: "Browser storage is blocked",
+        message:
+          "This browser is blocking site storage, so we can't finish signing you in. Try a normal browser window (not private mode) or another browser.",
+      });
+      return;
+    }
+
+    // Origin mismatch — started on www but landed on apex (or vice versa)
+    // will fail because the session was written to a different origin's storage.
+    const currentOrigin = window.location.origin;
+    if (pending.origin && pending.origin !== currentOrigin) {
+      logAuthStage("session_hydration_timeout", {
+        ok: false,
+        code: "origin_mismatch",
+        msg: `${pending.originCategory}→${currentOrigin.replace(/^https?:\/\//, "")}`,
+      });
+      clearOAuthPending();
+      setOauthReconcile({
+        phase: "error",
+        title: "Sign-in returned to a different address",
+        message:
+          "Google sent you back to a different address than the one you started on. Reset and sign in again from the same address.",
+      });
+      return;
+    }
+
+    logAuthStage("oauth_return_detected", { ok: true, code: pending.mode } as never);
+    setOauthReconcile({ phase: "reconciling", message: "Finishing Google sign-in…" });
+
+    let attempts = 0;
+    const MAX_ATTEMPTS = 16; // ~8s at 500ms
+    const poll = async () => {
+      if (cancelled) return;
+      attempts += 1;
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (data.session) {
+        // Read-back to prove the session actually persisted to storage before
+        // we do a full-page navigation.
+        const verify = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (!verify.data.session) {
+          // Persistence did not stick — treat as failure.
+          logAuthStage("session_hydration_timeout", { ok: false, code: "persist_readback_missing" });
+          clearOAuthPending();
+          setOauthReconcile({
+            phase: "error",
+            title: "Session didn't persist",
+            message:
+              "We received your Google sign-in but this browser didn't store the session. Try again, or use a normal browser window.",
+          });
+          return;
+        }
+        logAuthStage("session_hydrated", { ok: true, code: "oauth_return" });
+        clearOAuthPending();
+        setAuthSession(verify.data.session);
+        setOauthReconcile(null);
+        void goToApp({ skipSessionCheck: true });
+        return;
+      }
+      if (attempts >= MAX_ATTEMPTS) {
+        logAuthStage("session_hydration_timeout", { ok: false, code: "oauth_return_poll" });
+        clearOAuthPending();
+        setOauthReconcile({
+          phase: "error",
+          title: "Google sign-in didn't complete",
+          message:
+            "We couldn't confirm your session after returning from Google. Try again, or reset the session and start over.",
+        });
+        return;
+      }
+      window.setTimeout(() => void poll(), 500);
+    };
+    void poll();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [goToApp]);
+
+
+
   async function guard(scope: "login" | "reset" | "signup", emailVal: string): Promise<boolean> {
     const r = await rlCheck({ data: { scope, email: emailVal } });
     if (!r.allowed) {
