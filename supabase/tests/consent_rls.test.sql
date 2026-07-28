@@ -308,6 +308,63 @@ BEGIN
 END $$;
 
 -- =============================================================================
+-- § B'. Notification-specific assertions.
+-- Confirms the welcome-row expectation modeled above is scoped correctly:
+-- every visible notification is self-owned, P6 sees exactly one welcome row
+-- with destination_id NULL, and cannot see any row owned by P4/P5 or linked
+-- to the seeded destination.
+-- =============================================================================
+DO $$
+DECLARE
+  cnt int;
+  bad int;
+  vis_kind text;
+  vis_dest uuid;
+BEGIN
+  -- P6 outsider, current consent
+  SET LOCAL "request.jwt.claims" = '{"sub":"6aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}';
+  SET LOCAL ROLE authenticated;
+
+  -- Every visible row is self-owned
+  SELECT count(*) INTO bad
+  FROM public.notifications
+  WHERE user_id <> auth.uid();
+  IF bad <> 0 THEN
+    RAISE EXCEPTION 'FAIL B''/P6 notifications: % non-self-owned rows visible', bad;
+  END IF;
+
+  -- Exactly one row visible
+  SELECT count(*) INTO cnt FROM public.notifications;
+  IF cnt <> 1 THEN
+    RAISE EXCEPTION 'FAIL B''/P6 notifications: expected exactly 1 visible row, saw %', cnt;
+  END IF;
+
+  -- Row is welcome + destination_id NULL
+  SELECT kind, destination_id INTO vis_kind, vis_dest FROM public.notifications;
+  IF vis_kind <> 'welcome' THEN
+    RAISE EXCEPTION 'FAIL B''/P6 notifications: expected kind=welcome, saw %', vis_kind;
+  END IF;
+  IF vis_dest IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL B''/P6 notifications: expected destination_id NULL, saw %', vis_dest;
+  END IF;
+
+  -- Cannot see any row owned by P4/P5 or linked to the seeded destination
+  SELECT count(*) INTO bad
+  FROM public.notifications
+  WHERE user_id IN (
+    '4aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid,
+    '5aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
+  ) OR destination_id = '99999999-9999-9999-9999-999999999911'::uuid;
+  IF bad <> 0 THEN
+    RAISE EXCEPTION 'FAIL B''/P6 notifications: leaked % rows owned by P4/P5 or seeded destination', bad;
+  END IF;
+
+  RESET ROLE;
+END $$;
+
+
+
+-- =============================================================================
 -- § C. INSERT denial on representative writeable tables under P1/P2/P3.
 -- =============================================================================
 DO $$
