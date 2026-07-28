@@ -157,10 +157,9 @@ function AuthCallback() {
 
       switch (state.tier) {
         case "confirmed_permanent_with_current_consent": {
-          const dest = safePending ?? "/app";
           logAuthStage("consent_route_current", { ok: true });
-          logAuthStage("final_navigate", { ok: true, code: dest });
-          void navigate({ to: dest, replace: true });
+          logAuthStage("final_navigate", { ok: true, code: safePending });
+          void navigate({ to: safePending, replace: true });
           return;
         }
         case "confirmed_permanent_without_consent":
@@ -168,10 +167,11 @@ function AuthCallback() {
           logAuthStage("final_navigate", { ok: true, code: "/auth/consent" });
           void navigate({
             to: "/auth/consent",
-            search: { next: safePending ?? "/app", reason: "missing" },
+            search: { next: safePending, reason: "missing" },
             replace: true,
           });
           return;
+
         case "exploring_anonymously":
           logAuthStage("final_navigate", { ok: true, code: "/" });
           void navigate({ to: "/", replace: true });
