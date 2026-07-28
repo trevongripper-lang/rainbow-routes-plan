@@ -470,6 +470,65 @@ function AuthPage() {
     }
   }
 
+  // OAuth reconciliation takes precedence over EVERY other render branch:
+  // while a Google return is being reconciled we must never render the login
+  // shell, otherwise the user sees "Sign in" and thinks Google failed.
+  if (oauthReconcile) {
+    if (oauthReconcile.phase === "reconciling") {
+      return (
+        <div
+          className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
+          style={{ background: "var(--gradient-hero)" }}
+        >
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex items-center gap-3 text-sm text-muted-foreground"
+          >
+            <span
+              aria-hidden="true"
+              className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+            />
+            {oauthReconcile.message}
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div
+        className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
+        style={{ background: "var(--gradient-hero)" }}
+      >
+        <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-8 text-center backdrop-blur">
+          <h1 className="font-display text-3xl">{oauthReconcile.title}</h1>
+          <p className="mt-3 text-sm text-muted-foreground">{oauthReconcile.message}</p>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button
+              type="button"
+              onClick={() => {
+                setOauthReconcile(null);
+                void handleGoogle();
+              }}
+            >
+              Retry Google sign-in
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={async () => {
+                setOauthReconcile(null);
+                await handleSessionReset();
+              }}
+              disabled={resettingSession}
+            >
+              {resettingSession ? "Resetting…" : "Reset session and start over"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (auth.ready && auth.error) {
     return (
       <div
