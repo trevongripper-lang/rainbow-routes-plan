@@ -231,7 +231,7 @@ function AuthPage() {
       setOauthReconcile({
         phase: "error",
         title: "Sign-in returned to a different address",
-        code: "origin_mismatch",
+        code: "oauth_origin_mismatch",
         message:
           "Google sent you back to a different address than the one you started on. Retry to continue on the original address.",
         intendedOrigin: pending.origin,
