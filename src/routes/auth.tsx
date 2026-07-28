@@ -574,15 +574,53 @@ function AuthPage() {
       <div
         className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
         style={{ background: "var(--gradient-hero)" }}
+        role="alertdialog"
+        aria-labelledby="google-recovery-title"
+        aria-describedby="google-recovery-message"
       >
         <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-8 text-center backdrop-blur">
-          <h1 className="font-display text-3xl">{oauthReconcile.title}</h1>
-          <p className="mt-3 text-sm text-muted-foreground">{oauthReconcile.message}</p>
+          <div
+            aria-hidden
+            className="mx-auto grid size-12 place-items-center rounded-full bg-destructive/15 text-destructive"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="size-6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 9v4" />
+              <path d="M12 17h.01" />
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+            </svg>
+          </div>
+          <h1 id="google-recovery-title" className="mt-4 font-display text-3xl">
+            {oauthReconcile.title}
+          </h1>
+          <p id="google-recovery-message" className="mt-3 text-sm text-muted-foreground">
+            {oauthReconcile.message}
+          </p>
+          <div
+            className="mt-4 inline-flex flex-col items-center gap-1 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+            aria-label="Diagnostic details"
+          >
+            <span>
+              Error code:{" "}
+              <code className="font-mono text-foreground">{oauthReconcile.code}</code>
+            </span>
+            <span className="text-[10px] opacity-70">
+              Share this code with support if the problem continues.
+            </span>
+          </div>
           <div className="mt-6 flex flex-col gap-2">
             <Button
               type="button"
               onClick={() => void handleReconcileRetry()}
               disabled={reconcileRetrying || loading}
+              autoFocus
             >
               {reconcileRetrying ? "Retrying…" : "Retry Google sign-in"}
             </Button>
