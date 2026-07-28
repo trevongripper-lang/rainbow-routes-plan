@@ -373,15 +373,16 @@ function AuthPage() {
     logAuthStage("oauth_start", { code: "google" });
     try {
       track("google_signin_started");
-      // Stash the intended redirect so we can honor it after the full-page
-      // OAuth round-trip returns to /auth (or the origin) with a fresh
-      // session. `redirect_uri` MUST stay a public same-origin URL, never a
-      // protected route.
       stashPendingRedirect(redirectTarget);
+      // Mark OAuth as pending BEFORE navigation so the return path (or a
+      // full-page reload) can recognise it and enter reconciliation instead
+      // of rendering the login shell.
+      markOAuthPending("google", cid);
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin + "/auth",
       });
       if (result.error) {
+        clearOAuthPending();
         logAuthStage("oauth_start", { ok: false, code: "google", msg: result.error.message });
         track("google_signin_failed", {
           message: result.error.message?.slice(0, 140) ?? "unknown",
@@ -391,7 +392,7 @@ function AuthPage() {
       }
       if (result.redirected) {
         logAuthStage("oauth_redirect_initiated", { ok: true, code: "google" });
-        return; // browser is navigating away
+        return; // browser is navigating away; pending marker survives the redirect
       }
       logAuthStage("oauth_inline_tokens_received", { ok: true, code: "google" });
       // Session is set inline (preview iframe / web_message flow); confirm it and go now.
