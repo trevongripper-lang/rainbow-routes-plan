@@ -208,6 +208,7 @@ function AuthPage() {
       setOauthReconcile({
         phase: "error",
         title: "Browser storage is blocked",
+        code: "storage_unavailable",
         message:
           "This browser is blocking site storage, so we can't finish signing you in. Try a normal browser window (not private mode) or another browser.",
       });
