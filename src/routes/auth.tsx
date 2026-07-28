@@ -543,6 +543,10 @@ function AuthPage() {
         oauthReconcile && oauthReconcile.phase === "error"
           ? oauthReconcile.intendedOrigin
           : undefined;
+      // Fresh correlation for the retry attempt so its stage trace is
+      // distinguishable from the failed one in support logs.
+      const retryCid = beginAuthCorrelation();
+      void retryCid;
       clearOAuthPending();
       logAuthStage("oauth_start", { code: "google", msg: "retry_from_reconcile" });
 
@@ -582,11 +586,31 @@ function AuthPage() {
   }
 
 
+  // Session reset (from OAuth recovery or session recovery screen):
+  //   - Clears Supabase auth session + Tribe auth store.
+  //   - Clears OAuth pending marker so a new flow starts clean.
+  //   - Cancels in-flight queries but does NOT clear query cache for
+  //     unrelated public data (destinations list, homepage content, etc.).
   async function handleSessionReset() {
     setResettingSession(true);
     try {
+      clearOAuthPending();
       await queryClient.cancelQueries();
-      queryClient.clear();
+      // Remove only auth/user-scoped queries. Public/unrelated caches stay.
+      queryClient.removeQueries({
+        predicate: (q) => {
+          const key = Array.isArray(q.queryKey) ? q.queryKey : [q.queryKey];
+          const head = typeof key[0] === "string" ? key[0] : "";
+          return (
+            head === "auth" ||
+            head === "user" ||
+            head === "me" ||
+            head === "profile" ||
+            head === "session" ||
+            head === "beta-consent"
+          );
+        },
+      });
       resetAuthState();
       await supabase.auth.signOut();
       clearAuthSession();
