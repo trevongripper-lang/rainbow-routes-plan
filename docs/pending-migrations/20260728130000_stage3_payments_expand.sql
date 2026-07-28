@@ -1,17 +1,21 @@
--- Stage 3 — Payments split + Paddle idempotency hardening.
--- Applied to DEV_SUPABASE_DB_URL only. Promote to production via
--- supabase--migration after checkpoint approval.
+-- Stage 3 EXPAND — Payments split + Paddle idempotency hardening (additive).
+-- Zero-downtime rollout: this migration ADDS new RPCs and state alongside the
+-- existing public.unlock_destination(uuid,boolean,int) compatibility RPC.
+-- The obsolete signature is retained until the CONTRACT migration
+-- (20260728140000_stage3_payments_contract.sql), which runs only after all
+-- application callers have been redeployed onto the new RPCs.
 --
--- Changes:
+-- Changes (additive only):
 --  1. Adds status/attempts/last_attempt_at columns to paddle_events.
---  2. Splits public.unlock_destination into two purpose-specific RPCs:
---       - unlock_destination_paid(_dest,_paid_cents,_paddle_event_id) service_role only
---       - unlock_destination_with_credit(_dest)                       authenticated only
+--  2. Adds unlock_destination_paid(_dest,_paid_cents,_paddle_event_id) — service_role only.
+--  3. Adds unlock_destination_with_credit(_dest)                       — authenticated only.
 --     Both enforce public.payments_enabled().
---  3. Adds process_paddle_unlock_event(...) RPC that owns the atomic
---     event claim + destination lock + paid unlock + success mark in a
---     single transaction, guarded by a per-event pg_try_advisory_xact_lock.
---  4. Drops the obsolete generic public.unlock_destination(uuid,boolean,int).
+--  4. Adds process_paddle_unlock_event(...) atomic Paddle processor.
+--  5. Locks down legacy public.unlock_destination(uuid,boolean,int): revokes
+--     from PUBLIC/anon/authenticated, grants EXECUTE only to service_role so
+--     in-flight admin paths keep working during the rolling deploy. The
+--     function itself is NOT dropped here.
+
 
 -- ---- paddle_events state machine columns -----------------------------------
 ALTER TABLE public.paddle_events
