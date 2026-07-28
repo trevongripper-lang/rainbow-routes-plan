@@ -150,9 +150,10 @@ function AuthCallback() {
 
       // Consume any pending same-origin destination the caller stashed
       // before starting OAuth (e.g. /join/$token). sanitizeRedirectPath
-      // enforces same-origin + relative; anything else falls back to null.
+      // enforces same-origin + relative; anything unsafe falls back to /app.
       const pending = consumePendingRedirect();
-      const safePending = pending ? sanitizeRedirectPath(pending, { fallback: null }) : null;
+      const safePending = pending ? sanitizeRedirectPath(pending, { fallback: "/app" }) : "/app";
+
 
       switch (state.tier) {
         case "confirmed_permanent_with_current_consent": {
