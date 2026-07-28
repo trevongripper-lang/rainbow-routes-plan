@@ -517,28 +517,37 @@ export type Database = {
       }
       paddle_events: {
         Row: {
+          attempts: number
           error: string | null
           event_id: string
           event_type: string
+          last_attempt_at: string | null
           payload: Json
           processed_at: string
           result: string | null
+          status: string
         }
         Insert: {
+          attempts?: number
           error?: string | null
           event_id: string
           event_type: string
+          last_attempt_at?: string | null
           payload: Json
           processed_at?: string
           result?: string | null
+          status?: string
         }
         Update: {
+          attempts?: number
           error?: string | null
           event_id?: string
           event_type?: string
+          last_attempt_at?: string | null
           payload?: Json
           processed_at?: string
           result?: string | null
+          status?: string
         }
         Relationships: []
       }
@@ -1599,6 +1608,16 @@ export type Database = {
           used: boolean
         }[]
       }
+      process_paddle_unlock_event: {
+        Args: {
+          _dest: string
+          _event_id: string
+          _event_type: string
+          _paid_cents: number
+          _payload: Json
+        }
+        Returns: Json
+      }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
@@ -1628,6 +1647,11 @@ export type Database = {
         Args: { _dest: string; _paid_cents?: number; _use_credit: boolean }
         Returns: Json
       }
+      unlock_destination_paid: {
+        Args: { _dest: string; _paddle_event_id: string; _paid_cents: number }
+        Returns: Json
+      }
+      unlock_destination_with_credit: { Args: { _dest: string }; Returns: Json }
       update_profile_basics: {
         Args: { _avatar_url: string; _display_name: string }
         Returns: undefined
