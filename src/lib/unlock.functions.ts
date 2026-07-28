@@ -67,31 +67,38 @@ export const quoteUnlock = createServerFn({ method: "POST" })
     }
   });
 
+/**
+ * Credit-path unlock.
+ *
+ * Delegates the entire ownership check + payments-flag check + credit-row lock
+ * + destination lock + spend + credited-unlock into a single authenticated
+ * RPC (public.unlock_destination_with_credit) that uses auth.uid() internally.
+ * The RPC concurrency guarantees make repeated or racing calls idempotent —
+ * one credit spent, one destination marked credited, `already` short-circuit
+ * for later calls.
+ *
+ * The RPC also enforces the payments_enabled() flag server-side; a disabled
+ * flag surfaces as a 'payments_disabled' error before any credit is spent.
+ */
 export const unlockTripWithCredit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { destinationId: string }) => d)
   .handler(async ({ data, context }) => {
-    const { userId } = context;
-    // verify owner via authed client (RLS-safe)
-    const { data: dest, error: derr } = await context.supabase
-      .from("destinations")
-      .select("id, user_id, unlock_status")
-      .eq("id", data.destinationId)
-      .maybeSingle();
-    if (derr) throw new Error(derr.message);
-    if (!dest) throw new Error("Trip not found");
-    if (dest.user_id !== userId) throw new Error("Only the trip owner can unlock");
-    if (dest.unlock_status !== "free") return { ok: true, alreadyUnlocked: true };
-
-    // privileged unlock via service role (function EXECUTE is service_role only)
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.rpc("unlock_destination", {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rpc = context.supabase.rpc as unknown as (fn: string, args: unknown) => Promise<{
+      data: unknown;
+      error: { message: string } | null;
+    }>;
+    const { data: result, error } = await rpc("unlock_destination_with_credit", {
       _dest: data.destinationId,
-      _use_credit: true,
-      _paid_cents: 0,
     });
     if (error) throw new Error(error.message);
-    return { ok: true };
+    const parsed = (result ?? {}) as { status?: string; already?: boolean };
+    return {
+      ok: true,
+      alreadyUnlocked: parsed.already === true,
+      status: parsed.status ?? "credited",
+    };
   });
 
 export type CreditsSummary = {
@@ -108,26 +115,25 @@ export const getMyCredits = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<CreditsSummary> => {
     const { supabase, userId } = context;
-    const nowIso = new Date().toISOString();
-    const [{ data: credits }, { data: prof }] = await Promise.all([
-      supabase
-        .from("user_credits")
-        .select("source, remaining, expires_at")
-        .eq("user_id", userId)
-        .or(`expires_at.is.null,expires_at.gt.${nowIso}`),
-      supabase.from("profiles").select("paid_trip_count").eq("id", userId).maybeSingle(),
-    ]);
-    const sumBy = (s: string) =>
-      (credits ?? []).filter((c) => c.source === s).reduce((acc, c) => acc + (c.remaining ?? 0), 0);
-    const loyalty = sumBy("loyalty");
-    const referral = sumBy("referral");
-    const promo = sumBy("promo");
-    const paid = prof?.paid_trip_count ?? 0;
+    const { data: rows } = await supabase
+      .from("user_credits")
+      .select("source, remaining")
+      .eq("user_id", userId);
+    const bySource = (src: string) =>
+      (rows ?? []).filter((r) => r.source === src).reduce((s, r) => s + (r.remaining ?? 0), 0);
+    const total = (rows ?? []).reduce((s, r) => s + (r.remaining ?? 0), 0);
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("paid_trip_count")
+      .eq("id", userId)
+      .maybeSingle();
+    const paid = profile?.paid_trip_count ?? 0;
     return {
-      total: loyalty + referral + promo,
-      loyaltyRemaining: loyalty,
-      referralRemaining: referral,
-      promoRemaining: promo,
+      total,
+      loyaltyRemaining: bySource("loyalty"),
+      referralRemaining: bySource("referral"),
+      promoRemaining: bySource("promo"),
       paidTripCount: paid,
       loyaltyProgress: paid % 8,
       loyaltyTarget: 8,
