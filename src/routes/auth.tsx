@@ -428,13 +428,12 @@ function AuthPage() {
       clearOAuthPending();
       logAuthStage("session_hydration_timeout", {
         ok: false,
-        code: "google",
-        msg: err instanceof Error ? err.message : String(err),
+        code: "google_unexpected_failure",
       });
       track("google_signin_failed", {
-        message: err instanceof Error ? err.message.slice(0, 140) : "unknown",
+        message: "google_unexpected_failure",
       });
-      toast.error(err instanceof Error ? err.message : "Google sign-in failed");
+      toast.error("Google sign-in failed. Please try again.");
     } finally {
       setLoading(false);
       // Reference cid so future stages inherit it via sessionStorage.
