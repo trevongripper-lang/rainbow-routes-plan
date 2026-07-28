@@ -28,3 +28,29 @@ export function canonicalEmailOrigin(): string {
     return CANONICAL_ORIGIN;
   }
 }
+
+/**
+ * OAuth must start and finish on the SAME origin. Google/broker return the
+ * user to the origin the flow started on; if that origin differs from where
+ * Supabase later reads localStorage, the session is invisible.
+ *
+ * Canonicalize `www.jointribetrips.com` → `https://jointribetrips.com` before
+ * starting the flow. Preview/sandbox hosts stay put (they can't reach apex).
+ */
+export function canonicalOAuthOrigin(): string {
+  if (typeof window === "undefined") return CANONICAL_ORIGIN;
+  try {
+    const host = window.location.hostname;
+    if (host === "www.jointribetrips.com") return CANONICAL_ORIGIN;
+    return window.location.origin;
+  } catch {
+    return CANONICAL_ORIGIN;
+  }
+}
+
+/** True if the current origin differs from the canonical OAuth origin. */
+export function needsOAuthOriginCanonicalization(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.location.origin !== canonicalOAuthOrigin();
+}
+

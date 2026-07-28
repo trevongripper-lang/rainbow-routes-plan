@@ -27,12 +27,15 @@ import {
   useAuth,
 } from "@/lib/auth-state";
 import { withTimeout } from "@/lib/utils";
-import { canonicalEmailOrigin } from "@/lib/canonical-origin";
+import { canonicalEmailOrigin, canonicalOAuthOrigin, needsOAuthOriginCanonicalization } from "@/lib/canonical-origin";
 import {
   clearOAuthPending,
   isBrowserStorageUsable,
   markOAuthPending,
   readOAuthPending,
+  toPublicOAuthErrorCode,
+  detectBrowserMode,
+  classifyOrigin,
 } from "@/lib/oauth-return";
 
 type AuthSearch = { redirect?: string };
@@ -208,7 +211,7 @@ function AuthPage() {
       setOauthReconcile({
         phase: "error",
         title: "Browser storage is blocked",
-        code: "storage_unavailable",
+        code: "oauth_storage_unavailable",
         message:
           "This browser is blocking site storage, so we can't finish signing you in. Try a normal browser window (not private mode) or another browser.",
       });
@@ -228,7 +231,7 @@ function AuthPage() {
       setOauthReconcile({
         phase: "error",
         title: "Sign-in returned to a different address",
-        code: "origin_mismatch",
+        code: "oauth_origin_mismatch",
         message:
           "Google sent you back to a different address than the one you started on. Retry to continue on the original address.",
         intendedOrigin: pending.origin,
@@ -258,7 +261,7 @@ function AuthPage() {
           setOauthReconcile({
             phase: "error",
             title: "Session didn't persist",
-            code: "persist_readback_missing",
+            code: "oauth_session_not_persisted",
             message:
               "We received your Google sign-in but this browser didn't store the session. Try again, or use a normal browser window.",
             intendedOrigin: pending.origin ?? currentOrigin,
@@ -377,9 +380,51 @@ function AuthPage() {
 
   async function handleGoogle() {
     setLoading(true);
+    const startedAt = Date.now();
     const cid = beginAuthCorrelation();
-    logAuthStage("oauth_start", { code: "google" });
+    const originCategory = classifyOrigin(window.location.origin);
+    const browserMode = detectBrowserMode();
+    logAuthStage("oauth_start", {
+      code: "google",
+      msg: `origin=${originCategory} mode=${browserMode}`,
+    });
     try {
+      // Pre-flight 1: browser storage must be writable BEFORE we hand off to
+      // Google, otherwise setSession() on return has nothing to persist to.
+      if (!isBrowserStorageUsable()) {
+        logAuthStage("oauth_start", {
+          ok: false,
+          code: "oauth_storage_unavailable",
+          durationMs: Date.now() - startedAt,
+        });
+        setOauthReconcile({
+          phase: "error",
+          title: "Browser storage is blocked",
+          code: "oauth_storage_unavailable",
+          message:
+            "This browser is blocking site storage, so we can't sign you in. Try a normal browser window (not private mode) or another browser.",
+        });
+        return;
+      }
+
+      // Pre-flight 2: OAuth must start and finish on the SAME origin, or
+      // Supabase's session (written to the return-origin's localStorage) is
+      // invisible when we later poll. Canonicalize www→apex before starting.
+      if (needsOAuthOriginCanonicalization()) {
+        const target =
+          canonicalOAuthOrigin() +
+          "/auth" +
+          (search.redirect ? `?redirect=${encodeURIComponent(search.redirect)}` : "");
+        logAuthStage("oauth_start", {
+          ok: true,
+          code: "canonicalize_origin",
+          msg: `${originCategory}→apex`,
+          durationMs: Date.now() - startedAt,
+        });
+        window.location.assign(target);
+        return;
+      }
+
       track("google_signin_started");
       stashPendingRedirect(redirectTarget);
       // Mark OAuth as pending BEFORE navigation so the return path (or a
@@ -391,21 +436,26 @@ function AuthPage() {
       });
       if (result.error) {
         const persistenceFailure = "sessionPersistenceFailed" in result && result.sessionPersistenceFailed;
-        const safeCode =
+        const rawCode =
           "sessionErrorCode" in result && typeof result.sessionErrorCode === "string"
             ? result.sessionErrorCode
             : "oauth_provider_failed";
-        logAuthStage("oauth_start", { ok: false, code: safeCode });
-        track("google_signin_failed", {
-          message: safeCode,
+        const publicCode = toPublicOAuthErrorCode(rawCode);
+        logAuthStage("oauth_start", {
+          ok: false,
+          code: publicCode,
+          durationMs: Date.now() - startedAt,
         });
+        track("google_signin_failed", { message: publicCode });
         if (persistenceFailure) {
           setOauthReconcile({
             phase: "error",
             title: "Google sign-in didn't complete",
-            code: safeCode,
+            code: publicCode,
             message:
-              "Google approved the sign-in, but this browser couldn't confirm the saved session. Retry to check again or restart Google sign-in.",
+              publicCode === "oauth_set_session_failed"
+                ? "Google approved the sign-in, but the session handoff failed on this browser. Retry to try again."
+                : "Google approved the sign-in, but this browser couldn't confirm the saved session. Retry to check again or restart Google sign-in.",
             intendedOrigin: window.location.origin,
           });
         } else {
@@ -415,29 +465,52 @@ function AuthPage() {
         return;
       }
       if (result.redirected) {
-        logAuthStage("oauth_redirect_initiated", { ok: true, code: "google" });
+        logAuthStage("oauth_redirect_initiated", {
+          ok: true,
+          code: "google",
+          durationMs: Date.now() - startedAt,
+        });
         return; // browser is navigating away; pending marker survives the redirect
       }
-      logAuthStage("oauth_inline_tokens_received", { ok: true, code: "google" });
+      logAuthStage("oauth_inline_tokens_received", {
+        ok: true,
+        code: "google",
+        durationMs: Date.now() - startedAt,
+      });
       // Session is set inline (preview iframe / web_message flow); confirm it and go now.
       const confirmed = await refreshAuthState();
       if (!confirmed.session) {
-        logAuthStage("session_hydration_timeout", { ok: false, code: "google" });
-        throw new Error("Google sign-in succeeded, but the session is not ready yet.");
+        logAuthStage("session_hydration_timeout", {
+          ok: false,
+          code: "oauth_session_not_persisted",
+          durationMs: Date.now() - startedAt,
+        });
+        setOauthReconcile({
+          phase: "error",
+          title: "Session didn't persist",
+          code: "oauth_session_not_persisted",
+          message:
+            "Google approved the sign-in, but this browser didn't store the session. Retry, or use a normal browser window.",
+          intendedOrigin: window.location.origin,
+        });
+        return;
       }
-      logAuthStage("session_hydrated", { ok: true, code: "google" });
+      logAuthStage("session_hydrated", {
+        ok: true,
+        code: "google",
+        durationMs: Date.now() - startedAt,
+      });
       clearOAuthPending();
       track("signin_succeeded", { method: "google" });
       await goToApp({ skipSessionCheck: true });
-    } catch (err) {
+    } catch {
       clearOAuthPending();
       logAuthStage("session_hydration_timeout", {
         ok: false,
-        code: "google_unexpected_failure",
+        code: "oauth_provider_failed",
+        durationMs: Date.now() - startedAt,
       });
-      track("google_signin_failed", {
-        message: "google_unexpected_failure",
-      });
+      track("google_signin_failed", { message: "oauth_provider_failed" });
       toast.error("Google sign-in failed. Please try again.");
     } finally {
       setLoading(false);
@@ -470,6 +543,10 @@ function AuthPage() {
         oauthReconcile && oauthReconcile.phase === "error"
           ? oauthReconcile.intendedOrigin
           : undefined;
+      // Fresh correlation for the retry attempt so its stage trace is
+      // distinguishable from the failed one in support logs.
+      const retryCid = beginAuthCorrelation();
+      void retryCid;
       clearOAuthPending();
       logAuthStage("oauth_start", { code: "google", msg: "retry_from_reconcile" });
 
@@ -509,11 +586,31 @@ function AuthPage() {
   }
 
 
+  // Session reset (from OAuth recovery or session recovery screen):
+  //   - Clears Supabase auth session + Tribe auth store.
+  //   - Clears OAuth pending marker so a new flow starts clean.
+  //   - Cancels in-flight queries but does NOT clear query cache for
+  //     unrelated public data (destinations list, homepage content, etc.).
   async function handleSessionReset() {
     setResettingSession(true);
     try {
+      clearOAuthPending();
       await queryClient.cancelQueries();
-      queryClient.clear();
+      // Remove only auth/user-scoped queries. Public/unrelated caches stay.
+      queryClient.removeQueries({
+        predicate: (q) => {
+          const key = Array.isArray(q.queryKey) ? q.queryKey : [q.queryKey];
+          const head = typeof key[0] === "string" ? key[0] : "";
+          return (
+            head === "auth" ||
+            head === "user" ||
+            head === "me" ||
+            head === "profile" ||
+            head === "session" ||
+            head === "beta-consent"
+          );
+        },
+      });
       resetAuthState();
       await supabase.auth.signOut();
       clearAuthSession();
