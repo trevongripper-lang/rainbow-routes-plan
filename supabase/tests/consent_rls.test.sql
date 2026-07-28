@@ -356,8 +356,8 @@ BEGIN
     -- trip_costs
     err_caught := false;
     BEGIN
-      INSERT INTO public.trip_costs (destination_id, user_id, label, amount_cents, currency)
-      VALUES ('99999999-9999-9999-9999-999999999911', personas[i]::uuid, 'nope', 1, 'USD');
+      INSERT INTO public.trip_costs (destination_id, user_id, category, label, amount_cents, currency)
+      VALUES ('99999999-9999-9999-9999-999999999911', personas[i]::uuid, 'Food & drink', 'nope', 1, 'USD');
     EXCEPTION WHEN OTHERS THEN err_caught := true;
     END;
     IF NOT err_caught THEN
