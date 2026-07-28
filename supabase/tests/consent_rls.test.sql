@@ -233,7 +233,7 @@ BEGIN
       ('credit_events',          1, 0, 0),  -- owner-scoped
       ('user_credits',           1, 0, 0),  -- owner-scoped
       ('promo_redemptions',      1, 0, 0)   -- owner-scoped
-    ) AS v(tbl text, p4_min int, p5_min int, p6_max int)
+    ) AS v(tbl, p4_min, p5_min, p6_max)
   LOOP
     -- P1: anonymous
     EXECUTE format('SET LOCAL "request.jwt.claims" = %L', json_build_object(
