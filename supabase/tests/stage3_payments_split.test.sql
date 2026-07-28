@@ -208,7 +208,7 @@ DECLARE
   paid_before int; paid_after int;
   cred_before int; cred_after int;
   paid_caught boolean := false; cred_caught boolean := false;
-  row_status text; unlock_status text;
+  row_status text; dest_unlock text;
 BEGIN
   UPDATE public.app_config SET value = to_jsonb(false) WHERE key='payments_enabled';
 
@@ -237,10 +237,10 @@ BEGIN
   IF row_status = 'success' THEN
     RAISE EXCEPTION 'FAIL §7a: event should not be success while payments disabled';
   END IF;
-  SELECT unlock_status INTO unlock_status FROM public.destinations
+  SELECT unlock_status INTO dest_unlock FROM public.destinations
     WHERE id='00000000-0000-0000-0000-000000006007';
-  IF unlock_status <> 'free' THEN
-    RAISE EXCEPTION 'FAIL §7a: destination should remain free, got %', unlock_status;
+  IF dest_unlock <> 'free' THEN
+    RAISE EXCEPTION 'FAIL §7a: destination should remain free, got %', dest_unlock;
   END IF;
 
   -- Credit path
