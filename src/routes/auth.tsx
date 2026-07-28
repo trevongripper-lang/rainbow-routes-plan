@@ -154,7 +154,7 @@ function AuthPage() {
     // (blank/stuck screen), especially after Google OAuth return and inside
     // installed PWAs. A hard nav reloads the app cleanly against the fresh
     // session. `redirectTarget` is already a sanitized same-origin path.
-    logAuthStage("final_navigate", { ok: true, path: redirectTarget });
+    logAuthStage("final_navigate", { ok: true, code: redirectTarget });
     console.info("[auth] goToApp: window.location.assign", { redirectTarget });
     window.location.assign(redirectTarget);
   }, [clearRedirectTimeout, redirectTarget, router, startRedirectRecoveryTimer]);
