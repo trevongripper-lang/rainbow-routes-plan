@@ -22,7 +22,7 @@
 \set ON_ERROR_STOP on
 BEGIN;
 
-SELECT set_config('client_min_messages', 'warning', true);
+SELECT set_config('client_min_messages', 'notice', true);
 
 -- ── Fixture setup ─────────────────────────────────────────────────────────
 -- Two synthetic auth users. Direct auth.users writes are only possible on the
