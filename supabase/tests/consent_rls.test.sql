@@ -94,8 +94,8 @@ ON CONFLICT DO NOTHING;
 INSERT INTO public.comments (destination_id, user_id, body)
 VALUES (:DEST, :P4, 'seed comment');
 
-INSERT INTO public.trip_costs (destination_id, user_id, label, amount_cents, currency)
-VALUES (:DEST, :P4, 'seed cost', 1000, 'USD');
+INSERT INTO public.trip_costs (destination_id, user_id, category, label, amount_cents, currency)
+VALUES (:DEST, :P4, 'Food & drink', 'seed cost', 1000, 'USD');
 
 INSERT INTO public.trip_flights (destination_id, user_id, airline, flight_number)
 VALUES (:DEST, :P4, 'AA', 'AA1');
@@ -356,8 +356,8 @@ BEGIN
     -- trip_costs
     err_caught := false;
     BEGIN
-      INSERT INTO public.trip_costs (destination_id, user_id, label, amount_cents, currency)
-      VALUES ('99999999-9999-9999-9999-999999999911', personas[i]::uuid, 'nope', 1, 'USD');
+      INSERT INTO public.trip_costs (destination_id, user_id, category, label, amount_cents, currency)
+      VALUES ('99999999-9999-9999-9999-999999999911', personas[i]::uuid, 'Food & drink', 'nope', 1, 'USD');
     EXCEPTION WHEN OTHERS THEN err_caught := true;
     END;
     IF NOT err_caught THEN
