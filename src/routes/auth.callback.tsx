@@ -28,8 +28,20 @@ import { consumePendingRedirect, sanitizeRedirectPath } from "@/lib/redirect-gua
  *   - signed out (exchange failed / user missing)  → /auth with error
  */
 export const Route = createFileRoute("/auth/callback")({
+  ssr: false,
+  head: () => ({
+    meta: [
+      { title: "Signing in — Tribe Trips" },
+      { name: "robots", content: "noindex, nofollow" },
+      { name: "referrer", content: "no-referrer" },
+      // Callback URLs carry a one-time PKCE code; belt-and-braces against any
+      // intermediary caching the URL. Also stripped from history after use.
+      { httpEquiv: "cache-control", content: "no-store" },
+    ],
+  }),
   component: AuthCallback,
 });
+
 
 type Phase = "exchanging" | "routing" | "error";
 
