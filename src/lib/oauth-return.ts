@@ -120,4 +120,43 @@ export function isBrowserStorageUsable(): boolean {
   } catch {
     return false;
   }
+
+/**
+ * Standardized public error codes surfaced on the recovery screen and in
+ * telemetry. Internal codes from `establishOAuthSession` and the poll loop
+ * collapse into this small taxonomy so support can act on them without
+ * seeing raw provider strings.
+ */
+export type OAuthPublicErrorCode =
+  | "oauth_token_delivery_missing"
+  | "oauth_set_session_failed"
+  | "oauth_session_not_persisted"
+  | "oauth_origin_mismatch"
+  | "oauth_return_poll_timeout"
+  | "oauth_storage_unavailable"
+  | "oauth_provider_failed";
+
+export function toPublicOAuthErrorCode(internal: string | undefined | null): OAuthPublicErrorCode {
+  const code = (internal ?? "").toLowerCase();
+  if (!code) return "oauth_provider_failed";
+  if (code === "invalid_token_shape") return "oauth_token_delivery_missing";
+  if (
+    code === "set_session_threw" ||
+    code === "set_session_rejected" ||
+    code.startsWith("http_") ||
+    code === "invalid_grant" ||
+    code === "invalid_request"
+  ) {
+    return "oauth_set_session_failed";
+  }
+  if (code === "set_session_missing" || code === "session_readback_missing") {
+    return "oauth_session_not_persisted";
+  }
+  if (code === "origin_mismatch") return "oauth_origin_mismatch";
+  if (code === "storage_unavailable") return "oauth_storage_unavailable";
+  if (code === "oauth_return_poll" || code === "oauth_return_poll_timeout") {
+    return "oauth_return_poll_timeout";
+  }
+  return "oauth_provider_failed";
 }
+
