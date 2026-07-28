@@ -232,7 +232,7 @@ function AuthPage() {
       return;
     }
 
-    logAuthStage("oauth_return_detected", { ok: true, code: pending.mode } as never);
+    logAuthStage("oauth_return_detected", { ok: true, code: pending.mode });
     setOauthReconcile({ phase: "reconciling", message: "Finishing Google sign-in…" });
 
     let attempts = 0;
