@@ -195,7 +195,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            emailRedirectTo: canonicalEmailOrigin(),
+            emailRedirectTo: canonicalEmailOrigin() + "/auth/callback",
             data: { full_name: name || email.split("@")[0] },
           },
         });
