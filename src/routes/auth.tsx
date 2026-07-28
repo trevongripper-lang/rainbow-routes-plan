@@ -228,7 +228,8 @@ function AuthPage() {
         phase: "error",
         title: "Sign-in returned to a different address",
         message:
-          "Google sent you back to a different address than the one you started on. Reset and sign in again from the same address.",
+          "Google sent you back to a different address than the one you started on. Retry to continue on the original address.",
+        intendedOrigin: pending.origin,
       });
       return;
     }
