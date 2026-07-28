@@ -120,6 +120,8 @@ export function isBrowserStorageUsable(): boolean {
   } catch {
     return false;
   }
+}
+
 
 /**
  * Standardized public error codes surfaced on the recovery screen and in
