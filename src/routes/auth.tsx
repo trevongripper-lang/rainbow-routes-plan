@@ -258,6 +258,7 @@ function AuthPage() {
             title: "Session didn't persist",
             message:
               "We received your Google sign-in but this browser didn't store the session. Try again, or use a normal browser window.",
+            intendedOrigin: pending.origin ?? currentOrigin,
           });
           return;
         }
@@ -276,6 +277,7 @@ function AuthPage() {
           title: "Google sign-in didn't complete",
           message:
             "We couldn't confirm your session after returning from Google. Try again, or reset the session and start over.",
+          intendedOrigin: pending.origin ?? currentOrigin,
         });
         return;
       }
