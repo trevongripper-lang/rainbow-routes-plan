@@ -486,45 +486,6 @@ function AuthPage() {
       window.location.assign(data.url);
       return;
 
-      if (result.redirected) {
-        logAuthStage("oauth_redirect_initiated", {
-          ok: true,
-          code: "google",
-          durationMs: Date.now() - startedAt,
-        });
-        return; // browser is navigating away; pending marker survives the redirect
-      }
-      logAuthStage("oauth_inline_tokens_received", {
-        ok: true,
-        code: "google",
-        durationMs: Date.now() - startedAt,
-      });
-      // Session is set inline (preview iframe / web_message flow); confirm it and go now.
-      const confirmed = await refreshAuthState();
-      if (!confirmed.session) {
-        logAuthStage("session_hydration_timeout", {
-          ok: false,
-          code: "oauth_session_not_persisted",
-          durationMs: Date.now() - startedAt,
-        });
-        setOauthReconcile({
-          phase: "error",
-          title: "Session didn't persist",
-          code: "oauth_session_not_persisted",
-          message:
-            "Google approved the sign-in, but this browser didn't store the session. Retry, or use a normal browser window.",
-          intendedOrigin: window.location.origin,
-        });
-        return;
-      }
-      logAuthStage("session_hydrated", {
-        ok: true,
-        code: "google",
-        durationMs: Date.now() - startedAt,
-      });
-      clearOAuthPending();
-      track("signin_succeeded", { method: "google" });
-      await goToApp({ skipSessionCheck: true });
     } catch {
       clearOAuthPending();
       logAuthStage("session_hydration_timeout", {
