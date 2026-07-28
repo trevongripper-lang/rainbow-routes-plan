@@ -403,6 +403,7 @@ function AuthPage() {
           setOauthReconcile({
             phase: "error",
             title: "Google sign-in didn't complete",
+            code: safeCode,
             message:
               "Google approved the sign-in, but this browser couldn't confirm the saved session. Retry to check again or restart Google sign-in.",
             intendedOrigin: window.location.origin,
