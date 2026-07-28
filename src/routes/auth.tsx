@@ -278,6 +278,7 @@ function AuthPage() {
         setOauthReconcile({
           phase: "error",
           title: "Google sign-in didn't complete",
+          code: "oauth_return_poll_timeout",
           message:
             "We couldn't confirm your session after returning from Google. Try again, or reset the session and start over.",
           intendedOrigin: pending.origin ?? currentOrigin,
