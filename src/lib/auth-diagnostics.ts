@@ -114,14 +114,19 @@ export function beginAuthCorrelation(): string {
 function sanitizeMsg(input: unknown): string | undefined {
   if (input == null) return undefined;
   const raw = input instanceof Error ? input.message : String(input);
-  // Strip obvious secrets/URLs from message defensively.
+  // Strip obvious secrets/URLs from message defensively. Belt-and-braces
+  // against any caller who accidentally passes a URL or token payload.
   const stripped = raw
     .replace(/eyJ[A-Za-z0-9._-]{20,}/g, "[jwt]")
     .replace(/https?:\/\/\S+/g, "[url]")
     .replace(/code=[^\s&]+/g, "code=[redacted]")
+    .replace(/token_hash=[^\s&]+/gi, "token_hash=[redacted]")
+    .replace(/access_token=[^\s&]+/gi, "access_token=[redacted]")
+    .replace(/refresh_token=[^\s&]+/gi, "refresh_token=[redacted]")
     .replace(/token=[^\s&]+/g, "token=[redacted]");
   return stripped.slice(0, 140);
 }
+
 
 export function logAuthStage(
   stage: AuthStage,

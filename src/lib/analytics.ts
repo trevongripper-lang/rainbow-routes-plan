@@ -13,31 +13,45 @@ import { supabase } from "@/integrations/supabase/client";
  *  - Never send `user_id` in the payload. The trigger fills it from the JWT.
  *  - All failures are swallowed so analytics can never break the UI.
  */
+const FORBIDDEN_PROP_KEYS = new Set([
+  "token_hash",
+  "tokenHash",
+  "code",
+  "access_token",
+  "refresh_token",
+  "password",
+]);
+
+function stripSensitiveProps(props: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(props)) {
+    if (FORBIDDEN_PROP_KEYS.has(k)) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 export function track(
   event: string,
   props: Record<string, unknown> = {},
   destinationId?: string | null,
 ) {
   try {
+    const safeProps = stripSensitiveProps(props);
     void supabase.auth.getSession().then(({ data }) => {
-      // Skip when there is no valid session — the trigger would reject it
-      // anyway, and doing so avoids a noisy failed request during
-      // login/logout/session-replacement windows.
       if (!data.session) return;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       void (supabase.from("analytics_events" as any) as any)
         .insert({
           destination_id: destinationId ?? null,
           event,
-          props,
+          props: safeProps,
         })
         .then(() => {})
-        // Never surface analytics failures. In particular, do NOT
-        // re-throw during the auth flow — telemetry must not interrupt
-        // sign-in / sign-out.
         .catch(() => {});
     }).catch(() => {});
   } catch {
     /* noop */
   }
 }
+

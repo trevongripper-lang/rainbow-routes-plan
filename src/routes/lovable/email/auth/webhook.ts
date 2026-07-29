@@ -3,6 +3,19 @@
 // when this route is pulled in via routeTree.gen.ts. All heavy/risky
 // imports are loaded lazily inside the POST handler.
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  ALLOWED_CALLBACK_TYPES,
+  AUTH_EMAIL_CALLBACK_PATH,
+  AUTH_EMAIL_LINK_STRATEGY,
+  AUTH_EMAIL_ROOT_DOMAIN,
+  AUTH_EMAIL_TEMPLATE_VERSION,
+  AUTH_EMAIL_TOTP_STRATEGY,
+  AUTH_TYPE_MAP,
+  FORBIDDEN_LINK_ARTIFACTS,
+  LINK_AUTH_ACTIONS,
+  isSafeRelativePath,
+  type AuthActionType,
+} from "@/lib/auth-email-contract";
 
 const EMAIL_SUBJECTS: Record<string, string> = {
   signup: "Confirm your Tribe Trips account",
@@ -13,12 +26,18 @@ const EMAIL_SUBJECTS: Record<string, string> = {
   reauthentication: "Your Tribe Trips verification code",
 };
 
+const KNOWN_ACTION_TYPES = new Set<AuthActionType>([
+  "signup",
+  "invite",
+  "magiclink",
+  "recovery",
+  "email_change",
+  "reauthentication",
+]);
+
 const SITE_NAME = "Tribe Trips";
 const SENDER_DOMAIN = "notify.jointribetrips.com";
-const ROOT_DOMAIN = "jointribetrips.com";
-// Display-only From domain (root). Reply-friendly mailbox so replies reach
-// a human instead of bouncing off a noreply@ address, which hurts both
-// deliverability and user trust.
+const ROOT_DOMAIN = AUTH_EMAIL_ROOT_DOMAIN;
 const FROM_DOMAIN = "jointribetrips.com";
 const FROM_LOCAL_PART = "hello";
 const REPLY_TO = `hello@${FROM_DOMAIN}`;
@@ -28,6 +47,59 @@ function redactEmail(email: string | null | undefined): string {
   const [localPart, domain] = email.split("@");
   if (!localPart || !domain) return "***";
   return `${localPart[0]}***@${domain}`;
+}
+
+function firstString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return undefined;
+}
+
+/**
+ * Pull the token hash from the webhook payload. Accepts the direct
+ * `token_hash` field, or a token-hash URL if that's what upstream provided.
+ * Explicitly refuses to treat `/auth/v1/verify` URLs as a token source.
+ */
+function extractTokenHash(data: Record<string, unknown>): string | undefined {
+  const direct = firstString(
+    data.token_hash,
+    (data as Record<string, unknown>).tokenHash,
+    (data as Record<string, unknown>).hashed_token,
+    (data as Record<string, unknown>).hashedToken,
+  );
+  if (direct) return direct;
+
+  const rawUrl = firstString(data.url, (data as Record<string, unknown>).confirmation_url);
+  if (!rawUrl) return undefined;
+  if (FORBIDDEN_LINK_ARTIFACTS.some((re) => re.test(rawUrl))) return undefined;
+
+  try {
+    const url = new URL(rawUrl);
+    return firstString(url.searchParams.get("token_hash"), url.searchParams.get("tokenHash"));
+  } catch {
+    return undefined;
+  }
+}
+
+function extractSafeRedirectPath(data: Record<string, unknown>): string | undefined {
+  const direct = firstString(data.redirect_to, (data as Record<string, unknown>).redirectTo);
+  if (isSafeRelativePath(direct)) return direct;
+
+  const rawUrl = firstString(data.url);
+  if (!rawUrl) return undefined;
+  try {
+    const redirectTo = new URL(rawUrl).searchParams.get("redirect_to");
+    if (!redirectTo) return undefined;
+    const parsed = new URL(redirectTo);
+    if (parsed.hostname !== ROOT_DOMAIN && parsed.hostname !== `www.${ROOT_DOMAIN}`) {
+      return undefined;
+    }
+    const path = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    return isSafeRelativePath(path) ? path : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 // Deterministic plain-text bodies so each auth email contains exactly one
@@ -131,6 +203,25 @@ async function loadTemplate(emailType: string): Promise<any> {
   }
 }
 
+function detectEnvironment(request: Request): "production" | "preview" {
+  try {
+    const host = new URL(request.url).hostname;
+    return host === ROOT_DOMAIN || host === `www.${ROOT_DOMAIN}` ? "production" : "preview";
+  } catch {
+    return "preview";
+  }
+}
+
+function containsForbiddenArtifact(...values: (string | undefined | null)[]): string | null {
+  for (const v of values) {
+    if (!v) continue;
+    for (const re of FORBIDDEN_LINK_ARTIFACTS) {
+      if (re.test(v)) return re.source;
+    }
+  }
+  return null;
+}
+
 export const Route = createFileRoute("/lovable/email/auth/webhook")({
   server: {
     handlers: {
@@ -200,12 +291,27 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
           );
         }
 
-        const emailType = payload.data.action_type;
+        const emailType = payload.data.action_type as string;
+        const environment = detectEnvironment(request);
+        const webhookDeployment =
+          (typeof process !== "undefined" && process.env?.LOVABLE_BUILD_ID) ||
+          (typeof process !== "undefined" && process.env?.CF_PAGES_COMMIT_SHA) ||
+          AUTH_EMAIL_TEMPLATE_VERSION;
+
         console.log("Received auth event", {
           emailType,
           email_redacted: redactEmail(payload.data.email),
           run_id,
+          template_version: AUTH_EMAIL_TEMPLATE_VERSION,
+          webhook_deployment: webhookDeployment,
+          environment,
         });
+
+        // ---- Strict action-type allowlist -----------------------------------
+        if (!KNOWN_ACTION_TYPES.has(emailType as AuthActionType)) {
+          console.error("Rejected auth email: unknown action type", { emailType, run_id });
+          return Response.json({ error: `Unsupported action type: ${emailType}` }, { status: 400 });
+        }
 
         const EmailTemplate = await loadTemplate(emailType);
         if (!EmailTemplate) {
@@ -213,27 +319,44 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
           return Response.json({ error: `Unknown email type: ${emailType}` }, { status: 400 });
         }
 
-        // Prefer a same-origin token_hash callback URL over the default
-        // Supabase `/verify` link. `/verify` redirects with a PKCE `?code=`
-        // which only works in the ORIGINATING browser (needs the
-        // localStorage code_verifier). token_hash + verifyOtp is stateless
-        // and works when the recipient opens the email on a different
-        // device or browser. Fall back to payload.data.url if token_hash
-        // is unexpectedly absent (defensive; should not happen).
-        // Skip URL rewrite for `reauthentication` — it uses a numeric TOTP,
-        // not a link.
-        const tokenHash: string | undefined = payload.data.token_hash;
-        let confirmationUrl: string = payload.data.url;
-        if (emailType !== "reauthentication" && tokenHash) {
+        // ---- Build the confirmation URL from server-controlled fields -------
+        let confirmationUrl = "";
+        let linkStrategy: string;
+
+        if (emailType === "reauthentication") {
+          // TOTP: no link. Require the numeric token.
+          const token = firstString(payload.data.token);
+          if (!token) {
+            console.error("Rejected reauthentication email: missing token", { run_id });
+            return Response.json({ error: "Missing reauthentication token" }, { status: 400 });
+          }
+          linkStrategy = AUTH_EMAIL_TOTP_STRATEGY;
+        } else if (LINK_AUTH_ACTIONS.has(emailType as AuthActionType)) {
+          const tokenHash = extractTokenHash(payload.data as Record<string, unknown>);
+          if (!tokenHash) {
+            console.error("Rejected auth email: missing token_hash", { emailType, run_id });
+            return Response.json(
+              { error: "Auth email token unavailable", code: "missing_token_hash" },
+              { status: 400 },
+            );
+          }
+          const callbackTypeParam =
+            AUTH_TYPE_MAP[emailType as keyof typeof AUTH_TYPE_MAP];
+          if (!callbackTypeParam || !ALLOWED_CALLBACK_TYPES.has(callbackTypeParam)) {
+            console.error("Rejected auth email: no callback type mapping", { emailType, run_id });
+            return Response.json({ error: "Unmapped verification type" }, { status: 400 });
+          }
           const params = new URLSearchParams({
             token_hash: tokenHash,
-            type: emailType,
+            type: callbackTypeParam,
           });
-          const nextPath: string | undefined = payload.data.redirect_to;
-          if (nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")) {
-            params.set("next", nextPath);
-          }
-          confirmationUrl = `https://${ROOT_DOMAIN}/auth/callback?${params.toString()}`;
+          const nextPath = extractSafeRedirectPath(payload.data as Record<string, unknown>);
+          if (nextPath) params.set("next", nextPath);
+          confirmationUrl = `https://${ROOT_DOMAIN}${AUTH_EMAIL_CALLBACK_PATH}?${params.toString()}`;
+          linkStrategy = AUTH_EMAIL_LINK_STRATEGY;
+        } else {
+          console.error("Rejected auth email: unhandled action", { emailType, run_id });
+          return Response.json({ error: "Unhandled action type" }, { status: 400 });
         }
 
         const templateProps = {
@@ -247,10 +370,37 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
           newEmail: payload.data.new_email,
         };
 
-
         const element = React.createElement(EmailTemplate, templateProps);
         const html = await render(element);
         const text = buildPlainText(emailType, templateProps);
+
+        // ---- Rendered-artifact safety net (belt-and-braces) -----------------
+        if (linkStrategy === AUTH_EMAIL_LINK_STRATEGY) {
+          const forbidden = containsForbiddenArtifact(html, text);
+          if (forbidden) {
+            console.error("Rejected auth email: forbidden artifact in rendered body", {
+              emailType,
+              run_id,
+              artifact: forbidden,
+            });
+            return Response.json(
+              { error: "Rendered auth email failed safety check" },
+              { status: 500 },
+            );
+          }
+          // Confirm the Tribe callback URL is actually present.
+          const expectedHost = `https://${ROOT_DOMAIN}${AUTH_EMAIL_CALLBACK_PATH}`;
+          if (!html.includes(expectedHost) || !text.includes(expectedHost)) {
+            console.error("Rejected auth email: callback URL missing from rendered body", {
+              emailType,
+              run_id,
+            });
+            return Response.json(
+              { error: "Rendered auth email missing callback URL" },
+              { status: 500 },
+            );
+          }
+        }
 
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -263,11 +413,19 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
         const messageId = crypto.randomUUID();
 
+        const versionMetadata = {
+          template_version: AUTH_EMAIL_TEMPLATE_VERSION,
+          link_strategy: linkStrategy,
+          webhook_deployment: String(webhookDeployment),
+          environment,
+        };
+
         await supabase.from("email_send_log").insert({
           message_id: messageId,
           template_name: emailType,
           recipient_email: payload.data.email,
           status: "pending",
+          metadata: versionMetadata,
         });
 
         const { error: enqueueError } = await supabase.rpc("enqueue_email", {
@@ -285,6 +443,11 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
             purpose: "transactional",
             label: emailType,
             queued_at: new Date().toISOString(),
+            // Versioning fields used by the worker's safety checks.
+            template_version: AUTH_EMAIL_TEMPLATE_VERSION,
+            link_strategy: linkStrategy,
+            webhook_deployment: String(webhookDeployment),
+            environment,
           },
         });
 
@@ -296,6 +459,7 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
             recipient_email: payload.data.email,
             status: "failed",
             error_message: "Failed to enqueue email",
+            metadata: versionMetadata,
           });
           return Response.json({ error: "Failed to enqueue email" }, { status: 500 });
         }
@@ -304,6 +468,9 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
           emailType,
           email_redacted: redactEmail(payload.data.email),
           run_id,
+          template_version: AUTH_EMAIL_TEMPLATE_VERSION,
+          link_strategy: linkStrategy,
+          environment,
         });
 
         return Response.json({ success: true, queued: true });
