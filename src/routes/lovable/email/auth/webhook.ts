@@ -30,6 +30,87 @@ function redactEmail(email: string | null | undefined): string {
   return `${localPart[0]}***@${domain}`;
 }
 
+// Deterministic plain-text bodies so each auth email contains exactly one
+// token-bearing URL (or one TOTP). We do NOT use React Email's plainText
+// serializer because it emits `Label [url]` from <Button> and then repeats
+// any fallback <Link> we render — historically doubling the confirmation URL.
+function buildPlainText(
+  emailType: string,
+  p: {
+    recipient?: string;
+    confirmationUrl?: string;
+    token?: string;
+    oldEmail?: string;
+    newEmail?: string;
+  },
+): string {
+  const url = p.confirmationUrl ?? "";
+  const who = p.recipient ? ` (${p.recipient})` : "";
+  switch (emailType) {
+    case "signup":
+      return [
+        `Confirm your email${who} to finish creating your Tribe Trips account.`,
+        `This link expires in 24 hours.`,
+        ``,
+        url,
+        ``,
+        `If you didn't sign up for Tribe Trips, you can safely ignore this email.`,
+        ``,
+        `— Tribe Trips`,
+      ].join("\n");
+    case "recovery":
+      return [
+        `Reset your Tribe Trips password by opening this link:`,
+        ``,
+        url,
+        ``,
+        `If you didn't request a password reset, you can safely ignore this email.`,
+        ``,
+        `— Tribe Trips`,
+      ].join("\n");
+    case "magiclink":
+      return [
+        `Your Tribe Trips login link:`,
+        ``,
+        url,
+        ``,
+        `If you didn't request this, you can safely ignore this email.`,
+        ``,
+        `— Tribe Trips`,
+      ].join("\n");
+    case "invite":
+      return [
+        `You've been invited to join Tribe Trips. Accept your invitation:`,
+        ``,
+        url,
+        ``,
+        `If you weren't expecting this invitation, you can ignore this email.`,
+        ``,
+        `— Tribe Trips`,
+      ].join("\n");
+    case "email_change":
+      return [
+        `Confirm changing your Tribe Trips email from ${p.oldEmail ?? "your current address"} to ${p.newEmail ?? "your new address"}:`,
+        ``,
+        url,
+        ``,
+        `If you didn't request this change, please secure your account immediately.`,
+        ``,
+        `— Tribe Trips`,
+      ].join("\n");
+    case "reauthentication":
+      return [
+        `Your Tribe Trips verification code: ${p.token ?? ""}`,
+        ``,
+        `This code will expire shortly. If you didn't request it, you can ignore this email.`,
+        ``,
+        `— Tribe Trips`,
+      ].join("\n");
+    default:
+      return url;
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function loadTemplate(emailType: string): Promise<any> {
   switch (emailType) {
@@ -145,7 +226,7 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
 
         const element = React.createElement(EmailTemplate, templateProps);
         const html = await render(element);
-        const text = await render(element, { plainText: true });
+        const text = buildPlainText(emailType, templateProps);
 
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
