@@ -251,7 +251,7 @@ function AuthCallback() {
       // Strip any query params so a refresh doesn't retry.
       window.history.replaceState(null, "", "/auth/callback");
       if (cancelled) return;
-      await finishSession(flowType, nextParam, false);
+      await finishSession(rawType, nextParam, false);
     }
 
     void run();
