@@ -29,6 +29,7 @@ import { Route as AuthenticatedBetaConsentRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedTripsIndexRouteImport } from './routes/_authenticated/trips.index'
 import { Route as ApiPublicPaddleWebhookRouteImport } from './routes/api/public/paddle-webhook'
+import { Route as ApiPublicEmailWebhookVersionRouteImport } from './routes/api/public/email-webhook-version'
 import { Route as AuthenticatedTripsIdRouteImport } from './routes/_authenticated/trips.$id'
 import { Route as AuthenticatedConsoleWebhookTestRouteImport } from './routes/_authenticated/console.webhook-test'
 import { Route as AuthenticatedConsolePromoCodesRouteImport } from './routes/_authenticated/console.promo-codes'
@@ -139,6 +140,12 @@ const ApiPublicPaddleWebhookRoute = ApiPublicPaddleWebhookRouteImport.update({
   path: '/api/public/paddle-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicEmailWebhookVersionRoute =
+  ApiPublicEmailWebhookVersionRouteImport.update({
+    id: '/api/public/email-webhook-version',
+    path: '/api/public/email-webhook-version',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedTripsIdRoute = AuthenticatedTripsIdRouteImport.update({
   id: '/trips/$id',
   path: '/trips/$id',
@@ -215,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/console/promo-codes': typeof AuthenticatedConsolePromoCodesRoute
   '/console/webhook-test': typeof AuthenticatedConsoleWebhookTestRoute
   '/trips/$id': typeof AuthenticatedTripsIdRoute
+  '/api/public/email-webhook-version': typeof ApiPublicEmailWebhookVersionRoute
   '/api/public/paddle-webhook': typeof ApiPublicPaddleWebhookRoute
   '/trips/': typeof AuthenticatedTripsIndexRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -245,6 +253,7 @@ export interface FileRoutesByTo {
   '/console/promo-codes': typeof AuthenticatedConsolePromoCodesRoute
   '/console/webhook-test': typeof AuthenticatedConsoleWebhookTestRoute
   '/trips/$id': typeof AuthenticatedTripsIdRoute
+  '/api/public/email-webhook-version': typeof ApiPublicEmailWebhookVersionRoute
   '/api/public/paddle-webhook': typeof ApiPublicPaddleWebhookRoute
   '/trips': typeof AuthenticatedTripsIndexRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -277,6 +286,7 @@ export interface FileRoutesById {
   '/_authenticated/console/promo-codes': typeof AuthenticatedConsolePromoCodesRoute
   '/_authenticated/console/webhook-test': typeof AuthenticatedConsoleWebhookTestRoute
   '/_authenticated/trips/$id': typeof AuthenticatedTripsIdRoute
+  '/api/public/email-webhook-version': typeof ApiPublicEmailWebhookVersionRoute
   '/api/public/paddle-webhook': typeof ApiPublicPaddleWebhookRoute
   '/_authenticated/trips/': typeof AuthenticatedTripsIndexRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -309,6 +319,7 @@ export interface FileRouteTypes {
     | '/console/promo-codes'
     | '/console/webhook-test'
     | '/trips/$id'
+    | '/api/public/email-webhook-version'
     | '/api/public/paddle-webhook'
     | '/trips/'
     | '/lovable/email/auth/preview'
@@ -339,6 +350,7 @@ export interface FileRouteTypes {
     | '/console/promo-codes'
     | '/console/webhook-test'
     | '/trips/$id'
+    | '/api/public/email-webhook-version'
     | '/api/public/paddle-webhook'
     | '/trips'
     | '/lovable/email/auth/preview'
@@ -370,6 +382,7 @@ export interface FileRouteTypes {
     | '/_authenticated/console/promo-codes'
     | '/_authenticated/console/webhook-test'
     | '/_authenticated/trips/$id'
+    | '/api/public/email-webhook-version'
     | '/api/public/paddle-webhook'
     | '/_authenticated/trips/'
     | '/lovable/email/auth/preview'
@@ -387,6 +400,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
   JoinTokenRoute: typeof JoinTokenRoute
+  ApiPublicEmailWebhookVersionRoute: typeof ApiPublicEmailWebhookVersionRoute
   ApiPublicPaddleWebhookRoute: typeof ApiPublicPaddleWebhookRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
@@ -535,6 +549,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaddleWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/email-webhook-version': {
+      id: '/api/public/email-webhook-version'
+      path: '/api/public/email-webhook-version'
+      fullPath: '/api/public/email-webhook-version'
+      preLoaderRoute: typeof ApiPublicEmailWebhookVersionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/trips/$id': {
       id: '/_authenticated/trips/$id'
       path: '/trips/$id'
@@ -661,6 +682,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
   JoinTokenRoute: JoinTokenRoute,
+  ApiPublicEmailWebhookVersionRoute: ApiPublicEmailWebhookVersionRoute,
   ApiPublicPaddleWebhookRoute: ApiPublicPaddleWebhookRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
