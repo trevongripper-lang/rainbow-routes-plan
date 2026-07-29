@@ -4,7 +4,9 @@
 // imports are loaded lazily inside the POST handler.
 import { createFileRoute } from "@tanstack/react-router";
 import {
+  AUTH_EMAIL_LINK_STRATEGY,
   AUTH_EMAIL_TEMPLATE_VERSION,
+  AUTH_EMAIL_TOTP_STRATEGY,
   LINK_AUTH_ACTIONS,
   type AuthActionType,
 } from "@/lib/auth-email-contract";
@@ -272,7 +274,7 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
             console.error("Rejected reauthentication email: missing token", { run_id });
             return Response.json({ error: "Missing reauthentication token" }, { status: 400 });
           }
-          linkStrategy = "totp_code";
+          linkStrategy = AUTH_EMAIL_TOTP_STRATEGY;
         } else if (LINK_AUTH_ACTIONS.has(emailType as AuthActionType)) {
           const tokenResult = extractAuthEmailTokenHash(
             payload.data as Record<string, unknown>,
@@ -303,7 +305,7 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
             emailType as Exclude<AuthActionType, "reauthentication">,
             nextPath,
           );
-          linkStrategy = "tribe_token_hash_interstitial";
+          linkStrategy = AUTH_EMAIL_LINK_STRATEGY;
           console.log("Auth email token accepted", {
             emailType,
             run_id,
