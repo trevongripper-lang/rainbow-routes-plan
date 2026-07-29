@@ -189,10 +189,10 @@ function AuthCallback() {
         return;
       }
 
-      // Consume any pending same-origin destination the caller stashed
-      // before starting OAuth (e.g. /join/$token). sanitizeRedirectPath
+      // Prefer the URL `next` param (survives cross-tab email clicks) over
+      // sessionStorage (per-tab, empty in a fresh tab). sanitizeRedirectPath
       // enforces same-origin + relative; anything unsafe falls back to /app.
-      const pending = consumePendingRedirect();
+      const pending = nextParam ?? consumePendingRedirect();
       const safePending = pending ? sanitizeRedirectPath(pending, { fallback: "/app" }) : "/app";
 
 
