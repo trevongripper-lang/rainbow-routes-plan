@@ -891,6 +891,42 @@ function AuthPage() {
               {resettingSession ? "Resetting…" : "Reset session and start over"}
             </Button>
           </div>
+          <div className="mt-6 border-t border-border/60 pt-6 text-left">
+            <p className="text-sm font-medium text-foreground">Or sign in with an email link</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              We'll email you a one-tap sign-in link — no password needed.
+            </p>
+            <div className="mt-3 space-y-2">
+              <Label htmlFor="magic-link-email" className="sr-only">
+                Email address
+              </Label>
+              <Input
+                id="magic-link-email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={magicLinkEmail}
+                onChange={(e) => {
+                  setMagicLinkEmail(e.target.value);
+                  if (magicLinkState === "sent") setMagicLinkState("idle");
+                }}
+                disabled={magicLinkState === "sending"}
+              />
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => void handleMagicLink(magicLinkEmail)}
+                disabled={magicLinkState === "sending" || magicLinkState === "sent" || blocked}
+              >
+                {magicLinkState === "sending"
+                  ? "Sending…"
+                  : magicLinkState === "sent"
+                    ? "Link sent ✓ Check your email"
+                    : "Email me a sign-in link"}
+              </Button>
+            </div>
+          </div>
+
         </div>
       </div>
     );
