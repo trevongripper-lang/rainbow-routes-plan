@@ -1,6 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouter, useRouterState } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,16 +7,6 @@ import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { rlCheckPublic } from "@/lib/rate-limit.functions";
 import { track } from "@/lib/analytics";
@@ -38,16 +27,7 @@ import {
   useAuth,
 } from "@/lib/auth-state";
 import { withTimeout } from "@/lib/utils";
-import { canonicalEmailOrigin, canonicalOAuthOrigin, needsOAuthOriginCanonicalization } from "@/lib/canonical-origin";
-import {
-  clearOAuthPending,
-  isBrowserStorageUsable,
-  markOAuthPending,
-  readOAuthPending,
-  toPublicOAuthErrorCode,
-  detectBrowserMode,
-  classifyOrigin,
-} from "@/lib/oauth-return";
+import { canonicalEmailOrigin } from "@/lib/canonical-origin";
 
 type AuthSearch = { redirect?: string };
 
@@ -85,23 +65,15 @@ function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState<{ scope: string; until: number } | null>(null);
   const [confirmSent, setConfirmSent] = useState<string | null>(null);
-  const [pendingConfirmEmail, setPendingConfirmEmail] = useState<string | null>(null);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
   const [retryingSession, setRetryingSession] = useState(false);
   const [resettingSession, setResettingSession] = useState(false);
   const [redirectRecovery, setRedirectRecovery] = useState<{ target: string; message: string } | null>(null);
   const [redirectPhase, setRedirectPhase] = useState<"idle" | "confirming" | "navigating">("idle");
-  const [oauthReconcile, setOauthReconcile] = useState<
-    | { phase: "reconciling"; message: string }
-    | { phase: "error"; title: string; message: string; code: string; intendedOrigin?: string }
-    | null
-  >(null);
-  const [reconcileRetrying, setReconcileRetrying] = useState(false);
   const redirectingRef = useRef(false);
   const redirectTimeoutRef = useRef<number | null>(null);
 
@@ -190,28 +162,6 @@ function AuthPage() {
   useEffect(() => () => clearRedirectTimeout(), [clearRedirectTimeout]);
 
 
-  // Callback-parameter forwarding. Some Google returns (misconfigured
-  // upstream redirects, browser back-nav after Google, PWAs that intercept
-  // the callback path) land on `/auth?code=…` or `/auth?error=…` instead of
-  // `/auth/callback?…`. `/auth/callback` is the SINGLE owner of the PKCE
-  // exchange — forward the full query there before any polling / login-shell
-  // render so the code is exchanged exactly once. Fixes the
-  // `oauth_return_poll_timeout` seen when polling replaced the exchange.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    if (url.pathname !== "/auth" && url.pathname !== "/auth/") return;
-    const hasCallbackParam =
-      url.searchParams.has("code") ||
-      url.searchParams.has("error") ||
-      url.searchParams.has("error_description");
-    if (!hasCallbackParam) return;
-    logAuthStage("callback_reached", { ok: true, code: "forwarded_from_auth" });
-    // Preserve every param; `/auth/callback` reads `code`, `error`,
-    // `error_description`, and `type` (for password recovery).
-    window.location.replace(`/auth/callback${url.search}`);
-  }, []);
-
   // If a session already exists (e.g. user returned from OAuth redirect, or
   // signed in in another tab), bounce off /auth. Re-confirm with Supabase
   // before navigating so a just-cleared sign-out (whose in-memory snapshot
@@ -229,111 +179,6 @@ function AuthPage() {
     };
   }, [auth.ready, auth.session, goToApp]);
 
-  // OAuth-return reconciliation. If a pending marker exists from a prior
-  // `signInWithOAuth` call, we're mid-return: DO NOT render the login shell.
-  // Poll for a real session (bounded), verify persistence via read-back,
-  // then hard-navigate. On failure, surface a recoverable error UI.
-  useEffect(() => {
-    const pending = readOAuthPending();
-    if (!pending) return;
-    let cancelled = false;
-
-    // Storage availability check — the top failure mode on iOS in-app
-    // browsers / private mode: setSession has nothing to persist to.
-    if (!isBrowserStorageUsable()) {
-      logAuthStage("session_hydration_timeout", { ok: false, code: "storage_unavailable" });
-      clearOAuthPending();
-      setOauthReconcile({
-        phase: "error",
-        title: "Browser storage is blocked",
-        code: "oauth_storage_unavailable",
-        message:
-          "This browser is blocking site storage, so we can't finish signing you in. Try a normal browser window (not private mode) or another browser.",
-      });
-      return;
-    }
-
-    // Origin mismatch — started on www but landed on apex (or vice versa)
-    // will fail because the session was written to a different origin's storage.
-    const currentOrigin = window.location.origin;
-    if (pending.origin && pending.origin !== currentOrigin) {
-      logAuthStage("session_hydration_timeout", {
-        ok: false,
-        code: "origin_mismatch",
-        msg: `${pending.originCategory}→${currentOrigin.replace(/^https?:\/\//, "")}`,
-      });
-      clearOAuthPending();
-      setOauthReconcile({
-        phase: "error",
-        title: "Sign-in returned to a different address",
-        code: "oauth_origin_mismatch",
-        message:
-          "Google sent you back to a different address than the one you started on. Retry to continue on the original address.",
-        intendedOrigin: pending.origin,
-      });
-      return;
-    }
-
-    logAuthStage("oauth_return_detected", { ok: true, code: pending.mode });
-    setOauthReconcile({ phase: "reconciling", message: "Finishing Google sign-in…" });
-
-    let attempts = 0;
-    const MAX_ATTEMPTS = 16; // ~8s at 500ms
-    const poll = async () => {
-      if (cancelled) return;
-      attempts += 1;
-      const { data } = await supabase.auth.getSession();
-      if (cancelled) return;
-      if (data.session) {
-        // Read-back to prove the session actually persisted to storage before
-        // we do a full-page navigation.
-        const verify = await supabase.auth.getSession();
-        if (cancelled) return;
-        if (!verify.data.session) {
-          // Persistence did not stick — treat as failure.
-          logAuthStage("session_hydration_timeout", { ok: false, code: "persist_readback_missing" });
-          clearOAuthPending();
-          setOauthReconcile({
-            phase: "error",
-            title: "Session didn't persist",
-            code: "oauth_session_not_persisted",
-            message:
-              "We received your Google sign-in but this browser didn't store the session. Try again, or use a normal browser window.",
-            intendedOrigin: pending.origin ?? currentOrigin,
-          });
-          return;
-        }
-        logAuthStage("session_hydrated", { ok: true, code: "oauth_return" });
-        clearOAuthPending();
-        setAuthSession(verify.data.session);
-        setOauthReconcile(null);
-        void goToApp({ skipSessionCheck: true });
-        return;
-      }
-      if (attempts >= MAX_ATTEMPTS) {
-        logAuthStage("session_hydration_timeout", { ok: false, code: "oauth_return_poll" });
-        clearOAuthPending();
-        setOauthReconcile({
-          phase: "error",
-          title: "Google sign-in didn't complete",
-          code: "oauth_return_poll_timeout",
-          message:
-            "We couldn't confirm your session after returning from Google. Try again, or reset the session and start over.",
-          intendedOrigin: pending.origin ?? currentOrigin,
-        });
-        return;
-      }
-      window.setTimeout(() => void poll(), 500);
-    };
-    void poll();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [goToApp]);
-
-
-
   async function guard(scope: "login" | "reset" | "signup", emailVal: string): Promise<boolean> {
     const r = await rlCheck({ data: { scope, email: emailVal } });
     if (!r.allowed) {
@@ -345,25 +190,8 @@ function AuthPage() {
     return true;
   }
 
-  // Two-step email submit: the first click opens a confirmation dialog
-  // showing the exact email the user typed (catches typos before we send
-  // a confirmation email or attempt to authenticate). The dialog's
-  // "Yes, that's right" button invokes submitEmailConfirmed() which does
-  // the actual sign-in / sign-up.
-  function handleEmail(e: React.FormEvent) {
+  async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
-    if (blocked || loading) return;
-    const trimmed = email.trim();
-    if (!trimmed || !trimmed.includes("@")) {
-      toast.error("Enter a valid email address.");
-      return;
-    }
-    if (trimmed !== email) setEmail(trimmed);
-    setPendingConfirmEmail(trimmed);
-  }
-
-  async function submitEmailConfirmed() {
-    setPendingConfirmEmail(null);
     if (blocked) return;
     setLoading(true);
     try {
@@ -379,11 +207,14 @@ function AuthPage() {
           },
         });
         if (error) throw error;
+        // If email confirmation is required, identities is an empty array or
+        // session is null. Show the confirmation panel instead of switching modes.
         if (!data.session) {
           track("signup_confirmation_required");
           setConfirmSent(email);
           return;
         }
+        // Auto-confirm enabled — straight into the app.
         setAuthSession(data.session);
         track("signin_succeeded", { method: "signup_autoconfirm" });
         await goToApp({ skipSessionCheck: true });
@@ -429,214 +260,53 @@ function AuthPage() {
 
   async function handleGoogle() {
     setLoading(true);
-    const startedAt = Date.now();
     const cid = beginAuthCorrelation();
-    const originCategory = classifyOrigin(window.location.origin);
-    const browserMode = detectBrowserMode();
-    logAuthStage("oauth_start", {
-      code: "google",
-      msg: `origin=${originCategory} mode=${browserMode} flow=pkce_fullpage`,
-    });
+    logAuthStage("oauth_start", { code: "google" });
     try {
-      // Pre-flight 1: browser storage must be writable — Supabase writes the
-      // PKCE verifier to localStorage BEFORE the redirect, then reads it back
-      // on the /auth/callback return to complete the exchange. Without it the
-      // exchange fails silently with "invalid request".
-      if (!isBrowserStorageUsable()) {
-        logAuthStage("oauth_start", {
-          ok: false,
-          code: "oauth_storage_unavailable",
-          durationMs: Date.now() - startedAt,
-        });
-        setOauthReconcile({
-          phase: "error",
-          title: "Browser storage is blocked",
-          code: "oauth_storage_unavailable",
-          message:
-            "This browser is blocking site storage, so we can't sign you in. Try a normal browser window (not private mode) or another browser.",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Pre-flight 2: PKCE verifier is written to THIS origin's localStorage.
-      // If we start on www but Google returns to apex (or vice versa), the
-      // verifier is invisible and the exchange fails. Force apex before start.
-      if (needsOAuthOriginCanonicalization()) {
-        const target =
-          canonicalOAuthOrigin() +
-          "/auth" +
-          (search.redirect ? `?redirect=${encodeURIComponent(search.redirect)}` : "");
-        logAuthStage("oauth_start", {
-          ok: true,
-          code: "canonicalize_origin",
-          msg: `${originCategory}→apex`,
-          durationMs: Date.now() - startedAt,
-        });
-        window.location.assign(target);
-        return;
-      }
-
       track("google_signin_started");
+      // Stash the intended redirect so we can honor it after the full-page
+      // OAuth round-trip returns to /auth (or the origin) with a fresh
+      // session. `redirect_uri` MUST stay a public same-origin URL, never a
+      // protected route.
       stashPendingRedirect(redirectTarget);
-      // Mark OAuth as pending so a return to /auth (instead of /auth/callback,
-      // e.g. user hits back) can enter reconciliation instead of rendering the
-      // signed-out login shell.
-      markOAuthPending("google", cid);
-
-      // Canonical full-page PKCE authorization-code flow. Supabase generates
-      // the verifier, stores it in localStorage on THIS origin, and redirects
-      // to Google. Google returns to /auth/callback?code=… which exchanges
-      // once via supabase.auth.exchangeCodeForSession(code).
-      //
-      // We do NOT use the lovable.auth web-message broker for Google: its
-      // inline token handoff has proven unreliable on Safari / installed PWAs
-      // (see oauth_return_poll_timeout reports).
-      const redirectTo = window.location.origin + "/auth/callback";
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-          queryParams: { prompt: "select_account" },
-          // We drive the redirect ourselves so we can log the stage transition
-          // and short-circuit cleanly if Supabase returned an error instead.
-          skipBrowserRedirect: true,
-        },
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin + "/auth",
       });
-
-      if (error || !data?.url) {
-        const publicCode = toPublicOAuthErrorCode(
-          error ? "oauth_provider_failed" : "oauth_token_delivery_missing",
-        );
-        logAuthStage("oauth_start", {
-          ok: false,
-          code: publicCode,
-          durationMs: Date.now() - startedAt,
+      if (result.error) {
+        logAuthStage("oauth_start", { ok: false, code: "google", msg: result.error.message });
+        track("google_signin_failed", {
+          message: result.error.message?.slice(0, 140) ?? "unknown",
         });
-        track("google_signin_failed", { message: publicCode });
-        clearOAuthPending();
-        setOauthReconcile({
-          phase: "error",
-          title: "Couldn't start Google sign-in",
-          code: publicCode,
-          message: "We couldn't start the Google sign-in flow. Please try again.",
-          intendedOrigin: window.location.origin,
-        });
-        setLoading(false);
+        toast.error(result.error.message ?? "Google sign-in failed");
         return;
       }
-
-      logAuthStage("oauth_redirect_initiated", {
-        ok: true,
-        code: "google",
-        durationMs: Date.now() - startedAt,
-      });
-      // Full-page navigation — pending marker + PKCE verifier survive.
-      window.location.assign(data.url);
-      return;
-
-    } catch {
-      clearOAuthPending();
+      if (result.redirected) {
+        logAuthStage("oauth_redirect_initiated", { ok: true, code: "google" });
+        return; // browser is navigating away
+      }
+      logAuthStage("oauth_inline_tokens_received", { ok: true, code: "google" });
+      // Session is set inline (preview iframe / web_message flow); confirm it and go now.
+      const confirmed = await refreshAuthState();
+      if (!confirmed.session) {
+        logAuthStage("session_hydration_timeout", { ok: false, code: "google" });
+        throw new Error("Google sign-in succeeded, but the session is not ready yet.");
+      }
+      logAuthStage("session_hydrated", { ok: true, code: "google" });
+      track("signin_succeeded", { method: "google" });
+      await goToApp({ skipSessionCheck: true });
+    } catch (err) {
       logAuthStage("session_hydration_timeout", {
         ok: false,
-        code: "oauth_provider_failed",
-        durationMs: Date.now() - startedAt,
+        code: "google",
+        msg: err instanceof Error ? err.message : String(err),
       });
-      track("google_signin_failed", { message: "oauth_provider_failed" });
-      toast.error("Google sign-in failed. Please try again.");
+      track("google_signin_failed", {
+        message: err instanceof Error ? err.message.slice(0, 140) : "unknown",
+      });
+      toast.error(err instanceof Error ? err.message : "Google sign-in failed");
     } finally {
       setLoading(false);
       // Reference cid so future stages inherit it via sessionStorage.
-      void cid;
-    }
-  }
-
-  // Apple mirrors the Google full-page PKCE flow: same pre-flight checks,
-  // same /auth/callback exchange, same pending marker so a bounce back to
-  // /auth (rather than /auth/callback) reconciles instead of showing the
-  // signed-out shell. We do NOT use lovable.auth's web-message broker here
-  // for the same Safari/PWA reliability reasons documented on Google.
-  async function handleApple() {
-    setLoading(true);
-    const startedAt = Date.now();
-    const cid = beginAuthCorrelation();
-    const originCategory = classifyOrigin(window.location.origin);
-    const browserMode = detectBrowserMode();
-    logAuthStage("oauth_start", {
-      code: "apple",
-      msg: `origin=${originCategory} mode=${browserMode} flow=pkce_fullpage`,
-    });
-    try {
-      if (!isBrowserStorageUsable()) {
-        logAuthStage("oauth_start", {
-          ok: false,
-          code: "oauth_storage_unavailable",
-          durationMs: Date.now() - startedAt,
-        });
-        setOauthReconcile({
-          phase: "error",
-          title: "Browser storage is blocked",
-          code: "oauth_storage_unavailable",
-          message:
-            "This browser is blocking site storage, so we can't sign you in. Try a normal browser window (not private mode) or another browser.",
-        });
-        setLoading(false);
-        return;
-      }
-      if (needsOAuthOriginCanonicalization()) {
-        const target =
-          canonicalOAuthOrigin() +
-          "/auth" +
-          (search.redirect ? `?redirect=${encodeURIComponent(search.redirect)}` : "");
-        window.location.assign(target);
-        return;
-      }
-
-      track("apple_signin_started");
-      stashPendingRedirect(redirectTarget);
-      markOAuthPending("apple", cid);
-
-      const redirectTo = window.location.origin + "/auth/callback";
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "apple",
-        options: { redirectTo, skipBrowserRedirect: true },
-      });
-
-      if (error || !data?.url) {
-        const publicCode = toPublicOAuthErrorCode(
-          error ? "oauth_provider_failed" : "oauth_token_delivery_missing",
-        );
-        logAuthStage("oauth_start", {
-          ok: false,
-          code: publicCode,
-          durationMs: Date.now() - startedAt,
-        });
-        track("apple_signin_failed", { message: publicCode });
-        clearOAuthPending();
-        setOauthReconcile({
-          phase: "error",
-          title: "Couldn't start Apple sign-in",
-          code: publicCode,
-          message: "We couldn't start the Apple sign-in flow. Please try again.",
-          intendedOrigin: window.location.origin,
-        });
-        setLoading(false);
-        return;
-      }
-
-      logAuthStage("oauth_redirect_initiated", {
-        ok: true,
-        code: "apple",
-        durationMs: Date.now() - startedAt,
-      });
-      window.location.assign(data.url);
-      return;
-    } catch {
-      clearOAuthPending();
-      track("apple_signin_failed", { message: "oauth_provider_failed" });
-      toast.error("Apple sign-in failed. Please try again.");
-    } finally {
-      setLoading(false);
       void cid;
     }
   }
@@ -651,88 +321,11 @@ function AuthPage() {
     }
   }
 
-  // Retry from the OAuth reconciliation error screen:
-  //   1. Clear any lingering pending marker.
-  //   2. Re-check session read-back — if Supabase has since hydrated the
-  //      session (slow storage write, late token), navigate to /app.
-  //   3. Otherwise restart Google sign-in on the canonical origin the user
-  //      originally started on (prevents apex↔www mismatch loops).
-  async function handleReconcileRetry() {
-    if (reconcileRetrying) return;
-    setReconcileRetrying(true);
-    try {
-      const intendedOrigin =
-        oauthReconcile && oauthReconcile.phase === "error"
-          ? oauthReconcile.intendedOrigin
-          : undefined;
-      // Fresh correlation for the retry attempt so its stage trace is
-      // distinguishable from the failed one in support logs.
-      const retryCid = beginAuthCorrelation();
-      void retryCid;
-      clearOAuthPending();
-      logAuthStage("oauth_start", { code: "google", msg: "retry_from_reconcile" });
-
-      // Read-back: if a session did land after the error was shown, use it.
-      const first = await supabase.auth.getSession();
-      if (first.data.session) {
-        const verify = await supabase.auth.getSession();
-        if (verify.data.session) {
-          logAuthStage("session_hydrated", { ok: true, code: "retry_readback" });
-          setAuthSession(verify.data.session);
-          setOauthReconcile(null);
-          await goToApp({ skipSessionCheck: true });
-          return;
-        }
-      }
-
-      // If the previous attempt started on a different origin, bounce there
-      // so OAuth begins and returns on the same canonical origin.
-      if (
-        intendedOrigin &&
-        typeof window !== "undefined" &&
-        intendedOrigin !== window.location.origin
-      ) {
-        const target =
-          intendedOrigin.replace(/\/$/, "") +
-          "/auth" +
-          (search.redirect ? `?redirect=${encodeURIComponent(search.redirect)}` : "");
-        window.location.assign(target);
-        return;
-      }
-
-      setOauthReconcile(null);
-      await handleGoogle();
-    } finally {
-      setReconcileRetrying(false);
-    }
-  }
-
-
-  // Session reset (from OAuth recovery or session recovery screen):
-  //   - Clears Supabase auth session + Tribe auth store.
-  //   - Clears OAuth pending marker so a new flow starts clean.
-  //   - Cancels in-flight queries but does NOT clear query cache for
-  //     unrelated public data (destinations list, homepage content, etc.).
   async function handleSessionReset() {
     setResettingSession(true);
     try {
-      clearOAuthPending();
       await queryClient.cancelQueries();
-      // Remove only auth/user-scoped queries. Public/unrelated caches stay.
-      queryClient.removeQueries({
-        predicate: (q) => {
-          const key = Array.isArray(q.queryKey) ? q.queryKey : [q.queryKey];
-          const head = typeof key[0] === "string" ? key[0] : "";
-          return (
-            head === "auth" ||
-            head === "user" ||
-            head === "me" ||
-            head === "profile" ||
-            head === "session" ||
-            head === "beta-consent"
-          );
-        },
-      });
+      queryClient.clear();
       resetAuthState();
       await supabase.auth.signOut();
       clearAuthSession();
@@ -763,101 +356,6 @@ function AuthPage() {
       setResendState("idle");
       toast.error(err instanceof Error ? err.message : "Could not resend. Try again shortly.");
     }
-  }
-
-  // OAuth reconciliation takes precedence over EVERY other render branch:
-  // while a Google return is being reconciled we must never render the login
-  // shell, otherwise the user sees "Sign in" and thinks Google failed.
-  if (oauthReconcile) {
-    if (oauthReconcile.phase === "reconciling") {
-      return (
-        <div
-          className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
-          style={{ background: "var(--gradient-hero)" }}
-        >
-          <div
-            role="status"
-            aria-live="polite"
-            className="flex items-center gap-3 text-sm text-muted-foreground"
-          >
-            <span
-              aria-hidden="true"
-              className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-            />
-            {oauthReconcile.message}
-          </div>
-        </div>
-      );
-    }
-    return (
-      <div
-        className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
-        style={{ background: "var(--gradient-hero)" }}
-        role="alertdialog"
-        aria-labelledby="google-recovery-title"
-        aria-describedby="google-recovery-message"
-      >
-        <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-8 text-center backdrop-blur">
-          <div
-            aria-hidden
-            className="mx-auto grid size-12 place-items-center rounded-full bg-destructive/15 text-destructive"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="size-6"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 9v4" />
-              <path d="M12 17h.01" />
-              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
-            </svg>
-          </div>
-          <h1 id="google-recovery-title" className="mt-4 font-display text-3xl">
-            {oauthReconcile.title}
-          </h1>
-          <p id="google-recovery-message" className="mt-3 text-sm text-muted-foreground">
-            {oauthReconcile.message}
-          </p>
-          <div
-            className="mt-4 inline-flex flex-col items-center gap-1 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
-            aria-label="Diagnostic details"
-          >
-            <span>
-              Error code:{" "}
-              <code className="font-mono text-foreground">{oauthReconcile.code}</code>
-            </span>
-            <span className="text-[10px] opacity-70">
-              Share this code with support if the problem continues.
-            </span>
-          </div>
-          <div className="mt-6 flex flex-col gap-2">
-            <Button
-              type="button"
-              onClick={() => void handleReconcileRetry()}
-              disabled={reconcileRetrying || loading}
-              autoFocus
-            >
-              {reconcileRetrying ? "Retrying…" : "Retry Google sign-in"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={async () => {
-                setOauthReconcile(null);
-                await handleSessionReset();
-              }}
-              disabled={resettingSession}
-            >
-              {resettingSession ? "Resetting…" : "Reset session and start over"}
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
   }
 
   if (auth.ready && auth.error) {
@@ -1053,67 +551,25 @@ function AuthPage() {
             </p>
 
             <Button
-              type="button"
-              variant="outline"
               onClick={handleGoogle}
-              disabled={loading || blocked}
+              disabled={loading}
+              variant="outline"
               className="mt-6 w-full"
             >
-              <svg
-                className="mr-2 h-4 w-4"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
+              <svg viewBox="0 0 24 24" className="size-4">
                 <path
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  fill="#4285F4"
-                />
-                <path
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  fill="#34A853"
-                />
-                <path
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                  fill="#FBBC05"
-                />
-                <path
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  fill="#EA4335"
+                  fill="currentColor"
+                  d="M21.35 11.1H12v3.2h5.35c-.5 2.4-2.6 4-5.35 4a5.85 5.85 0 1 1 0-11.7c1.5 0 2.9.55 4 1.55l2.35-2.35A9.15 9.15 0 0 0 12 3.05a9 9 0 1 0 9.35 9.35c0-.45-.05-.85-.1-1.3Z"
                 />
               </svg>
               Continue with Google
             </Button>
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleApple}
-              disabled={loading || blocked}
-              className="mt-2 w-full"
-            >
-              <svg
-                className="mr-2 h-4 w-4"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-                fill="currentColor"
-              >
-                <path d="M16.365 1.43c0 1.14-.42 2.22-1.12 3.01-.76.86-2 1.53-3.05 1.45-.13-1.1.43-2.26 1.11-3.01.77-.87 2.09-1.52 3.06-1.45zM20.5 17.14c-.55 1.27-.82 1.83-1.53 2.95-.99 1.57-2.39 3.52-4.11 3.54-1.54.02-1.93-1-4.02-1-2.08 0-2.52.98-4.06 1.02-1.71.05-3.01-1.7-4.01-3.27C.62 16.98-.72 10.66 2.15 6.5c1.35-1.97 3.48-3.22 5.49-3.22 1.65 0 2.68.9 4.05.9 1.33 0 2.14-.9 4.05-.9 1.44 0 2.97.79 4.06 2.15-3.57 1.96-2.99 7.08.7 8.72z" />
-              </svg>
-              Continue with Apple
-            </Button>
-
-            <div className="relative mt-6">
-              <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">or continue with email</span>
-              </div>
+            <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="h-px flex-1 bg-border" /> or <div className="h-px flex-1 bg-border" />
             </div>
 
-            <form onSubmit={handleEmail} className="mt-6 space-y-3">
+            <form onSubmit={handleEmail} className="space-y-3">
               {mode === "signup" && (
                 <div>
                   <Label htmlFor="name">Display name</Label>
@@ -1137,25 +593,14 @@ function AuthPage() {
               </div>
               <div>
                 <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    required
-                    minLength={6}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
               </div>
               <Button type="submit" disabled={loading || blocked} className="w-full">
                 {blocked ? `Wait ${secsLeft}s` : mode === "signin" ? "Sign in" : "Create account"}
@@ -1199,29 +644,6 @@ function AuthPage() {
           </>
         )}
       </div>
-      <AlertDialog
-        open={pendingConfirmEmail !== null}
-        onOpenChange={(open) => {
-          if (!open) setPendingConfirmEmail(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Is this email correct?</AlertDialogTitle>
-            <AlertDialogDescription>
-              We'll {mode === "signup" ? "send a confirmation link to" : "sign you in as"}{" "}
-              <span className="font-medium text-foreground break-all">{pendingConfirmEmail}</span>.
-              Double-check for typos before continuing.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Edit email</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void submitEmailConfirmed()}>
-              Yes, that's right
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

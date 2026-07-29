@@ -20,8 +20,6 @@ export type AuthStage =
   | "oauth_start"
   | "oauth_redirect_initiated"
   | "oauth_inline_tokens_received"
-  | "oauth_session_setup"
-  | "oauth_return_detected"
   | "callback_reached"
   | "callback_error_param"
   | "code_exchange_ok"
@@ -41,7 +39,6 @@ export type AuthDiagEntry = {
   code?: string;
   msg?: string; // sanitized, truncated
   path?: string; // pathname only
-  durationMs?: number;
 };
 
 function safeSession(): Storage | null {
@@ -125,7 +122,7 @@ function sanitizeMsg(input: unknown): string | undefined {
 
 export function logAuthStage(
   stage: AuthStage,
-  opts: { ok?: boolean; code?: string; msg?: unknown; durationMs?: number } = {},
+  opts: { ok?: boolean; code?: string; msg?: unknown } = {},
 ): void {
   try {
     const entry: AuthDiagEntry = {
@@ -136,10 +133,6 @@ export function logAuthStage(
       code: opts.code,
       msg: sanitizeMsg(opts.msg),
       path: typeof window !== "undefined" ? window.location.pathname : undefined,
-      durationMs:
-        typeof opts.durationMs === "number" && Number.isFinite(opts.durationMs)
-          ? Math.max(0, Math.round(opts.durationMs))
-          : undefined,
     };
     const entries = read();
     entries.push(entry);
@@ -166,7 +159,6 @@ export function formatAuthDiagnosticsForSupport(): string {
       if (e.code) parts.push(`code=${e.code}`);
       if (e.path) parts.push(`path=${e.path}`);
       if (e.msg) parts.push(`msg=${e.msg}`);
-      if (e.durationMs !== undefined) parts.push(`durationMs=${e.durationMs}`);
       return parts.join(" | ");
     })
     .join("\n");

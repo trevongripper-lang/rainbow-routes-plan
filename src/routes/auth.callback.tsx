@@ -7,9 +7,6 @@ import {
   getAccessState,
 } from "@/lib/auth-state";
 import { logAuthStage } from "@/lib/auth-diagnostics";
-import { clearOAuthPending } from "@/lib/oauth-return";
-import { consumePendingRedirect, sanitizeRedirectPath } from "@/lib/redirect-guard";
-
 
 /**
  * PKCE callback route.
@@ -28,20 +25,8 @@ import { consumePendingRedirect, sanitizeRedirectPath } from "@/lib/redirect-gua
  *   - signed out (exchange failed / user missing)  → /auth with error
  */
 export const Route = createFileRoute("/auth/callback")({
-  ssr: false,
-  head: () => ({
-    meta: [
-      { title: "Signing in — Tribe Trips" },
-      { name: "robots", content: "noindex, nofollow" },
-      { name: "referrer", content: "no-referrer" },
-      // Callback URLs carry a one-time PKCE code; belt-and-braces against any
-      // intermediary caching the URL. Also stripped from history after use.
-      { httpEquiv: "cache-control", content: "no-store" },
-    ],
-  }),
   component: AuthCallback,
 });
-
 
 type Phase = "exchanging" | "routing" | "error";
 
@@ -61,84 +46,53 @@ function AuthCallback() {
       const errorParam = url.searchParams.get("error_description") ?? url.searchParams.get("error");
 
       if (errorParam) {
-        // Google denied / user cancelled / provider hiccup. Clear the OAuth
-        // pending marker so a later legitimate visit to /auth doesn't enter
-        // reconciliation for a dead flow.
-        clearOAuthPending();
-        logAuthStage("callback_error_param", { ok: false, code: "oauth_provider_failed" });
+        logAuthStage("callback_error_param", { ok: false, msg: errorParam });
         if (!cancelled) {
-          // Do NOT surface the raw provider error (may contain email/subject).
-          setErrorMessage(
-            "Google didn't complete the sign-in. Please try again from the sign-in screen.",
-          );
+          setErrorMessage(decodeURIComponent(errorParam));
           setPhase("error");
         }
         return;
       }
 
-      // Exchange ownership: /auth/callback is the SINGLE owner of the code
-      // exchange. `detectSessionInUrl` is off in the Supabase client so no
-      // other page-load path can consume `?code=` before we do. See
-      // docs/runbooks/google-oauth-callback.md. The `auto_detected_session`
-      // branch below is a belt-and-braces fallback in case a future change
-      // (or a stale service worker) re-enables auto-detection — treat an
-      // already-established session as success rather than a hard failure.
+      // Exchange the PKCE code if present. When `detectSessionInUrl` already
+      // consumed it, `exchangeCodeForSession` throws "invalid request" — we
+      // treat a live session as success and fall through.
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
           const { data: existing } = await supabase.auth.getSession();
           if (!existing.session) {
-            clearOAuthPending();
-            // Sanitized: don't leak provider/SDK error text.
-            logAuthStage("code_exchange_failed", { ok: false, code: "oauth_set_session_failed" });
+            logAuthStage("code_exchange_failed", { ok: false, msg: error.message });
             if (!cancelled) {
               setErrorMessage(
-                "This sign-in link has expired or was already used. Please start again from the sign-in screen.",
+                "This confirmation link has expired or was already used. Request a new one from the sign-in screen.",
               );
               setPhase("error");
             }
             return;
           }
-          logAuthStage("code_exchange_ok", { ok: true, msg: "auto_detected_session" });
+          logAuthStage("code_exchange_ok", { ok: true, msg: "existing_session" });
         } else {
           logAuthStage("code_exchange_ok", { ok: true });
         }
-      } else {
-        // No ?code and no error: either the SDK auto-detected on a prior tick
-        // (session present) or someone hit /auth/callback directly.
-        const { data: existing } = await supabase.auth.getSession();
-        if (!existing.session) {
-          clearOAuthPending();
-          logAuthStage("code_exchange_failed", { ok: false, code: "oauth_token_delivery_missing" });
-          if (!cancelled) {
-            setErrorMessage(
-              "We didn't receive a sign-in confirmation from Google. Please start again from the sign-in screen.",
-            );
-            setPhase("error");
-          }
-          return;
-        }
       }
 
-      // Strip code/state/error from the URL so a refresh doesn't try to
-      // re-exchange and so the code never lingers in browser history.
+      // Strip PKCE params from the URL so a refresh doesn't try to re-exchange
+      // and so the code never lingers in browser history.
       window.history.replaceState(null, "", "/auth/callback");
 
-      // Confirm session is readable from the shared auth store BEFORE we
-      // clear the OAuth pending marker — the marker is what protects a fresh
-      // session from a stale SIGNED_OUT event in the __root listener.
+      // Make sure the shared auth store reflects the new session before we
+      // read the tier for routing.
       await ensureAuthReady();
       const state = getAccessState();
       logAuthStage("session_hydrated", { ok: true, code: state.tier });
 
+      // Prime beta consent so the destination gate has it warm.
       if (state.isConfirmedPermanent) {
         const userId = (await supabase.auth.getSession()).data.session?.user?.id;
         if (userId) void primeBetaConsent(userId);
         logAuthStage("consent_primed", { ok: true });
       }
-
-      // Session is confirmed and stored — safe to release the pending marker.
-      clearOAuthPending();
 
       if (cancelled) return;
       setPhase("routing");
@@ -149,37 +103,28 @@ function AuthCallback() {
         return;
       }
 
-      // Consume any pending same-origin destination the caller stashed
-      // before starting OAuth (e.g. /join/$token). sanitizeRedirectPath
-      // enforces same-origin + relative; anything unsafe falls back to /app.
-      const pending = consumePendingRedirect();
-      const safePending = pending ? sanitizeRedirectPath(pending, { fallback: "/app" }) : "/app";
-
-
       switch (state.tier) {
-        case "confirmed_permanent_with_current_consent": {
+        case "confirmed_permanent_with_current_consent":
           logAuthStage("consent_route_current", { ok: true });
-          logAuthStage("final_navigate", { ok: true, code: safePending });
-          void navigate({ to: safePending, replace: true });
+          logAuthStage("final_navigate", { ok: true, code: "/app" });
+          void navigate({ to: "/app", replace: true });
           return;
-        }
         case "confirmed_permanent_without_consent":
           logAuthStage("consent_route_missing", { ok: true });
           logAuthStage("final_navigate", { ok: true, code: "/auth/consent" });
           void navigate({
             to: "/auth/consent",
-            search: { next: safePending, reason: "missing" },
+            search: { next: "/app", reason: "missing" },
             replace: true,
           });
           return;
-
         case "exploring_anonymously":
+          // Anonymous shouldn't come through the callback; fall through to home.
           logAuthStage("final_navigate", { ok: true, code: "/" });
           void navigate({ to: "/", replace: true });
           return;
         case "signed_out":
         default:
-          clearOAuthPending();
           logAuthStage("session_hydration_timeout", { ok: false, code: state.tier });
           if (!cancelled) {
             setErrorMessage(
@@ -189,7 +134,6 @@ function AuthCallback() {
           }
       }
     }
-
 
     void run();
     return () => {
