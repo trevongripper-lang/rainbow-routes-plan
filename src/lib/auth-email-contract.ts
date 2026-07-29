@@ -11,7 +11,7 @@ export const AUTH_EMAIL_ROOT_DOMAIN = "jointribetrips.com";
 export const AUTH_EMAIL_CALLBACK_PATH = "/auth/callback";
 
 /** Bump when webhook link generation or the templates change materially. */
-export const AUTH_EMAIL_TEMPLATE_VERSION = "2026-07-29.2";
+export const AUTH_EMAIL_TEMPLATE_VERSION = "2026-07-29.3";
 /** Every link-based auth email is a token-hash URL to the Tribe interstitial. */
 export const AUTH_EMAIL_LINK_STRATEGY = "tribe_token_hash_interstitial" as const;
 /** Reauthentication emails carry a numeric TOTP, no link. */
