@@ -8,6 +8,16 @@ import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { rlCheckPublic } from "@/lib/rate-limit.functions";
 import { track } from "@/lib/analytics";
@@ -80,6 +90,7 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState<{ scope: string; until: number } | null>(null);
   const [confirmSent, setConfirmSent] = useState<string | null>(null);
+  const [pendingConfirmEmail, setPendingConfirmEmail] = useState<string | null>(null);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
   const [retryingSession, setRetryingSession] = useState(false);
   const [resettingSession, setResettingSession] = useState(false);
@@ -334,8 +345,25 @@ function AuthPage() {
     return true;
   }
 
-  async function handleEmail(e: React.FormEvent) {
+  // Two-step email submit: the first click opens a confirmation dialog
+  // showing the exact email the user typed (catches typos before we send
+  // a confirmation email or attempt to authenticate). The dialog's
+  // "Yes, that's right" button invokes submitEmailConfirmed() which does
+  // the actual sign-in / sign-up.
+  function handleEmail(e: React.FormEvent) {
     e.preventDefault();
+    if (blocked || loading) return;
+    const trimmed = email.trim();
+    if (!trimmed || !trimmed.includes("@")) {
+      toast.error("Enter a valid email address.");
+      return;
+    }
+    if (trimmed !== email) setEmail(trimmed);
+    setPendingConfirmEmail(trimmed);
+  }
+
+  async function submitEmailConfirmed() {
+    setPendingConfirmEmail(null);
     if (blocked) return;
     setLoading(true);
     try {
@@ -351,14 +379,11 @@ function AuthPage() {
           },
         });
         if (error) throw error;
-        // If email confirmation is required, identities is an empty array or
-        // session is null. Show the confirmation panel instead of switching modes.
         if (!data.session) {
           track("signup_confirmation_required");
           setConfirmSent(email);
           return;
         }
-        // Auto-confirm enabled — straight into the app.
         setAuthSession(data.session);
         track("signin_succeeded", { method: "signup_autoconfirm" });
         await goToApp({ skipSessionCheck: true });
@@ -1065,6 +1090,29 @@ function AuthPage() {
           </>
         )}
       </div>
+      <AlertDialog
+        open={pendingConfirmEmail !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingConfirmEmail(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Is this email correct?</AlertDialogTitle>
+            <AlertDialogDescription>
+              We'll {mode === "signup" ? "send a confirmation link to" : "sign you in as"}{" "}
+              <span className="font-medium text-foreground break-all">{pendingConfirmEmail}</span>.
+              Double-check for typos before continuing.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Edit email</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void submitEmailConfirmed()}>
+              Yes, that's right
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
