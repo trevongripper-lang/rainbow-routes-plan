@@ -4,18 +4,18 @@
 // imports are loaded lazily inside the POST handler.
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  ALLOWED_CALLBACK_TYPES,
-  AUTH_EMAIL_CALLBACK_PATH,
   AUTH_EMAIL_LINK_STRATEGY,
-  AUTH_EMAIL_ROOT_DOMAIN,
   AUTH_EMAIL_TEMPLATE_VERSION,
   AUTH_EMAIL_TOTP_STRATEGY,
-  AUTH_TYPE_MAP,
-  FORBIDDEN_LINK_ARTIFACTS,
   LINK_AUTH_ACTIONS,
-  isSafeRelativePath,
   type AuthActionType,
 } from "@/lib/auth-email-contract";
+import {
+  buildTribeAuthCallbackUrl,
+  configuredAuthOrigin,
+  extractAuthEmailTokenHash,
+  extractSafeRedirectPath,
+} from "@/lib/auth-email-webhook";
 
 const EMAIL_SUBJECTS: Record<string, string> = {
   signup: "Confirm your Tribe Trips account",
@@ -37,7 +37,7 @@ const KNOWN_ACTION_TYPES = new Set<AuthActionType>([
 
 const SITE_NAME = "Tribe Trips";
 const SENDER_DOMAIN = "notify.jointribetrips.com";
-const ROOT_DOMAIN = AUTH_EMAIL_ROOT_DOMAIN;
+const ROOT_DOMAIN = "jointribetrips.com";
 const FROM_DOMAIN = "jointribetrips.com";
 const FROM_LOCAL_PART = "hello";
 const REPLY_TO = `hello@${FROM_DOMAIN}`;
@@ -54,52 +54,6 @@ function firstString(...values: unknown[]): string | undefined {
     if (typeof value === "string" && value.length > 0) return value;
   }
   return undefined;
-}
-
-/**
- * Pull the token hash from the webhook payload. Accepts the direct
- * `token_hash` field, or a token-hash URL if that's what upstream provided.
- * Explicitly refuses to treat `/auth/v1/verify` URLs as a token source.
- */
-function extractTokenHash(data: Record<string, unknown>): string | undefined {
-  const direct = firstString(
-    data.token_hash,
-    (data as Record<string, unknown>).tokenHash,
-    (data as Record<string, unknown>).hashed_token,
-    (data as Record<string, unknown>).hashedToken,
-  );
-  if (direct) return direct;
-
-  const rawUrl = firstString(data.url, (data as Record<string, unknown>).confirmation_url);
-  if (!rawUrl) return undefined;
-  if (FORBIDDEN_LINK_ARTIFACTS.some((re) => re.test(rawUrl))) return undefined;
-
-  try {
-    const url = new URL(rawUrl);
-    return firstString(url.searchParams.get("token_hash"), url.searchParams.get("tokenHash"));
-  } catch {
-    return undefined;
-  }
-}
-
-function extractSafeRedirectPath(data: Record<string, unknown>): string | undefined {
-  const direct = firstString(data.redirect_to, (data as Record<string, unknown>).redirectTo);
-  if (isSafeRelativePath(direct)) return direct;
-
-  const rawUrl = firstString(data.url);
-  if (!rawUrl) return undefined;
-  try {
-    const redirectTo = new URL(rawUrl).searchParams.get("redirect_to");
-    if (!redirectTo) return undefined;
-    const parsed = new URL(redirectTo);
-    if (parsed.hostname !== ROOT_DOMAIN && parsed.hostname !== `www.${ROOT_DOMAIN}`) {
-      return undefined;
-    }
-    const path = `${parsed.pathname}${parsed.search}${parsed.hash}`;
-    return isSafeRelativePath(path) ? path : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 // Deterministic plain-text bodies so each auth email contains exactly one
@@ -212,16 +166,6 @@ function detectEnvironment(request: Request): "production" | "preview" {
   }
 }
 
-function containsForbiddenArtifact(...values: (string | undefined | null)[]): string | null {
-  for (const v of values) {
-    if (!v) continue;
-    for (const re of FORBIDDEN_LINK_ARTIFACTS) {
-      if (re.test(v)) return re.source;
-    }
-  }
-  return null;
-}
-
 export const Route = createFileRoute("/lovable/email/auth/webhook")({
   server: {
     handlers: {
@@ -332,28 +276,48 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
           }
           linkStrategy = AUTH_EMAIL_TOTP_STRATEGY;
         } else if (LINK_AUTH_ACTIONS.has(emailType as AuthActionType)) {
-          const tokenHash = extractTokenHash(payload.data as Record<string, unknown>);
-          if (!tokenHash) {
-            console.error("Rejected auth email: missing token_hash", { emailType, run_id });
+          const tokenResult = extractAuthEmailTokenHash(
+            payload.data as Record<string, unknown>,
+            emailType,
+            configuredAuthOrigin(import.meta.env.VITE_SUPABASE_URL),
+          );
+          if (!tokenResult.ok) {
+            console.error("Rejected auth email: token unavailable", {
+              emailType,
+              run_id,
+              reason: tokenResult.reason,
+              token_related_fields_present: tokenResult.diagnostics.token_related_fields_present,
+              provider_url_present: tokenResult.diagnostics.provider_url_present,
+              provider_url_origin_matches: tokenResult.diagnostics.provider_url_origin_matches,
+              provider_url_path_matches: tokenResult.diagnostics.provider_url_path_matches,
+              provider_url_has_token: tokenResult.diagnostics.provider_url_has_token,
+              provider_url_token_pkce_prefix: tokenResult.diagnostics.provider_url_token_pkce_prefix,
+              provider_url_type_matches_action: tokenResult.diagnostics.provider_url_type_matches_action,
+            });
             return Response.json(
-              { error: "Auth email token unavailable", code: "missing_token_hash" },
+              { error: "Auth email token unavailable", code: tokenResult.reason },
               { status: 400 },
             );
           }
-          const callbackTypeParam =
-            AUTH_TYPE_MAP[emailType as keyof typeof AUTH_TYPE_MAP];
-          if (!callbackTypeParam || !ALLOWED_CALLBACK_TYPES.has(callbackTypeParam)) {
-            console.error("Rejected auth email: no callback type mapping", { emailType, run_id });
-            return Response.json({ error: "Unmapped verification type" }, { status: 400 });
-          }
-          const params = new URLSearchParams({
-            token_hash: tokenHash,
-            type: callbackTypeParam,
-          });
           const nextPath = extractSafeRedirectPath(payload.data as Record<string, unknown>);
-          if (nextPath) params.set("next", nextPath);
-          confirmationUrl = `https://${ROOT_DOMAIN}${AUTH_EMAIL_CALLBACK_PATH}?${params.toString()}`;
+          confirmationUrl = buildTribeAuthCallbackUrl(
+            tokenResult.tokenHash,
+            emailType as Exclude<AuthActionType, "reauthentication">,
+            nextPath,
+          );
           linkStrategy = AUTH_EMAIL_LINK_STRATEGY;
+          console.log("Auth email token accepted", {
+            emailType,
+            run_id,
+            token_source: tokenResult.source,
+            token_related_fields_present: tokenResult.diagnostics.token_related_fields_present,
+            provider_url_present: tokenResult.diagnostics.provider_url_present,
+            provider_url_origin_matches: tokenResult.diagnostics.provider_url_origin_matches,
+            provider_url_path_matches: tokenResult.diagnostics.provider_url_path_matches,
+            provider_url_has_token: tokenResult.diagnostics.provider_url_has_token,
+            provider_url_token_pkce_prefix: tokenResult.diagnostics.provider_url_token_pkce_prefix,
+            provider_url_type_matches_action: tokenResult.diagnostics.provider_url_type_matches_action,
+          });
         } else {
           console.error("Rejected auth email: unhandled action", { emailType, run_id });
           return Response.json({ error: "Unhandled action type" }, { status: 400 });
@@ -375,31 +339,20 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
         const text = buildPlainText(emailType, templateProps);
 
         // ---- Rendered-artifact safety net (belt-and-braces) -----------------
-        if (linkStrategy === AUTH_EMAIL_LINK_STRATEGY) {
-          const forbidden = containsForbiddenArtifact(html, text);
-          if (forbidden) {
-            console.error("Rejected auth email: forbidden artifact in rendered body", {
-              emailType,
-              run_id,
-              artifact: forbidden,
-            });
-            return Response.json(
-              { error: "Rendered auth email failed safety check" },
-              { status: 500 },
-            );
-          }
-          // Confirm the Tribe callback URL is actually present.
-          const expectedHost = `https://${ROOT_DOMAIN}${AUTH_EMAIL_CALLBACK_PATH}`;
-          if (!html.includes(expectedHost) || !text.includes(expectedHost)) {
-            console.error("Rejected auth email: callback URL missing from rendered body", {
-              emailType,
-              run_id,
-            });
-            return Response.json(
-              { error: "Rendered auth email missing callback URL" },
-              { status: 500 },
-            );
-          }
+        const { auditAuthEmailPayloadForSend } = await import("@/lib/auth-email-webhook");
+        const renderedAuditReason = auditAuthEmailPayloadForSend("auth_emails", {
+          label: emailType,
+          link_strategy: linkStrategy,
+          html,
+          text,
+        });
+        if (renderedAuditReason) {
+          console.error("Rejected auth email: rendered body failed safety check", {
+            emailType,
+            run_id,
+            reason: renderedAuditReason,
+          });
+          return Response.json({ error: "Rendered auth email failed safety check" }, { status: 500 });
         }
 
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
