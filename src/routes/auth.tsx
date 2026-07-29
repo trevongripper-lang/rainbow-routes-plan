@@ -551,6 +551,96 @@ function AuthPage() {
     }
   }
 
+  // Apple mirrors the Google full-page PKCE flow: same pre-flight checks,
+  // same /auth/callback exchange, same pending marker so a bounce back to
+  // /auth (rather than /auth/callback) reconciles instead of showing the
+  // signed-out shell. We do NOT use lovable.auth's web-message broker here
+  // for the same Safari/PWA reliability reasons documented on Google.
+  async function handleApple() {
+    setLoading(true);
+    const startedAt = Date.now();
+    const cid = beginAuthCorrelation();
+    const originCategory = classifyOrigin(window.location.origin);
+    const browserMode = detectBrowserMode();
+    logAuthStage("oauth_start", {
+      code: "apple",
+      msg: `origin=${originCategory} mode=${browserMode} flow=pkce_fullpage`,
+    });
+    try {
+      if (!isBrowserStorageUsable()) {
+        logAuthStage("oauth_start", {
+          ok: false,
+          code: "oauth_storage_unavailable",
+          durationMs: Date.now() - startedAt,
+        });
+        setOauthReconcile({
+          phase: "error",
+          title: "Browser storage is blocked",
+          code: "oauth_storage_unavailable",
+          message:
+            "This browser is blocking site storage, so we can't sign you in. Try a normal browser window (not private mode) or another browser.",
+        });
+        setLoading(false);
+        return;
+      }
+      if (needsOAuthOriginCanonicalization()) {
+        const target =
+          canonicalOAuthOrigin() +
+          "/auth" +
+          (search.redirect ? `?redirect=${encodeURIComponent(search.redirect)}` : "");
+        window.location.assign(target);
+        return;
+      }
+
+      track("apple_signin_started");
+      stashPendingRedirect(redirectTarget);
+      markOAuthPending("apple", cid);
+
+      const redirectTo = window.location.origin + "/auth/callback";
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: { redirectTo, skipBrowserRedirect: true },
+      });
+
+      if (error || !data?.url) {
+        const publicCode = toPublicOAuthErrorCode(
+          error ? "oauth_provider_failed" : "oauth_token_delivery_missing",
+        );
+        logAuthStage("oauth_start", {
+          ok: false,
+          code: publicCode,
+          durationMs: Date.now() - startedAt,
+        });
+        track("apple_signin_failed", { message: publicCode });
+        clearOAuthPending();
+        setOauthReconcile({
+          phase: "error",
+          title: "Couldn't start Apple sign-in",
+          code: publicCode,
+          message: "We couldn't start the Apple sign-in flow. Please try again.",
+          intendedOrigin: window.location.origin,
+        });
+        setLoading(false);
+        return;
+      }
+
+      logAuthStage("oauth_redirect_initiated", {
+        ok: true,
+        code: "apple",
+        durationMs: Date.now() - startedAt,
+      });
+      window.location.assign(data.url);
+      return;
+    } catch {
+      clearOAuthPending();
+      track("apple_signin_failed", { message: "oauth_provider_failed" });
+      toast.error("Apple sign-in failed. Please try again.");
+    } finally {
+      setLoading(false);
+      void cid;
+    }
+  }
+
   async function handleSessionRetry() {
     setRetryingSession(true);
     try {
