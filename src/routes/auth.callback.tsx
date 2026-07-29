@@ -47,7 +47,7 @@ type Phase = "exchanging" | "awaiting_confirm" | "verifying" | "routing" | "erro
 
 type OtpType = "signup" | "magiclink" | "recovery" | "invite" | "email_change" | "email";
 
-const VALID_OTP_TYPES = ALLOWED_CALLBACK_TYPES;
+// (allowlist lives in `@/lib/auth-email-contract`; imported as ALLOWED_CALLBACK_TYPES)
 
 
 const EMAIL_LINK_EXPIRED =
