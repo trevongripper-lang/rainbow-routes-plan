@@ -29,13 +29,14 @@ export const Route = createFileRoute("/auth/callback")({
   head: () => ({
     meta: [
       { title: "Confirm sign-in — Tribe Trips" },
-      { name: "robots", content: "noindex, nofollow" },
+      { name: "robots", content: "noindex, nofollow, noarchive" },
       { name: "referrer", content: "no-referrer" },
       // Callback URLs carry a one-time token; belt-and-braces against any
       // intermediary caching the URL. Also stripped from history after use.
       { httpEquiv: "cache-control", content: "no-store" },
     ],
   }),
+
   component: AuthCallback,
 });
 
