@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  AUTH_EMAIL_LINK_STRATEGY,
   auditAuthEmailPayloadForSend,
   buildTribeAuthCallbackUrl,
   extractAuthEmailTokenHash,
@@ -11,12 +12,19 @@ const PROVIDER_ORIGIN = "https://example.supabase.co";
 
 describe("auth email webhook token extraction", () => {
   it("extracts the usable token hash from the provider /auth/v1/verify token parameter", () => {
-    const result = extractAuthEmailTokenHash(
-      {
+    const productionWebhookPayload = {
+      version: "1",
+      run_id: "run_signup_prod_shape",
+      data: {
+        action_type: "signup",
         email: "new-user@example.com",
         url: `${PROVIDER_ORIGIN}/auth/v1/verify?token=pkce_abc123DEF456&type=signup&redirect_to=https%3A%2F%2Fjointribetrips.com%2Fauth%2Fcallback`,
       },
-      "signup",
+    };
+
+    const result = extractAuthEmailTokenHash(
+      productionWebhookPayload.data,
+      productionWebhookPayload.data.action_type,
       PROVIDER_ORIGIN,
     );
 
@@ -55,7 +63,7 @@ describe("auth email webhook token extraction", () => {
   it("rejects sending rendered auth emails that still contain legacy provider verification URLs", () => {
     const reason = auditAuthEmailPayloadForSend("auth_emails", {
       label: "signup",
-      link_strategy: "tribe_token_hash_interstitial",
+      link_strategy: AUTH_EMAIL_LINK_STRATEGY,
       html: `<a href="${PROVIDER_ORIGIN}/auth/v1/verify?token=pkce_abc123DEF456&type=signup">Confirm</a>`,
       text: `${PROVIDER_ORIGIN}/auth/v1/verify?token=pkce_abc123DEF456&type=signup`,
     });
@@ -67,7 +75,7 @@ describe("auth email webhook token extraction", () => {
     const callbackUrl = buildTribeAuthCallbackUrl("pkce_abc123DEF456", "signup");
     const reason = auditAuthEmailPayloadForSend("auth_emails", {
       label: "signup",
-      link_strategy: "tribe_token_hash_interstitial",
+      link_strategy: AUTH_EMAIL_LINK_STRATEGY,
       html: `<a href="${callbackUrl.replace(/&/g, "&amp;")}">Confirm</a>`,
       text: callbackUrl,
     });
