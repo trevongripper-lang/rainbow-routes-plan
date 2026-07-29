@@ -8,7 +8,6 @@ import {
   Heading,
   Hr,
   Html,
-  Link,
   Preview,
   Section,
   Text,
@@ -43,15 +42,6 @@ export const SignupEmail = ({ confirmationUrl, recipient }: SignupEmailProps) =>
             Confirm my email
           </Button>
         </Section>
-
-        <Text style={fallbackLabel}>
-          If the button does not work, copy and paste this link into your browser:
-        </Text>
-        <Text style={fallbackUrl}>
-          <Link href={confirmationUrl} style={fallbackLink}>
-            {confirmationUrl}
-          </Link>
-        </Text>
 
         <Hr style={hr} />
         <Text style={footer}>
@@ -104,17 +94,5 @@ const button = {
   display: "inline-block",
   border: "1px solid #0e7490",
 };
-const fallbackLabel = {
-  fontSize: "13px",
-  color: "#475569",
-  margin: "24px 0 6px",
-};
-const fallbackUrl = {
-  fontSize: "13px",
-  color: "#0e7490",
-  wordBreak: "break-all" as const,
-  margin: "0 0 8px",
-};
-const fallbackLink = { color: "#0e7490", textDecoration: "underline" };
 const hr = { borderColor: "#e2e8f0", margin: "28px 0 16px" };
 const footer = { fontSize: "12px", color: "#94a3b8", margin: "0" };
