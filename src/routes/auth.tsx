@@ -90,6 +90,7 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState<{ scope: string; until: number } | null>(null);
   const [confirmSent, setConfirmSent] = useState<string | null>(null);
+  const [alreadyRegisteredEmail, setAlreadyRegisteredEmail] = useState<string | null>(null);
   const [pendingConfirmEmail, setPendingConfirmEmail] = useState<string | null>(null);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
   const [retryingSession, setRetryingSession] = useState(false);
@@ -382,6 +383,13 @@ function AuthPage() {
         });
         if (error) throw error;
         if (!data.session) {
+          // Supabase returns an empty `identities` array when the email is
+          // already registered (to avoid enumeration in error messages).
+          if (data.user && (data.user.identities?.length ?? 0) === 0) {
+            track("signup_email_exists");
+            setAlreadyRegisteredEmail(email);
+            return;
+          }
           track("signup_confirmation_required");
           setConfirmSent(email);
           return;
@@ -1047,7 +1055,56 @@ function AuthPage() {
       style={{ background: "var(--gradient-hero)" }}
     >
       <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-8 backdrop-blur">
-        {confirmSent ? (
+        {alreadyRegisteredEmail ? (
+          <div>
+            <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">
+              ← back
+            </Link>
+            <h1 className="mt-4 font-display text-3xl">This email is already registered</h1>
+            <p className="mt-3 text-sm text-muted-foreground">
+              An account with{" "}
+              <span className="font-medium text-foreground break-all">{alreadyRegisteredEmail}</span>{" "}
+              already exists. Sign in with your password, or reset it if you've forgotten.
+            </p>
+            <div className="mt-6 space-y-3">
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => {
+                  const existing = alreadyRegisteredEmail;
+                  setAlreadyRegisteredEmail(null);
+                  setMode("signin");
+                  if (existing) setEmail(existing);
+                  setPassword("");
+                }}
+              >
+                Sign in instead
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={loading || blocked}
+                onClick={() => {
+                  void handleForgot();
+                }}
+              >
+                Reset password
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAlreadyRegisteredEmail(null);
+                  setEmail("");
+                  setPassword("");
+                }}
+                className="w-full text-center text-sm text-muted-foreground hover:text-foreground"
+              >
+                Use a different email
+              </button>
+            </div>
+          </div>
+        ) : confirmSent ? (
           <div>
             <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">
               ← back
