@@ -53,6 +53,12 @@ export const EmailChangeEmail = ({
         <Button style={button} href={confirmationUrl}>
           Confirm Email Change
         </Button>
+        <Text style={fallbackText}>
+          Or paste this link into your browser:{' '}
+          <Link href={confirmationUrl} style={fallbackLink}>
+            {confirmationUrl}
+          </Link>
+        </Text>
         <Text style={footer}>
           If you didn't request this change, please secure your account
           immediately.
