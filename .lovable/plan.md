@@ -1,50 +1,39 @@
 ## Goal
+When someone tries to sign up with an email that already has an account, show a clear message and guide them to sign in or reset their password — instead of the current silent "check your inbox" screen.
 
-Stop the signup email from printing the confirmation URL twice, and make plain-text auth emails deterministic with exactly one token-bearing URL per message. All templates already ship as `multipart/alternative` (the webhook enqueues both `html` and `text`); the visible "URL twice" symptom is a template + auto-plain-text-conversion issue, not a MIME issue.
+## Background
+Supabase's `signUp` deliberately does not throw an error for duplicate emails (to prevent account enumeration). Instead it returns:
+- `data.user` present, but with `identities: []` (empty array)
+- `data.session` null
 
-## Changes
+Our current code (`src/routes/auth.tsx` ~L384) treats that as a normal "confirmation required" and shows the generic "confirm your email" screen, so the user has no idea the account already exists.
 
-### 1. `src/lib/email-templates/signup.tsx`
-Remove the fallback block:
+There's a real security tradeoff here: telling the user "this email already exists" leaks account existence to anyone who can hit the signup form. Given Tribe is a small invite-driven beta and the UX cost is high (users stuck refreshing an inbox for a mail that never arrives), I'll surface it — but only after the user has actually submitted signup themselves. This is the same tradeoff most consumer apps make.
 
-- `<Text style={fallbackLabel}>If the button does not work…</Text>`
-- `<Text style={fallbackUrl}><Link href={confirmationUrl}>{confirmationUrl}</Link></Text>`
+## Changes (frontend only, `src/routes/auth.tsx`)
 
-Also drop the now-unused `Link`, `fallbackLabel`, `fallbackUrl`, `fallbackLink` imports/style constants. HTML clients still see the styled CTA button; plain-text clients will see one label + one URL from the deterministic text body (see change 2).
+1. In `submitEmailConfirmed`, after `supabase.auth.signUp` succeeds with no session:
+   - If `data.user && (data.user.identities?.length ?? 0) === 0` → treat as "already registered".
+   - Otherwise → keep existing "confirmation required" path.
 
-### 2. `src/routes/lovable/email/auth/webhook.ts`
-Stop relying on `render(element, { plainText: true })`. Replace the `text` derivation with an explicit per-template plain-text builder so exactly one verification URL is emitted per email:
+2. New lightweight UI state `alreadyRegisteredEmail: string | null` (mirrors `confirmSent`). When set, render a small card in place of the confirm-sent card with:
+   - Heading: "This email is already registered"
+   - Body: "An account with {email} already exists. Sign in with your password, or reset it if you've forgotten."
+   - Primary button: "Sign in" → switches `mode` to `"login"`, prefills email, clears the card.
+   - Secondary button: "Reset password" → calls the existing `handleForgot()` flow with the email prefilled, then shows the standard "reset link is on its way" toast.
+   - Tertiary link: "Use a different email" → clears the card, keeps signup mode.
 
-```ts
-function buildPlainText(emailType: string, p: {...}): string { ... }
-// ...
-const html = await render(element);
-const text = buildPlainText(emailType, templateProps);
-```
+3. Analytics: emit `track("signup_email_exists")` when we detect the empty-identities response, so we can see how often this happens.
 
-Bodies (each ends with `— Tribe Trips` and a short ignore/help line):
+4. No backend, RLS, or edge-function changes. No change to the password-reset flow itself — reuse `handleForgot()` as-is.
 
-- `signup` — "Confirm the email <recipient> to finish creating your Tribe Trips account. This link expires in 24 hours.\n\n<url>\n\nIf you didn't sign up, ignore this email."
-- `recovery` — "Reset your Tribe Trips password:\n\n<url>\n\nIf you didn't request this, ignore this email."
-- `magiclink` — "Your Tribe Trips login link:\n\n<url>\n\nIf you didn't request this, ignore this email."
-- `invite` — "You've been invited to Tribe Trips. Accept your invitation:\n\n<url>"
-- `email_change` — "Confirm changing your Tribe Trips email from <oldEmail> to <newEmail>:\n\n<url>\n\nIf you didn't request this, secure your account."
-- `reauthentication` — "Your Tribe Trips verification code: <token>\n\nThis code expires shortly."
+## Out of scope
+- Changing the sign-in path (wrong password already surfaces a clear error).
+- Rate-limiting signup attempts beyond the existing `guard()` check.
+- Server-side enumeration hardening (would require a captcha; explicitly deferred).
 
-No other webhook logic changes. `html`, headers, `from`, `reply_to`, `sender_domain`, subjects, logging, and enqueue behavior stay identical.
-
-## Out of scope (verification you drive after deploy)
-
-- Inspect a delivered message's raw source in Apple Mail / Gmail "Show original" and confirm `Content-Type: multipart/alternative` with both `text/html` and `text/plain` parts. The webhook passes both fields to Lovable's queue, which produces multipart — this is confirmed by inspecting live delivery, not code.
-- Manual QA of signup / recovery / magic link / invite / email-change in Apple Mail (macOS + iOS), Gmail (web + app), Outlook (web + Windows).
-- Reconfirm `/auth/v1/verify` → `https://jointribetrips.com/auth/callback` completes and the token is single-use (existing PKCE callback + Supabase built-in behavior — no code change needed).
-- Analytics/log audit: no code path in `webhook.ts` or `src/lib/analytics.ts` writes `payload.data.url` or `payload.data.token`; only `run_id`, redacted email, and `emailType` are logged. No change required.
-- Branded `auth.jointribetrips.com`: requires a Supabase custom auth domain setup in the managed backend. Do **not** proxy or rewrite token-bearing URLs in app code. Tracked as a follow-up, not part of this change.
-
-## Acceptance mapping
-
-- One styled CTA in HTML clients → change 1 removes the second URL block from signup; other templates already had one CTA only.
-- One label + one URL in plain-text clients → change 2 replaces auto-conversion with explicit bodies that emit exactly one URL (or one TOTP for reauthentication).
-- No template prints the same token-bearing URL twice → guaranteed by change 2 (single `<url>` interpolation per template) and change 1 (HTML fallback block removed).
-- Verification and recovery keep working → we only change presentation; `confirmationUrl` (= `payload.data.url`) is unchanged.
-- No tokens logged → already true; verified no additions.
+## Acceptance
+- Sign up with a brand-new email → unchanged; "check your inbox" screen appears.
+- Sign up with an email that already has a confirmed account → "This email is already registered" card appears with Sign in / Reset password actions, and no confirmation email is expected.
+- Clicking "Sign in" flips the form to login mode with the email prefilled.
+- Clicking "Reset password" triggers the existing reset flow and shows the standard toast.
