@@ -551,6 +551,96 @@ function AuthPage() {
     }
   }
 
+  // Apple mirrors the Google full-page PKCE flow: same pre-flight checks,
+  // same /auth/callback exchange, same pending marker so a bounce back to
+  // /auth (rather than /auth/callback) reconciles instead of showing the
+  // signed-out shell. We do NOT use lovable.auth's web-message broker here
+  // for the same Safari/PWA reliability reasons documented on Google.
+  async function handleApple() {
+    setLoading(true);
+    const startedAt = Date.now();
+    const cid = beginAuthCorrelation();
+    const originCategory = classifyOrigin(window.location.origin);
+    const browserMode = detectBrowserMode();
+    logAuthStage("oauth_start", {
+      code: "apple",
+      msg: `origin=${originCategory} mode=${browserMode} flow=pkce_fullpage`,
+    });
+    try {
+      if (!isBrowserStorageUsable()) {
+        logAuthStage("oauth_start", {
+          ok: false,
+          code: "oauth_storage_unavailable",
+          durationMs: Date.now() - startedAt,
+        });
+        setOauthReconcile({
+          phase: "error",
+          title: "Browser storage is blocked",
+          code: "oauth_storage_unavailable",
+          message:
+            "This browser is blocking site storage, so we can't sign you in. Try a normal browser window (not private mode) or another browser.",
+        });
+        setLoading(false);
+        return;
+      }
+      if (needsOAuthOriginCanonicalization()) {
+        const target =
+          canonicalOAuthOrigin() +
+          "/auth" +
+          (search.redirect ? `?redirect=${encodeURIComponent(search.redirect)}` : "");
+        window.location.assign(target);
+        return;
+      }
+
+      track("apple_signin_started");
+      stashPendingRedirect(redirectTarget);
+      markOAuthPending("apple", cid);
+
+      const redirectTo = window.location.origin + "/auth/callback";
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: { redirectTo, skipBrowserRedirect: true },
+      });
+
+      if (error || !data?.url) {
+        const publicCode = toPublicOAuthErrorCode(
+          error ? "oauth_provider_failed" : "oauth_token_delivery_missing",
+        );
+        logAuthStage("oauth_start", {
+          ok: false,
+          code: publicCode,
+          durationMs: Date.now() - startedAt,
+        });
+        track("apple_signin_failed", { message: publicCode });
+        clearOAuthPending();
+        setOauthReconcile({
+          phase: "error",
+          title: "Couldn't start Apple sign-in",
+          code: publicCode,
+          message: "We couldn't start the Apple sign-in flow. Please try again.",
+          intendedOrigin: window.location.origin,
+        });
+        setLoading(false);
+        return;
+      }
+
+      logAuthStage("oauth_redirect_initiated", {
+        ok: true,
+        code: "apple",
+        durationMs: Date.now() - startedAt,
+      });
+      window.location.assign(data.url);
+      return;
+    } catch {
+      clearOAuthPending();
+      track("apple_signin_failed", { message: "oauth_provider_failed" });
+      toast.error("Apple sign-in failed. Please try again.");
+    } finally {
+      setLoading(false);
+      void cid;
+    }
+  }
+
   async function handleSessionRetry() {
     setRetryingSession(true);
     try {
@@ -993,6 +1083,25 @@ function AuthPage() {
                 />
               </svg>
               Continue with Google
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleApple}
+              disabled={loading || blocked}
+              className="mt-2 w-full"
+            >
+              <svg
+                className="mr-2 h-4 w-4"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+                fill="currentColor"
+              >
+                <path d="M16.365 1.43c0 1.14-.42 2.22-1.12 3.01-.76.86-2 1.53-3.05 1.45-.13-1.1.43-2.26 1.11-3.01.77-.87 2.09-1.52 3.06-1.45zM20.5 17.14c-.55 1.27-.82 1.83-1.53 2.95-.99 1.57-2.39 3.52-4.11 3.54-1.54.02-1.93-1-4.02-1-2.08 0-2.52.98-4.06 1.02-1.71.05-3.01-1.7-4.01-3.27C.62 16.98-.72 10.66 2.15 6.5c1.35-1.97 3.48-3.22 5.49-3.22 1.65 0 2.68.9 4.05.9 1.33 0 2.14-.9 4.05-.9 1.44 0 2.97.79 4.06 2.15-3.57 1.96-2.99 7.08.7 8.72z" />
+              </svg>
+              Continue with Apple
             </Button>
 
             <div className="relative mt-6">
