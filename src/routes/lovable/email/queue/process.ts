@@ -274,7 +274,24 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
               }
             }
 
+            // Fail closed: reject any auth email whose rendered body doesn't
+            // match the hardened Tribe pipeline contract (e.g. contains a
+            // legacy `/auth/v1/verify` URL or was enqueued by an older
+            // webhook without link_strategy metadata).
+            const auditReason = auditAuthEmailPayload(queue, payload);
+            if (auditReason) {
+              console.error("Rejecting auth email at send time", {
+                queue,
+                msg_id: msg.msg_id,
+                message_id: payload?.message_id,
+                reason: auditReason,
+              });
+              await moveToDlq(supabase, queue, msg, `auth_email_audit_failed:${auditReason}`);
+              continue;
+            }
+
             try {
+
               await sendLovableEmail(
                 {
                   run_id: payload.run_id,
