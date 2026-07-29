@@ -40,6 +40,12 @@ export const InviteEmail = ({
         <Button style={button} href={confirmationUrl}>
           Accept Invitation
         </Button>
+        <Text style={fallbackText}>
+          Or paste this link into your browser:{' '}
+          <Link href={confirmationUrl} style={fallbackLink}>
+            {confirmationUrl}
+          </Link>
+        </Text>
         <Text style={footer}>
           If you weren't expecting this invitation, you can safely ignore this
           email.
