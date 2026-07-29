@@ -210,8 +210,7 @@ function RootComponent() {
   useEffect(() => {
     const TRACKED = new Set([
       "/auth",
-      "/auth/consent",
-      "/auth/set-password",
+      "/beta-consent",
       "/trips",
       "/events",
       "/map",

@@ -1,11 +1,10 @@
 import { track } from "@/lib/analytics";
 
 /**
- * Detects redirect ping-pong between auth gates
- * (`/auth` ↔ `/auth/consent` ↔ `/trips`). Uses sessionStorage so the
- * counter resets per tab. If the same path is hit more than `LIMIT`
- * times in `WINDOW_MS`, returns true so the gate can break the loop
- * and route to `/recover`.
+ * Detects redirect ping-pong between auth gates (/auth ↔ /beta-consent ↔ /trips).
+ * Uses sessionStorage so the counter resets per tab. If the same path is hit
+ * more than `LIMIT` times in `WINDOW_MS`, returns true so the gate can break
+ * the loop and route to /recover.
  */
 const KEY = "tt:redirect-trace";
 const LIMIT = 8;
@@ -64,7 +63,6 @@ export function sanitizeRedirectPath(input: unknown, opts: { fallback?: string }
   // never bounce back to auth/consent — that creates loops
   if (s === "/auth" || s.startsWith("/auth/") || s.startsWith("/auth?")) return fallback;
   if (s === "/beta-consent" || s.startsWith("/beta-consent?")) return fallback;
-  if (s === "/reset-password" || s.startsWith("/reset-password?")) return fallback;
   if (s === "/recover" || s.startsWith("/recover?")) return fallback;
   return s;
 }

@@ -49,24 +49,6 @@ export type Database = {
           },
         ]
       }
-      app_config: {
-        Row: {
-          key: string
-          updated_at: string
-          value: Json
-        }
-        Insert: {
-          key: string
-          updated_at?: string
-          value: Json
-        }
-        Update: {
-          key?: string
-          updated_at?: string
-          value?: Json
-        }
-        Relationships: []
-      }
       beta_consents: {
         Row: {
           accepted_at: string
@@ -182,7 +164,6 @@ export type Database = {
           budget: string | null
           city: string | null
           country: string | null
-          cover_object_path: string | null
           created_at: string
           dates_locked: boolean
           default_currency: string | null
@@ -218,7 +199,6 @@ export type Database = {
           budget?: string | null
           city?: string | null
           country?: string | null
-          cover_object_path?: string | null
           created_at?: string
           dates_locked?: boolean
           default_currency?: string | null
@@ -254,7 +234,6 @@ export type Database = {
           budget?: string | null
           city?: string | null
           country?: string | null
-          cover_object_path?: string | null
           created_at?: string
           dates_locked?: boolean
           default_currency?: string | null
@@ -517,114 +496,30 @@ export type Database = {
       }
       paddle_events: {
         Row: {
-          attempts: number
           error: string | null
           event_id: string
           event_type: string
-          last_attempt_at: string | null
           payload: Json
           processed_at: string
           result: string | null
-          status: string
         }
         Insert: {
-          attempts?: number
           error?: string | null
           event_id: string
           event_type: string
-          last_attempt_at?: string | null
           payload: Json
           processed_at?: string
           result?: string | null
-          status?: string
         }
         Update: {
-          attempts?: number
           error?: string | null
           event_id?: string
           event_type?: string
-          last_attempt_at?: string | null
           payload?: Json
           processed_at?: string
           result?: string | null
-          status?: string
         }
         Relationships: []
-      }
-      pending_intents: {
-        Row: {
-          claimed_at: string | null
-          claimed_by: string | null
-          created_at: string
-          expires_at: string
-          id: string
-          kind: string
-          payload: Json
-          session_id: string
-        }
-        Insert: {
-          claimed_at?: string | null
-          claimed_by?: string | null
-          created_at?: string
-          expires_at?: string
-          id: string
-          kind: string
-          payload: Json
-          session_id: string
-        }
-        Update: {
-          claimed_at?: string | null
-          claimed_by?: string | null
-          created_at?: string
-          expires_at?: string
-          id?: string
-          kind?: string
-          payload?: Json
-          session_id?: string
-        }
-        Relationships: []
-      }
-      pending_invite_access: {
-        Row: {
-          created_at: string
-          destination_id: string
-          expires_at: string
-          id: string
-          invite_id: string
-          session_id: string
-        }
-        Insert: {
-          created_at?: string
-          destination_id: string
-          expires_at?: string
-          id: string
-          invite_id: string
-          session_id: string
-        }
-        Update: {
-          created_at?: string
-          destination_id?: string
-          expires_at?: string
-          id?: string
-          invite_id?: string
-          session_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pending_invite_access_destination_id_fkey"
-            columns: ["destination_id"]
-            isOneToOne: false
-            referencedRelation: "destinations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pending_invite_access_invite_id_fkey"
-            columns: ["invite_id"]
-            isOneToOne: false
-            referencedRelation: "trip_invites"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       profiles: {
         Row: {
@@ -770,38 +665,6 @@ export type Database = {
           window_start?: string
         }
         Relationships: []
-      }
-      storage_object_trip: {
-        Row: {
-          bucket_id: string
-          created_at: string
-          destination_id: string
-          object_path: string
-          uploaded_by: string
-        }
-        Insert: {
-          bucket_id: string
-          created_at?: string
-          destination_id: string
-          object_path: string
-          uploaded_by: string
-        }
-        Update: {
-          bucket_id?: string
-          created_at?: string
-          destination_id?: string
-          object_path?: string
-          uploaded_by?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "storage_object_trip_destination_id_fkey"
-            columns: ["destination_id"]
-            isOneToOne: false
-            referencedRelation: "destinations"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       suppressed_emails: {
         Row: {
@@ -1493,7 +1356,6 @@ export type Database = {
       _maybe_grant_loyalty: { Args: { _user: string }; Returns: undefined }
       auto_close_trips: { Args: never; Returns: number }
       cleanup_rate_limits: { Args: never; Returns: number }
-      current_consent_version: { Args: never; Returns: string }
       debug_whoami: {
         Args: never
         Returns: {
@@ -1536,7 +1398,6 @@ export type Database = {
         Args: { _invitee: string; _inviter: string }
         Returns: boolean
       }
-      has_confirmed_consent: { Args: { _user: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1544,7 +1405,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_confirmed_permanent: { Args: { _user: string }; Returns: boolean }
       is_trip_co_organizer: {
         Args: { _dest: string; _user: string }
         Returns: boolean
@@ -1594,8 +1454,6 @@ export type Database = {
         }
         Returns: number
       }
-      my_consent_status: { Args: never; Returns: boolean }
-      payments_enabled: { Args: never; Returns: boolean }
       preview_trip_invite: {
         Args: { _token: string }
         Returns: {
@@ -1607,16 +1465,6 @@ export type Database = {
           title: string
           used: boolean
         }[]
-      }
-      process_paddle_unlock_event: {
-        Args: {
-          _dest: string
-          _event_id: string
-          _event_type: string
-          _paid_cents: number
-          _payload: Json
-        }
-        Returns: Json
       }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
@@ -1646,15 +1494,6 @@ export type Database = {
       unlock_destination: {
         Args: { _dest: string; _paid_cents?: number; _use_credit: boolean }
         Returns: Json
-      }
-      unlock_destination_paid: {
-        Args: { _dest: string; _paddle_event_id: string; _paid_cents: number }
-        Returns: Json
-      }
-      unlock_destination_with_credit: { Args: { _dest: string }; Returns: Json }
-      update_profile_basics: {
-        Args: { _avatar_url: string; _display_name: string }
-        Returns: undefined
       }
     }
     Enums: {
