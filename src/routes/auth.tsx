@@ -102,6 +102,8 @@ function AuthPage() {
     | null
   >(null);
   const [reconcileRetrying, setReconcileRetrying] = useState(false);
+  const [magicLinkEmail, setMagicLinkEmail] = useState("");
+  const [magicLinkState, setMagicLinkState] = useState<"idle" | "sending" | "sent">("idle");
   const redirectingRef = useRef(false);
   const redirectTimeoutRef = useRef<number | null>(null);
 
@@ -743,6 +745,40 @@ function AuthPage() {
     }
   }
 
+  async function handleMagicLink(rawEmail: string) {
+    const trimmed = rawEmail.trim();
+    if (!trimmed || !trimmed.includes("@")) {
+      toast.error("Enter a valid email address.");
+      return;
+    }
+    if (magicLinkState === "sending") return;
+    setMagicLinkState("sending");
+    try {
+      if (!(await guard("login", trimmed))) {
+        setMagicLinkState("idle");
+        return;
+      }
+      const { error } = await supabase.auth.signInWithOtp({
+        email: trimmed,
+        options: {
+          emailRedirectTo: canonicalEmailOrigin() + "/auth/callback",
+          shouldCreateUser: true,
+        },
+      });
+      if (error) throw error;
+      setMagicLinkState("sent");
+      track("signin_succeeded", { method: "magiclink_requested" });
+      toast.success("Sign-in link sent. Check your email.");
+    } catch (err) {
+      setMagicLinkState("idle");
+      track("signin_failed", {
+        method: "magiclink",
+        message: err instanceof Error ? err.message.slice(0, 140) : "unknown",
+      });
+      toast.error(err instanceof Error ? err.message : "Could not send sign-in link.");
+    }
+  }
+
   async function handleResendConfirmation() {
     if (!confirmSent || resendState === "sending") return;
     setResendState("sending");
@@ -855,6 +891,42 @@ function AuthPage() {
               {resettingSession ? "Resetting…" : "Reset session and start over"}
             </Button>
           </div>
+          <div className="mt-6 border-t border-border/60 pt-6 text-left">
+            <p className="text-sm font-medium text-foreground">Or sign in with an email link</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              We'll email you a one-tap sign-in link — no password needed.
+            </p>
+            <div className="mt-3 space-y-2">
+              <Label htmlFor="magic-link-email" className="sr-only">
+                Email address
+              </Label>
+              <Input
+                id="magic-link-email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={magicLinkEmail}
+                onChange={(e) => {
+                  setMagicLinkEmail(e.target.value);
+                  if (magicLinkState === "sent") setMagicLinkState("idle");
+                }}
+                disabled={magicLinkState === "sending"}
+              />
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => void handleMagicLink(magicLinkEmail)}
+                disabled={magicLinkState === "sending" || magicLinkState === "sent" || blocked}
+              >
+                {magicLinkState === "sending"
+                  ? "Sending…"
+                  : magicLinkState === "sent"
+                    ? "Link sent ✓ Check your email"
+                    : "Email me a sign-in link"}
+              </Button>
+            </div>
+          </div>
+
         </div>
       </div>
     );
