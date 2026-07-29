@@ -48,6 +48,12 @@ export const SignupEmail = ({
         <Button style={button} href={confirmationUrl}>
           Verify Email
         </Button>
+        <Text style={fallbackText}>
+          Or paste this link into your browser:{' '}
+          <Link href={confirmationUrl} style={fallbackLink}>
+            {confirmationUrl}
+          </Link>
+        </Text>
         <Text style={footer}>
           If you didn't create an account, you can safely ignore this email.
         </Text>
