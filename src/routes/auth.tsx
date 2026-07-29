@@ -939,7 +939,7 @@ function AuthPage() {
               type="button"
               variant="outline"
               onClick={handleGoogle}
-              disabled={loading || blocked || (oauthReconcile != null && oauthReconcile.phase === "reconciling")}
+              disabled={loading || blocked || (oauthReconcile != null && "phase" in oauthReconcile && oauthReconcile.phase === "reconciling")}
               className="mt-6 w-full"
             >
               <svg
