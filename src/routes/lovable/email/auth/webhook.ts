@@ -18,12 +18,12 @@ import {
 } from "@/lib/auth-email-webhook";
 
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: "Confirm your Tribe Trips account",
-  invite: "You've been invited to Tribe Trips",
-  magiclink: "Your Tribe Trips login link",
-  recovery: "Reset your Tribe Trips password",
-  email_change: "Confirm your new Tribe Trips email",
-  reauthentication: "Your Tribe Trips verification code",
+  signup: "Confirm your Tribe account",
+  invite: "You've been invited to Tribe",
+  magiclink: "Your Tribe login link",
+  recovery: "Reset your Tribe password",
+  email_change: "Confirm your new Tribe email",
+  reauthentication: "Your Tribe verification code",
 };
 
 const KNOWN_ACTION_TYPES = new Set<AuthActionType>([
@@ -35,7 +35,7 @@ const KNOWN_ACTION_TYPES = new Set<AuthActionType>([
   "reauthentication",
 ]);
 
-const SITE_NAME = "Tribe Trips";
+const SITE_NAME = "Tribe";
 const SENDER_DOMAIN = "notify.jointribetrips.com";
 const ROOT_DOMAIN = "jointribetrips.com";
 const FROM_DOMAIN = "jointribetrips.com";
@@ -75,62 +75,62 @@ function buildPlainText(
   switch (emailType) {
     case "signup":
       return [
-        `Confirm your email${who} to finish creating your Tribe Trips account.`,
+        `Confirm your email${who} to finish creating your Tribe account.`,
         `This link expires in 24 hours.`,
         ``,
         url,
         ``,
-        `If you didn't sign up for Tribe Trips, you can safely ignore this email.`,
+        `If you didn't sign up for Tribe, you can safely ignore this email.`,
         ``,
-        `— Tribe Trips`,
+        `— Tribe`,
       ].join("\n");
     case "recovery":
       return [
-        `Reset your Tribe Trips password by opening this link:`,
+        `Reset your Tribe password by opening this link:`,
         ``,
         url,
         ``,
         `If you didn't request a password reset, you can safely ignore this email.`,
         ``,
-        `— Tribe Trips`,
+        `— Tribe`,
       ].join("\n");
     case "magiclink":
       return [
-        `Your Tribe Trips login link:`,
+        `Your Tribe login link:`,
         ``,
         url,
         ``,
         `If you didn't request this, you can safely ignore this email.`,
         ``,
-        `— Tribe Trips`,
+        `— Tribe`,
       ].join("\n");
     case "invite":
       return [
-        `You've been invited to join Tribe Trips. Accept your invitation:`,
+        `You've been invited to join Tribe. Accept your invitation:`,
         ``,
         url,
         ``,
         `If you weren't expecting this invitation, you can ignore this email.`,
         ``,
-        `— Tribe Trips`,
+        `— Tribe`,
       ].join("\n");
     case "email_change":
       return [
-        `Confirm changing your Tribe Trips email from ${p.oldEmail ?? "your current address"} to ${p.newEmail ?? "your new address"}:`,
+        `Confirm changing your Tribe email from ${p.oldEmail ?? "your current address"} to ${p.newEmail ?? "your new address"}:`,
         ``,
         url,
         ``,
         `If you didn't request this change, please secure your account immediately.`,
         ``,
-        `— Tribe Trips`,
+        `— Tribe`,
       ].join("\n");
     case "reauthentication":
       return [
-        `Your Tribe Trips verification code: ${p.token ?? ""}`,
+        `Your Tribe verification code: ${p.token ?? ""}`,
         ``,
         `This code will expire shortly. If you didn't request it, you can ignore this email.`,
         ``,
-        `— Tribe Trips`,
+        `— Tribe`,
       ].join("\n");
     default:
       return url;
