@@ -1,6 +1,43 @@
 import { sendLovableEmail } from "@lovable.dev/email-js";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  AUTH_EMAIL_CALLBACK_PATH,
+  AUTH_EMAIL_LINK_STRATEGY,
+  AUTH_EMAIL_ROOT_DOMAIN,
+  FORBIDDEN_LINK_ARTIFACTS,
+  LINK_AUTH_ACTIONS,
+  type AuthActionType,
+} from "@/lib/auth-email-contract";
+
+const EXPECTED_CALLBACK_URL_PREFIX = `https://${AUTH_EMAIL_ROOT_DOMAIN}${AUTH_EMAIL_CALLBACK_PATH}`;
+
+/**
+ * Reject an auth email at send time if it doesn't match the hardened
+ * pipeline contract. Returns null when the payload is safe; otherwise a
+ * short machine-readable reason code (also stored in email_send_log).
+ */
+function auditAuthEmailPayload(
+  queue: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload: any,
+): string | null {
+  if (queue !== "auth_emails") return null;
+  const label = typeof payload?.label === "string" ? (payload.label as AuthActionType) : null;
+  if (!label) return "missing_label";
+  if (label === "reauthentication") return null;
+  if (!LINK_AUTH_ACTIONS.has(label)) return "unsupported_label";
+  if (payload?.link_strategy !== AUTH_EMAIL_LINK_STRATEGY) return "unversioned_or_legacy_payload";
+  const html = typeof payload?.html === "string" ? payload.html : "";
+  const text = typeof payload?.text === "string" ? payload.text : "";
+  for (const re of FORBIDDEN_LINK_ARTIFACTS) {
+    if (re.test(html) || re.test(text)) return "legacy_verify_url_detected";
+  }
+  if (!html.includes(EXPECTED_CALLBACK_URL_PREFIX)) return "callback_url_missing_html";
+  if (!text.includes(EXPECTED_CALLBACK_URL_PREFIX)) return "callback_url_missing_text";
+  return null;
+}
+
 
 const MAX_RETRIES = 5;
 const DEFAULT_BATCH_SIZE = 10;
