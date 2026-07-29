@@ -1,45 +1,68 @@
-## Root cause
-Email confirmation currently goes: email link → Supabase `/verify` → 303 → `/auth/callback?code=…` → `exchangeCodeForSession(code)`. Because the client is configured with `flowType: "pkce"`, that final exchange **requires the PKCE `code_verifier` that was written to `localStorage` in the browser where the user submitted signup**. If the confirmation email is opened in a different browser, a different device, or a private tab, the verifier is missing and the exchange fails with an "invalid/expired code" error — even though the token itself is fresh and unused. That's what produced the "This sign in link has expired or was already used" screen for this user.
+## Goal
 
-The token-hash / OTP flow (`verifyOtp({ token_hash, type })`) is stateless: it works from any browser, any device, any time within Supabase's token TTL. That's the correct flow for email confirmation links people will forward to their phone, open on their work laptop, etc.
+Prevent email scanners and link prefetchers from silently consuming one-time confirmation tokens by turning `/auth/callback` into a two-step flow when the incoming link uses `token_hash`. OAuth (`?code=`) is unchanged.
 
-## Fix — switch email confirmation links to token_hash + verifyOtp (cross-browser safe)
+## Behavior
 
-Frontend + email-template only. No DB or backend changes required.
+- **`token_hash` present** → render an interstitial. No network call, no `verifyOtp` on mount.
+  - Show: "Confirm your email to finish signing in to Tribe" + a single **Confirm email** button + a small note "Only click if you started this on Tribe."
+  - Clicking the button:
+    1. Immediately strips `token_hash`/`type`/`next` from the URL via `history.replaceState`, and captures them in memory first.
+    2. Calls `supabase.auth.verifyOtp({ token_hash, type })`.
+    3. On success: continues into the existing `ensureAuthReady` → tier-based routing block (unchanged).
+    4. On failure: shows the email-specific error card (see copy below).
+  - Double-click / re-click after success: button is disabled once pressed; a second click is a no-op.
+  - Refresh after success: URL has no token; `getSession()` finds the session and routes into `/app` (or consent).
+  - Refresh before clicking: token is still in the URL, interstitial re-renders — matches "user must deliberately confirm".
+- **`?code=` present** → existing OAuth PKCE branch runs automatically on mount (unchanged). No interstitial.
+- **`error` param present** → existing error branch (unchanged, still OAuth-worded).
+- **Neither** → existing "didn't receive confirmation" branch (unchanged).
 
-### 1. Emit a same-origin verification URL from the auth webhook
-`src/routes/lovable/email/auth/webhook.ts` currently forwards `payload.data.url` (the Supabase `/verify` link) into every template as `confirmationUrl`. The Supabase auth webhook payload also carries `token_hash` and (implicitly) `email_action_type`. Build a new `confirmationUrl` for the templates that call our own callback directly, so the click never touches `/verify`:
+## Copy changes
 
-```
-https://jointribetrips.com/auth/callback?token_hash=<token_hash>&type=<email_action_type>&next=<sanitized-next>
-```
+Email verification failures must not mention Google/OAuth. Split the error surface by branch:
 
-Apply this for `signup`, `magiclink`, `recovery`, `invite`, and `email_change`. Fall back to `payload.data.url` if `token_hash` is unexpectedly absent (defensive; should not happen). Do NOT change `reauthentication` (that's a numeric TOTP, no URL).
+- `token_hash` failure: **"This confirmation link has expired or was already used. Request a new email from the sign-in screen."**
+- `token_hash` "no session after error": same as above.
+- OAuth `?code=` failures: keep existing "Google didn't complete the sign-in…" / "This sign-in link has expired…" copy.
+- Interstitial idle state: **"Confirm your email"** heading, body **"Tap Confirm to finish signing in to Tribe. Only continue if you started this sign-in."**, button **"Confirm email"**.
 
-### 2. Teach `/auth/callback` to handle `token_hash`
-In `src/routes/auth.callback.tsx`, before the existing `if (code)` branch:
+## Privacy / logging
 
-- Read `token_hash` and `type` from the URL.
-- If `token_hash` is present, call `supabase.auth.verifyOtp({ token_hash, type })`. This creates a session with no PKCE dependency.
-- On success, fall through to the existing session-hydrated / routing block (recovery → `/reset-password`, permanent-with-consent → `/app` or `next`, etc.).
-- On failure, show the existing "link expired or already used" error UI (this message becomes accurate again: it only fires if the token is actually stale).
-- Keep the `code` branch as-is so OAuth (Google/Apple) — which legitimately needs PKCE and always finishes in the originating browser — still works unchanged.
+- `logAuthStage` calls in the `token_hash` branch must never include `token_hash`, `type`, `next`, or any URL substring. Audit the existing calls — current code already only logs `code` labels like `"otp_verify_failed"`, keep it that way.
+- The in-memory capture of `token_hash` lives only in the component closure; never write it to `sessionStorage`, analytics, or diagnostics.
+- Strip params from `window.location` before the `verifyOtp` call resolves so an error toast / rerender cannot expose it.
 
-### 3. Preserve `?next=` for post-confirm redirect
-`consumePendingRedirect()` reads from `sessionStorage`, which is per-tab. Because the email click may land in a fresh tab with no sessionStorage, also accept a `next` query param on the callback URL, sanitize it with `sanitizeRedirectPath`, and prefer it over sessionStorage when both exist. `signUp` currently sets `emailRedirectTo` to the canonical `/auth/callback` — no change needed on the send side beyond step 1.
+## Verification (manual, after implementation)
 
-### 4. Guard against mail-scanner prefetch (bonus, cheap)
-Because `verifyOtp` consumes the token on click, a corporate link-scanner could still burn the token before the human clicks. Mitigation: in the `/auth/callback` component, only call `verifyOtp` from `useEffect` (already the case) — do not trigger it from a HEAD/prefetch. No further work needed; this is inherent to the client-side flow and is already an improvement over `/verify`, which consumes tokens on any GET.
+1. Same-browser signup → click link → interstitial → Confirm → lands in `/app`.
+2. Desktop signup → open link on phone → interstitial → Confirm → lands in `/app`.
+3. Simulate prefetch: `curl` the confirmation URL, then click in browser → interstitial still works, token still valid.
+4. Click Confirm twice rapidly → single `verifyOtp` call, no error.
+5. Refresh interstitial before confirming → still works. Refresh after confirming → `/app`, no error.
+6. Expired token → email-worded error card, no OAuth phrasing.
+7. Resend confirmation email, then click the older link → email-worded expired/used error.
+8. Session survives a hard refresh of `/app`.
+9. Grep `logAuthStage` and diagnostics for any reference to `token_hash` / URL params → none.
 
-## Out of scope
-- No changes to Google/Apple OAuth (they must remain PKCE).
-- No database, RLS, or edge-function changes.
-- No change to the "email already registered" flow shipped previously.
-- No change to email template visual design.
+## Technical details
 
-## Acceptance
-- New user signs up on desktop, opens the confirmation email on their **phone**, taps the link → lands on `/auth/callback`, session is created, routed to `/app` (or `/auth/consent` if consent gate applies). No "expired or already used" error.
-- Same user, same-browser click → still works.
-- Clicking the same email link a second time → shows "link expired or already used" (accurate — token was consumed).
-- Password reset link → still routes to `/reset-password` after `verifyOtp`.
-- Google / Apple sign-in → unchanged (still uses `?code=` + PKCE exchange).
+Single file touched: `src/routes/auth.callback.tsx`.
+
+- Add a new phase: `Phase = "exchanging" | "awaiting_confirm" | "verifying" | "routing" | "error"`.
+- On mount, branch on URL params **before** any Supabase call:
+  - `tokenHash && !code` → capture `{ tokenHash, otpType, nextParam }` into a ref, set phase `awaiting_confirm`, return.
+  - Otherwise → run today's logic (OAuth code, error param, bare visit).
+- Extract the post-verification block (URL strip → `ensureAuthReady` → tier routing) into a local `finishSession(flowType, nextParam)` helper reused by both the OAuth branch and the new confirm-click handler.
+- Confirm-click handler:
+  ```ts
+  const params = pendingRef.current;
+  pendingRef.current = null;
+  window.history.replaceState(null, "", "/auth/callback");
+  setPhase("verifying");
+  const { error } = await supabase.auth.verifyOtp({ token_hash: params.tokenHash, type: params.otpType });
+  if (error) { setErrorMessage(EMAIL_LINK_EXPIRED); setPhase("error"); return; }
+  await finishSession(params.flowType, params.nextParam);
+  ```
+- Interstitial UI reuses the existing card/typography classes from the error branch for visual consistency.
+- No changes to `src/routes/lovable/email/auth/webhook.ts`, `src/lib/oauth-return.ts`, `src/lib/auth-state.tsx`, or the OAuth flow.
