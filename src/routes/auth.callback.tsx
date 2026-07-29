@@ -9,6 +9,8 @@ import {
 import { logAuthStage } from "@/lib/auth-diagnostics";
 import { clearOAuthPending } from "@/lib/oauth-return";
 import { consumePendingRedirect, sanitizeRedirectPath } from "@/lib/redirect-guard";
+import { ALLOWED_CALLBACK_TYPES } from "@/lib/auth-email-contract";
+
 
 
 /**
@@ -144,8 +146,8 @@ function AuthCallback() {
     confirmingRef.current = true;
     pendingRef.current = null;
 
-    // Strip token params from history BEFORE the network call so an error
-    // rerender or crash cannot re-expose them.
+    // Token was already stripped from history on mount for token_hash flows;
+    // for OAuth (?code=), strip here as belt-and-braces.
     window.history.replaceState(null, "", "/auth/callback");
 
     setPhase("verifying");
@@ -179,7 +181,7 @@ function AuthCallback() {
       const url = new URL(window.location.href);
       const code = url.searchParams.get("code");
       const tokenHash = url.searchParams.get("token_hash");
-      const flowType = url.searchParams.get("type");
+      const rawType = url.searchParams.get("type");
       const nextParam = url.searchParams.get("next");
       const errorParam = url.searchParams.get("error_description") ?? url.searchParams.get("error");
 
@@ -193,19 +195,25 @@ function AuthCallback() {
         return;
       }
 
-      // Email confirmation branch: DO NOT verify on mount. Stash params and
-      // render the interstitial so scanners/prefetchers don't burn the token.
+      // Email confirmation branch: DO NOT verify on mount. Stash params in a
+      // ref, IMMEDIATELY strip them from history (before rendering the
+      // interstitial so any third-party assets loaded by children never see
+      // the token in the URL), and render the interstitial so scanners /
+      // prefetchers don't burn the token.
       if (tokenHash && !code) {
-        const otpType = (flowType && VALID_OTP_TYPES.has(flowType) ? flowType : "email") as OtpType;
+        // Strict allowlist — never trust the URL-supplied `type`.
+        const otpType = (rawType && ALLOWED_CALLBACK_TYPES.has(rawType) ? rawType : "email") as OtpType;
         pendingRef.current = {
           tokenHash,
           otpType,
-          flowType,
+          flowType: rawType,
           nextParam,
         };
+        window.history.replaceState(null, "", "/auth/callback");
         if (!cancelled) setPhase("awaiting_confirm");
         return;
       }
+
 
       if (code) {
         // OAuth PKCE exchange. Must complete in the originating browser.
