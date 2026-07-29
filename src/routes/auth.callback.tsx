@@ -47,14 +47,8 @@ type Phase = "exchanging" | "awaiting_confirm" | "verifying" | "routing" | "erro
 
 type OtpType = "signup" | "magiclink" | "recovery" | "invite" | "email_change" | "email";
 
-const VALID_OTP_TYPES = new Set<string>([
-  "signup",
-  "magiclink",
-  "recovery",
-  "invite",
-  "email_change",
-  "email",
-]);
+const VALID_OTP_TYPES = ALLOWED_CALLBACK_TYPES;
+
 
 const EMAIL_LINK_EXPIRED =
   "This confirmation link has expired or was already used. Request a new email from the sign-in screen.";
