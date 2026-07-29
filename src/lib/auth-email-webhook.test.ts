@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { AUTH_EMAIL_LINK_STRATEGY } from "./auth-email-contract";
 import {
-  AUTH_EMAIL_LINK_STRATEGY,
   auditAuthEmailPayloadForSend,
   buildTribeAuthCallbackUrl,
   extractAuthEmailTokenHash,
