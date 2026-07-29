@@ -102,6 +102,8 @@ function AuthPage() {
     | null
   >(null);
   const [reconcileRetrying, setReconcileRetrying] = useState(false);
+  const [magicLinkEmail, setMagicLinkEmail] = useState("");
+  const [magicLinkState, setMagicLinkState] = useState<"idle" | "sending" | "sent">("idle");
   const redirectingRef = useRef(false);
   const redirectTimeoutRef = useRef<number | null>(null);
 
