@@ -2,41 +2,9 @@ import { sendLovableEmail } from "@lovable.dev/email-js";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  AUTH_EMAIL_CALLBACK_PATH,
-  AUTH_EMAIL_LINK_STRATEGY,
-  AUTH_EMAIL_ROOT_DOMAIN,
-  FORBIDDEN_LINK_ARTIFACTS,
-  LINK_AUTH_ACTIONS,
-  type AuthActionType,
-} from "@/lib/auth-email-contract";
-
-const EXPECTED_CALLBACK_URL_PREFIX = `https://${AUTH_EMAIL_ROOT_DOMAIN}${AUTH_EMAIL_CALLBACK_PATH}`;
-
-/**
- * Reject an auth email at send time if it doesn't match the hardened
- * pipeline contract. Returns null when the payload is safe; otherwise a
- * short machine-readable reason code (also stored in email_send_log).
- */
-function auditAuthEmailPayload(
-  queue: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  payload: any,
-): string | null {
-  if (queue !== "auth_emails") return null;
-  const label = typeof payload?.label === "string" ? (payload.label as AuthActionType) : null;
-  if (!label) return "missing_label";
-  if (label === "reauthentication") return null;
-  if (!LINK_AUTH_ACTIONS.has(label)) return "unsupported_label";
-  if (payload?.link_strategy !== AUTH_EMAIL_LINK_STRATEGY) return "unversioned_or_legacy_payload";
-  const html = typeof payload?.html === "string" ? payload.html : "";
-  const text = typeof payload?.text === "string" ? payload.text : "";
-  for (const re of FORBIDDEN_LINK_ARTIFACTS) {
-    if (re.test(html) || re.test(text)) return "legacy_verify_url_detected";
-  }
-  if (!html.includes(EXPECTED_CALLBACK_URL_PREFIX)) return "callback_url_missing_html";
-  if (!text.includes(EXPECTED_CALLBACK_URL_PREFIX)) return "callback_url_missing_text";
-  return null;
-}
+  auditAuthEmailPayloadForSend,
+  authEmailVersionMetadata,
+} from "@/lib/auth-email-webhook";
 
 
 const MAX_RETRIES = 5;
@@ -86,6 +54,7 @@ async function moveToDlq(
     recipient_email: payload.to,
     status: "dlq",
     error_message: reason,
+    metadata: authEmailVersionMetadata(payload),
   });
   const { error } = await supabase.rpc("move_to_dlq", {
     source_queue: queue,
@@ -278,7 +247,7 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
             // match the hardened Tribe pipeline contract (e.g. contains a
             // legacy `/auth/v1/verify` URL or was enqueued by an older
             // webhook without link_strategy metadata).
-            const auditReason = auditAuthEmailPayload(queue, payload);
+            const auditReason = auditAuthEmailPayloadForSend(queue, payload);
             if (auditReason) {
               console.error("Rejecting auth email at send time", {
                 queue,
@@ -316,6 +285,7 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
                 template_name: payload.label || queue,
                 recipient_email: payload.to,
                 status: "sent",
+                metadata: authEmailVersionMetadata(payload),
               });
 
               // Delete from queue
@@ -348,6 +318,7 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
                   recipient_email: payload.to,
                   status: "failed",
                   error_message: errorMsg.slice(0, 1000),
+                  metadata: authEmailVersionMetadata(payload),
                 });
 
                 const retryAfterSecs = getRetryAfterSeconds(error);
@@ -377,6 +348,7 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
                 recipient_email: payload.to,
                 status: "failed",
                 error_message: errorMsg.slice(0, 1000),
+                metadata: authEmailVersionMetadata(payload),
               });
               if (payload?.message_id && typeof payload.message_id === "string") {
                 failedAttemptsByMessageId.set(payload.message_id, failedAttempts + 1);
