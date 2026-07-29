@@ -61,7 +61,12 @@ function SettingsPage() {
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    // Full-page navigation so PWA/BFCache doesn't restore protected shell.
+    if (typeof window !== "undefined") {
+      window.location.assign("/auth");
+    } else {
+      navigate({ to: "/auth", replace: true });
+    }
   }
 
   const consented = typeof window !== "undefined" && userId ? hasBetaConsentLocal(userId) : true;
@@ -135,7 +140,7 @@ function SettingsPage() {
               <span className="font-mono text-foreground">{BETA_CONSENT_VERSION}</span>.
             </p>
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              <Link to="/beta-consent" className="text-primary hover:underline">
+              <Link to="/auth/consent" className="text-primary hover:underline">
                 Review beta agreement
               </Link>
             </div>

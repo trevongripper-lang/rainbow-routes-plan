@@ -2,10 +2,9 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { KeyRound, CheckCircle2, AlertTriangle } from "lucide-react";
+import { PasswordSetupForm } from "@/components/auth/PasswordSetupForm";
 
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
@@ -14,7 +13,8 @@ export const Route = createFileRoute("/reset-password")({
       { title: "Reset password — Tribe Trips" },
       {
         name: "description",
-        content: "Choose a new password for your Tribe Trips account after requesting a reset link.",
+        content:
+          "Choose a new password for your Tribe Trips account after requesting a reset link.",
       },
       { name: "robots", content: "noindex" },
     ],
@@ -27,9 +27,6 @@ type Status = "checking" | "ready" | "invalid" | "done";
 function ResetPasswordPage() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<Status>("checking");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Supabase auto-parses recovery hashes (detectSessionInUrl). Listen for
@@ -56,7 +53,7 @@ function ResetPasswordPage() {
       }
     });
     sub = data.subscription;
-    probe();
+    void probe();
     // Give Supabase a moment to process the hash, then fail closed.
     const t = setTimeout(() => {
       setStatus((s) => (s === "checking" ? "invalid" : s));
@@ -66,32 +63,6 @@ function ResetPasswordPage() {
       clearTimeout(t);
     };
   }, []);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (password.length < 8) {
-      toast.error("Use at least 8 characters.");
-      return;
-    }
-    if (password !== confirm) {
-      toast.error("Passwords don't match.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
-      setStatus("done");
-      toast.success("Password updated.");
-      // Sign out so the recovery session can't be reused, then send to /auth.
-      await supabase.auth.signOut();
-      setTimeout(() => navigate({ to: "/auth" }), 1500);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't update password");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   return (
     <div
@@ -120,7 +91,8 @@ function ResetPasswordPage() {
                   This reset link is invalid or expired.
                 </p>
                 <p className="mt-1 text-muted-foreground">
-                  Reset links work once and expire quickly. Request a new one from the sign-in page.
+                  Reset links work once and expire quickly. Request a new one from the sign-in
+                  page.
                 </p>
               </div>
             </div>
@@ -141,45 +113,16 @@ function ResetPasswordPage() {
         )}
 
         {status === "ready" && (
-          <>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Pick something at least 8 characters. You'll be sent back to sign in with your new
-              password.
-            </p>
-            <form onSubmit={handleSubmit} className="mt-5 space-y-3">
-              <div>
-                <Label htmlFor="new-password">New password</Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  required
-                  minLength={8}
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="confirm-password">Confirm password</Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  required
-                  minLength={8}
-                  autoComplete="new-password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                />
-              </div>
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading ? "Updating…" : "Update password"}
-              </Button>
-              <p className="text-[11px] text-muted-foreground">
-                Tip: a passphrase like <span className="font-mono">poolside-spritz-2026</span> beats{" "}
-                <span className="font-mono">P@ssw0rd!</span>.
-              </p>
-            </form>
-          </>
+          <PasswordSetupForm
+            intro="Pick something at least 8 characters. You'll be sent back to sign in with your new password."
+            submitLabel="Update password"
+            signOutAfter
+            onSuccess={() => {
+              setStatus("done");
+              toast.success("Password updated.");
+              setTimeout(() => navigate({ to: "/auth" }), 1500);
+            }}
+          />
         )}
       </div>
     </div>

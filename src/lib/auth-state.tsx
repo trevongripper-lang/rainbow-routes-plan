@@ -1,7 +1,10 @@
-import { createContext, useContext, useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { checkBetaConsent, type BetaConsentStatus } from "@/lib/beta-consent";
+import { deriveAccessState, type AccessState } from "@/lib/access-state";
+import { isOAuthPending } from "@/lib/oauth-return";
+import { logAuthStage } from "@/lib/auth-diagnostics";
 
 export type AppAuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -256,11 +259,16 @@ export function startAuthStateListener(
       onEvent?.(event, currentAuthState);
       return;
     }
+    // Guard against stale SIGNED_OUT events overwriting a newly established
+    // session mid-OAuth reconciliation. If an OAuth return is pending AND we
+    // currently hold a session, ignore SIGNED_OUT — the fresh session should
+    // win. This does not affect explicit sign-out (nothing marks OAuth pending
+    // then) and it self-heals once the pending marker expires (120s).
+    if (event === "SIGNED_OUT" && !session && currentAuthState.session && isOAuthPending()) {
+      logAuthStage("session_hydrated", { ok: true, code: "signed_out_ignored_mid_oauth" });
+      return;
+    }
     const next = event === "SIGNED_OUT" ? clearAuthSession() : setAuthSession(session ?? null);
-    // Re-prime beta consent on interactive sign-in and profile updates so
-    // the gate has a fresh authoritative status without a per-navigation
-    // network round-trip. setAuthSession already primes on user change;
-    // this covers same-user re-verification.
     if ((event === "SIGNED_IN" || event === "USER_UPDATED") && next.user) {
       clearBetaConsentCache();
       void primeBetaConsent(next.user.id);
@@ -336,6 +344,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   return useContext(AuthContext);
+}
+
+/**
+ * Derived access-state (tier + anonymous / email-confirmed flags) for the
+ * frictionless-signup rework. Prefer this over reading `session.user.*`
+ * fields directly in components and gates.
+ */
+export function useAccessState(): AccessState {
+  const auth = useAuthSnapshot();
+  return useMemo(
+    () => deriveAccessState(auth.session, auth.betaConsent),
+    [auth.session, auth.betaConsent],
+  );
+}
+
+/** Non-hook read for use inside route `beforeLoad` handlers. */
+export function getAccessState(): AccessState {
+  const s = getAuthState();
+  return deriveAccessState(s.session, s.betaConsent);
 }
 
 export function AuthLoadingScreen() {
