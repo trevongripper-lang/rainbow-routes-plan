@@ -226,7 +226,7 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
 
         const element = React.createElement(EmailTemplate, templateProps);
         const html = await render(element);
-        const text = await render(element, { plainText: true });
+        const text = buildPlainText(emailType, templateProps);
 
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
