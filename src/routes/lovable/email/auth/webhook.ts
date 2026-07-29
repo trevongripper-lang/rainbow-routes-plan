@@ -213,16 +213,40 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
           return Response.json({ error: `Unknown email type: ${emailType}` }, { status: 400 });
         }
 
+        // Prefer a same-origin token_hash callback URL over the default
+        // Supabase `/verify` link. `/verify` redirects with a PKCE `?code=`
+        // which only works in the ORIGINATING browser (needs the
+        // localStorage code_verifier). token_hash + verifyOtp is stateless
+        // and works when the recipient opens the email on a different
+        // device or browser. Fall back to payload.data.url if token_hash
+        // is unexpectedly absent (defensive; should not happen).
+        // Skip URL rewrite for `reauthentication` — it uses a numeric TOTP,
+        // not a link.
+        const tokenHash: string | undefined = payload.data.token_hash;
+        let confirmationUrl: string = payload.data.url;
+        if (emailType !== "reauthentication" && tokenHash) {
+          const params = new URLSearchParams({
+            token_hash: tokenHash,
+            type: emailType,
+          });
+          const nextPath: string | undefined = payload.data.redirect_to;
+          if (nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")) {
+            params.set("next", nextPath);
+          }
+          confirmationUrl = `https://${ROOT_DOMAIN}/auth/callback?${params.toString()}`;
+        }
+
         const templateProps = {
           siteName: SITE_NAME,
           siteUrl: `https://${ROOT_DOMAIN}`,
           recipient: payload.data.email,
-          confirmationUrl: payload.data.url,
+          confirmationUrl,
           token: payload.data.token,
           email: payload.data.email,
           oldEmail: payload.data.old_email,
           newEmail: payload.data.new_email,
         };
+
 
         const element = React.createElement(EmailTemplate, templateProps);
         const html = await render(element);
