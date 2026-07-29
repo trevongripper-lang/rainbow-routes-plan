@@ -1090,6 +1090,29 @@ function AuthPage() {
           </>
         )}
       </div>
+      <AlertDialog
+        open={pendingConfirmEmail !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingConfirmEmail(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Is this email correct?</AlertDialogTitle>
+            <AlertDialogDescription>
+              We'll {mode === "signup" ? "send a confirmation link to" : "sign you in as"}{" "}
+              <span className="font-medium text-foreground break-all">{pendingConfirmEmail}</span>.
+              Double-check for typos before continuing.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Edit email</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void submitEmailConfirmed()}>
+              Yes, that's right
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
