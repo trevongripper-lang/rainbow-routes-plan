@@ -90,6 +90,7 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState<{ scope: string; until: number } | null>(null);
   const [confirmSent, setConfirmSent] = useState<string | null>(null);
+  const [alreadyRegisteredEmail, setAlreadyRegisteredEmail] = useState<string | null>(null);
   const [pendingConfirmEmail, setPendingConfirmEmail] = useState<string | null>(null);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
   const [retryingSession, setRetryingSession] = useState(false);
