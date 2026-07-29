@@ -86,11 +86,20 @@ const text = {
 }
 const link = { color: 'inherit', textDecoration: 'underline' }
 const button = {
-  backgroundColor: '#000000',
+  backgroundColor: '#2563eb',
   color: '#ffffff',
   fontSize: '14px',
+  fontWeight: 'bold' as const,
   borderRadius: '8px',
   padding: '12px 20px',
   textDecoration: 'none',
 }
+const fallbackText = {
+  fontSize: '12px',
+  color: '#55575d',
+  lineHeight: '1.5',
+  margin: '20px 0 0',
+  wordBreak: 'break-all' as const,
+}
+const fallbackLink = { color: '#2563eb', textDecoration: 'underline' }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
