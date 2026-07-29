@@ -383,6 +383,13 @@ function AuthPage() {
         });
         if (error) throw error;
         if (!data.session) {
+          // Supabase returns an empty `identities` array when the email is
+          // already registered (to avoid enumeration in error messages).
+          if (data.user && (data.user.identities?.length ?? 0) === 0) {
+            track("signup_email_exists");
+            setAlreadyRegisteredEmail(email);
+            return;
+          }
           track("signup_confirmation_required");
           setConfirmSent(email);
           return;
