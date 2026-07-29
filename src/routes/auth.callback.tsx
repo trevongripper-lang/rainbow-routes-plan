@@ -57,7 +57,9 @@ function AuthCallback() {
       logAuthStage("callback_reached");
       const url = new URL(window.location.href);
       const code = url.searchParams.get("code");
-      const flowType = url.searchParams.get("type"); // supabase sends 'recovery' etc.
+      const tokenHash = url.searchParams.get("token_hash");
+      const flowType = url.searchParams.get("type"); // 'signup' | 'recovery' | 'magiclink' | 'invite' | 'email_change'
+      const nextParam = url.searchParams.get("next");
       const errorParam = url.searchParams.get("error_description") ?? url.searchParams.get("error");
 
       if (errorParam) {
@@ -76,14 +78,50 @@ function AuthCallback() {
         return;
       }
 
-      // Exchange ownership: /auth/callback is the SINGLE owner of the code
-      // exchange. `detectSessionInUrl` is off in the Supabase client so no
-      // other page-load path can consume `?code=` before we do. See
-      // docs/runbooks/google-oauth-callback.md. The `auto_detected_session`
-      // branch below is a belt-and-braces fallback in case a future change
-      // (or a stale service worker) re-enables auto-detection — treat an
-      // already-established session as success rather than a hard failure.
-      if (code) {
+      // token_hash branch — stateless email confirmation. Works cross-browser
+      // and cross-device because it doesn't need a PKCE code_verifier. Used
+      // for signup, magiclink, recovery, invite, email_change.
+      if (tokenHash) {
+        // Supabase's verifyOtp accepts these string types for email flows.
+        const validTypes = new Set([
+          "signup",
+          "magiclink",
+          "recovery",
+          "invite",
+          "email_change",
+          "email",
+        ]);
+        const otpType = (flowType && validTypes.has(flowType) ? flowType : "email") as
+          | "signup"
+          | "magiclink"
+          | "recovery"
+          | "invite"
+          | "email_change"
+          | "email";
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: otpType,
+        });
+        if (error) {
+          const { data: existing } = await supabase.auth.getSession();
+          if (!existing.session) {
+            clearOAuthPending();
+            logAuthStage("code_exchange_failed", { ok: false, code: "otp_verify_failed" });
+            if (!cancelled) {
+              setErrorMessage(
+                "This sign-in link has expired or was already used. Please start again from the sign-in screen.",
+              );
+              setPhase("error");
+            }
+            return;
+          }
+          logAuthStage("code_exchange_ok", { ok: true, msg: "session_present_after_otp_error" });
+        } else {
+          logAuthStage("code_exchange_ok", { ok: true, msg: "otp_verified" });
+        }
+      } else if (code) {
+        // OAuth (Google/Apple) PKCE exchange. Must complete in the same
+        // browser that initiated sign-in (code_verifier in localStorage).
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
           const { data: existing } = await supabase.auth.getSession();
@@ -104,21 +142,23 @@ function AuthCallback() {
           logAuthStage("code_exchange_ok", { ok: true });
         }
       } else {
-        // No ?code and no error: either the SDK auto-detected on a prior tick
-        // (session present) or someone hit /auth/callback directly.
+        // Neither code nor token_hash and no error: either the SDK
+        // auto-detected on a prior tick (session present) or someone hit
+        // /auth/callback directly.
         const { data: existing } = await supabase.auth.getSession();
         if (!existing.session) {
           clearOAuthPending();
           logAuthStage("code_exchange_failed", { ok: false, code: "oauth_token_delivery_missing" });
           if (!cancelled) {
             setErrorMessage(
-              "We didn't receive a sign-in confirmation from Google. Please start again from the sign-in screen.",
+              "We didn't receive a sign-in confirmation. Please start again from the sign-in screen.",
             );
             setPhase("error");
           }
           return;
         }
       }
+
 
       // Strip code/state/error from the URL so a refresh doesn't try to
       // re-exchange and so the code never lingers in browser history.
@@ -149,10 +189,10 @@ function AuthCallback() {
         return;
       }
 
-      // Consume any pending same-origin destination the caller stashed
-      // before starting OAuth (e.g. /join/$token). sanitizeRedirectPath
+      // Prefer the URL `next` param (survives cross-tab email clicks) over
+      // sessionStorage (per-tab, empty in a fresh tab). sanitizeRedirectPath
       // enforces same-origin + relative; anything unsafe falls back to /app.
-      const pending = consumePendingRedirect();
+      const pending = nextParam ?? consumePendingRedirect();
       const safePending = pending ? sanitizeRedirectPath(pending, { fallback: "/app" }) : "/app";
 
 

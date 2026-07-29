@@ -1,39 +1,45 @@
-## Goal
-When someone tries to sign up with an email that already has an account, show a clear message and guide them to sign in or reset their password — instead of the current silent "check your inbox" screen.
+## Root cause
+Email confirmation currently goes: email link → Supabase `/verify` → 303 → `/auth/callback?code=…` → `exchangeCodeForSession(code)`. Because the client is configured with `flowType: "pkce"`, that final exchange **requires the PKCE `code_verifier` that was written to `localStorage` in the browser where the user submitted signup**. If the confirmation email is opened in a different browser, a different device, or a private tab, the verifier is missing and the exchange fails with an "invalid/expired code" error — even though the token itself is fresh and unused. That's what produced the "This sign in link has expired or was already used" screen for this user.
 
-## Background
-Supabase's `signUp` deliberately does not throw an error for duplicate emails (to prevent account enumeration). Instead it returns:
-- `data.user` present, but with `identities: []` (empty array)
-- `data.session` null
+The token-hash / OTP flow (`verifyOtp({ token_hash, type })`) is stateless: it works from any browser, any device, any time within Supabase's token TTL. That's the correct flow for email confirmation links people will forward to their phone, open on their work laptop, etc.
 
-Our current code (`src/routes/auth.tsx` ~L384) treats that as a normal "confirmation required" and shows the generic "confirm your email" screen, so the user has no idea the account already exists.
+## Fix — switch email confirmation links to token_hash + verifyOtp (cross-browser safe)
 
-There's a real security tradeoff here: telling the user "this email already exists" leaks account existence to anyone who can hit the signup form. Given Tribe is a small invite-driven beta and the UX cost is high (users stuck refreshing an inbox for a mail that never arrives), I'll surface it — but only after the user has actually submitted signup themselves. This is the same tradeoff most consumer apps make.
+Frontend + email-template only. No DB or backend changes required.
 
-## Changes (frontend only, `src/routes/auth.tsx`)
+### 1. Emit a same-origin verification URL from the auth webhook
+`src/routes/lovable/email/auth/webhook.ts` currently forwards `payload.data.url` (the Supabase `/verify` link) into every template as `confirmationUrl`. The Supabase auth webhook payload also carries `token_hash` and (implicitly) `email_action_type`. Build a new `confirmationUrl` for the templates that call our own callback directly, so the click never touches `/verify`:
 
-1. In `submitEmailConfirmed`, after `supabase.auth.signUp` succeeds with no session:
-   - If `data.user && (data.user.identities?.length ?? 0) === 0` → treat as "already registered".
-   - Otherwise → keep existing "confirmation required" path.
+```
+https://jointribetrips.com/auth/callback?token_hash=<token_hash>&type=<email_action_type>&next=<sanitized-next>
+```
 
-2. New lightweight UI state `alreadyRegisteredEmail: string | null` (mirrors `confirmSent`). When set, render a small card in place of the confirm-sent card with:
-   - Heading: "This email is already registered"
-   - Body: "An account with {email} already exists. Sign in with your password, or reset it if you've forgotten."
-   - Primary button: "Sign in" → switches `mode` to `"login"`, prefills email, clears the card.
-   - Secondary button: "Reset password" → calls the existing `handleForgot()` flow with the email prefilled, then shows the standard "reset link is on its way" toast.
-   - Tertiary link: "Use a different email" → clears the card, keeps signup mode.
+Apply this for `signup`, `magiclink`, `recovery`, `invite`, and `email_change`. Fall back to `payload.data.url` if `token_hash` is unexpectedly absent (defensive; should not happen). Do NOT change `reauthentication` (that's a numeric TOTP, no URL).
 
-3. Analytics: emit `track("signup_email_exists")` when we detect the empty-identities response, so we can see how often this happens.
+### 2. Teach `/auth/callback` to handle `token_hash`
+In `src/routes/auth.callback.tsx`, before the existing `if (code)` branch:
 
-4. No backend, RLS, or edge-function changes. No change to the password-reset flow itself — reuse `handleForgot()` as-is.
+- Read `token_hash` and `type` from the URL.
+- If `token_hash` is present, call `supabase.auth.verifyOtp({ token_hash, type })`. This creates a session with no PKCE dependency.
+- On success, fall through to the existing session-hydrated / routing block (recovery → `/reset-password`, permanent-with-consent → `/app` or `next`, etc.).
+- On failure, show the existing "link expired or already used" error UI (this message becomes accurate again: it only fires if the token is actually stale).
+- Keep the `code` branch as-is so OAuth (Google/Apple) — which legitimately needs PKCE and always finishes in the originating browser — still works unchanged.
+
+### 3. Preserve `?next=` for post-confirm redirect
+`consumePendingRedirect()` reads from `sessionStorage`, which is per-tab. Because the email click may land in a fresh tab with no sessionStorage, also accept a `next` query param on the callback URL, sanitize it with `sanitizeRedirectPath`, and prefer it over sessionStorage when both exist. `signUp` currently sets `emailRedirectTo` to the canonical `/auth/callback` — no change needed on the send side beyond step 1.
+
+### 4. Guard against mail-scanner prefetch (bonus, cheap)
+Because `verifyOtp` consumes the token on click, a corporate link-scanner could still burn the token before the human clicks. Mitigation: in the `/auth/callback` component, only call `verifyOtp` from `useEffect` (already the case) — do not trigger it from a HEAD/prefetch. No further work needed; this is inherent to the client-side flow and is already an improvement over `/verify`, which consumes tokens on any GET.
 
 ## Out of scope
-- Changing the sign-in path (wrong password already surfaces a clear error).
-- Rate-limiting signup attempts beyond the existing `guard()` check.
-- Server-side enumeration hardening (would require a captcha; explicitly deferred).
+- No changes to Google/Apple OAuth (they must remain PKCE).
+- No database, RLS, or edge-function changes.
+- No change to the "email already registered" flow shipped previously.
+- No change to email template visual design.
 
 ## Acceptance
-- Sign up with a brand-new email → unchanged; "check your inbox" screen appears.
-- Sign up with an email that already has a confirmed account → "This email is already registered" card appears with Sign in / Reset password actions, and no confirmation email is expected.
-- Clicking "Sign in" flips the form to login mode with the email prefilled.
-- Clicking "Reset password" triggers the existing reset flow and shows the standard toast.
+- New user signs up on desktop, opens the confirmation email on their **phone**, taps the link → lands on `/auth/callback`, session is created, routed to `/app` (or `/auth/consent` if consent gate applies). No "expired or already used" error.
+- Same user, same-browser click → still works.
+- Clicking the same email link a second time → shows "link expired or already used" (accurate — token was consumed).
+- Password reset link → still routes to `/reset-password` after `verifyOtp`.
+- Google / Apple sign-in → unchanged (still uses `?code=` + PKCE exchange).
