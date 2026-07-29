@@ -48,6 +48,12 @@ export const SignupEmail = ({
         <Button style={button} href={confirmationUrl}>
           Verify Email
         </Button>
+        <Text style={fallbackText}>
+          Or paste this link into your browser:{' '}
+          <Link href={confirmationUrl} style={fallbackLink}>
+            {confirmationUrl}
+          </Link>
+        </Text>
         <Text style={footer}>
           If you didn't create an account, you can safely ignore this email.
         </Text>
@@ -74,11 +80,20 @@ const text = {
 }
 const link = { color: 'inherit', textDecoration: 'underline' }
 const button = {
-  backgroundColor: '#000000',
+  backgroundColor: '#2563eb',
   color: '#ffffff',
   fontSize: '14px',
+  fontWeight: 'bold' as const,
   borderRadius: '8px',
   padding: '12px 20px',
   textDecoration: 'none',
 }
+const fallbackText = {
+  fontSize: '12px',
+  color: '#55575d',
+  lineHeight: '1.5',
+  margin: '20px 0 0',
+  wordBreak: 'break-all' as const,
+}
+const fallbackLink = { color: '#2563eb', textDecoration: 'underline' }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
