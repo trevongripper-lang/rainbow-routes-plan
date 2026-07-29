@@ -75,6 +75,7 @@ function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState<{ scope: string; until: number } | null>(null);
