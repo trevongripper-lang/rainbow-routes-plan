@@ -9,59 +9,43 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as RecoverRouteImport } from './routes/recover'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as PricingRouteImport } from './routes/pricing'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as JoinTokenRouteImport } from './routes/join.$token'
-import { Route as AuthSetPasswordRouteImport } from './routes/auth.set-password'
-import { Route as AuthConsentRouteImport } from './routes/auth.consent'
-import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
-import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
-import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
-import { Route as AuthenticatedMapRouteImport } from './routes/_authenticated/map'
-import { Route as AuthenticatedEventsRouteImport } from './routes/_authenticated/events'
-import { Route as AuthenticatedBetaConsentRouteImport } from './routes/_authenticated/beta-consent'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as RecoverRouteImport } from './routes/recover'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
-import { Route as AuthenticatedTripsIndexRouteImport } from './routes/_authenticated/trips.index'
-import { Route as ApiPublicPaddleWebhookRouteImport } from './routes/api/public/paddle-webhook'
-import { Route as AuthenticatedTripsIdRouteImport } from './routes/_authenticated/trips.$id'
-import { Route as AuthenticatedConsoleWebhookTestRouteImport } from './routes/_authenticated/console.webhook-test'
-import { Route as AuthenticatedConsolePromoCodesRouteImport } from './routes/_authenticated/console.promo-codes'
-import { Route as AuthenticatedConsoleEventsRouteImport } from './routes/_authenticated/console.events'
-import { Route as AuthenticatedConsoleDiagnosticsRouteImport } from './routes/_authenticated/console.diagnostics'
+import { Route as AuthenticatedBetaConsentRouteImport } from './routes/_authenticated/beta-consent'
+import { Route as AuthenticatedEventsRouteImport } from './routes/_authenticated/events'
+import { Route as AuthenticatedMapRouteImport } from './routes/_authenticated/map'
+import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as AuthConsentRouteImport } from './routes/auth.consent'
+import { Route as AuthSetPasswordRouteImport } from './routes/auth.set-password'
+import { Route as JoinTokenRouteImport } from './routes/join.$token'
 import { Route as AuthenticatedConsoleAnalyticsRouteImport } from './routes/_authenticated/console.analytics'
-import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
-import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
+import { Route as AuthenticatedConsoleDiagnosticsRouteImport } from './routes/_authenticated/console.diagnostics'
+import { Route as AuthenticatedConsoleEventsRouteImport } from './routes/_authenticated/console.events'
+import { Route as AuthenticatedConsolePromoCodesRouteImport } from './routes/_authenticated/console.promo-codes'
+import { Route as AuthenticatedConsoleWebhookTestRouteImport } from './routes/_authenticated/console.webhook-test'
+import { Route as AuthenticatedTripsIndexRouteImport } from './routes/_authenticated/trips.index'
+import { Route as AuthenticatedTripsIdRouteImport } from './routes/_authenticated/trips.$id'
+import { Route as ApiPublicPaddleWebhookRouteImport } from './routes/api/public/paddle-webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
+import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
+import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RecoverRoute = RecoverRouteImport.update({
-  id: '/recover',
-  path: '/recover',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PricingRoute = PricingRouteImport.update({
-  id: '/pricing',
-  path: '/pricing',
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -69,53 +53,34 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRoute = AuthenticatedRouteImport.update({
-  id: '/_authenticated',
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
-const JoinTokenRoute = JoinTokenRouteImport.update({
-  id: '/join/$token',
-  path: '/join/$token',
+const RecoverRoute = RecoverRouteImport.update({
+  id: '/recover',
+  path: '/recover',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthSetPasswordRoute = AuthSetPasswordRouteImport.update({
-  id: '/set-password',
-  path: '/set-password',
-  getParentRoute: () => AuthRoute,
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AuthConsentRoute = AuthConsentRouteImport.update({
-  id: '/consent',
-  path: '/consent',
-  getParentRoute: () => AuthRoute,
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/callback',
-  path: '/callback',
-  getParentRoute: () => AuthRoute,
-} as any)
-const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedMeRoute = AuthenticatedMeRouteImport.update({
-  id: '/me',
-  path: '/me',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedMapRoute = AuthenticatedMapRouteImport.update({
-  id: '/map',
-  path: '/map',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedEventsRoute = AuthenticatedEventsRouteImport.update({
-  id: '/events',
-  path: '/events',
+const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
+  id: '/app',
+  path: '/app',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedBetaConsentRoute =
@@ -124,42 +89,50 @@ const AuthenticatedBetaConsentRoute =
     path: '/beta-consent',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
-  id: '/app',
-  path: '/app',
+const AuthenticatedEventsRoute = AuthenticatedEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedTripsIndexRoute = AuthenticatedTripsIndexRouteImport.update({
-  id: '/trips/',
-  path: '/trips/',
+const AuthenticatedMapRoute = AuthenticatedMapRouteImport.update({
+  id: '/map',
+  path: '/map',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const ApiPublicPaddleWebhookRoute = ApiPublicPaddleWebhookRouteImport.update({
-  id: '/api/public/paddle-webhook',
-  path: '/api/public/paddle-webhook',
+const AuthenticatedMeRoute = AuthenticatedMeRouteImport.update({
+  id: '/me',
+  path: '/me',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthConsentRoute = AuthConsentRouteImport.update({
+  id: '/consent',
+  path: '/consent',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthSetPasswordRoute = AuthSetPasswordRouteImport.update({
+  id: '/set-password',
+  path: '/set-password',
+  getParentRoute: () => AuthRoute,
+} as any)
+const JoinTokenRoute = JoinTokenRouteImport.update({
+  id: '/join/$token',
+  path: '/join/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedTripsIdRoute = AuthenticatedTripsIdRouteImport.update({
-  id: '/trips/$id',
-  path: '/trips/$id',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedConsoleWebhookTestRoute =
-  AuthenticatedConsoleWebhookTestRouteImport.update({
-    id: '/console/webhook-test',
-    path: '/console/webhook-test',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedConsolePromoCodesRoute =
-  AuthenticatedConsolePromoCodesRouteImport.update({
-    id: '/console/promo-codes',
-    path: '/console/promo-codes',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedConsoleEventsRoute =
-  AuthenticatedConsoleEventsRouteImport.update({
-    id: '/console/events',
-    path: '/console/events',
+const AuthenticatedConsoleAnalyticsRoute =
+  AuthenticatedConsoleAnalyticsRouteImport.update({
+    id: '/console/analytics',
+    path: '/console/analytics',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedConsoleDiagnosticsRoute =
@@ -168,21 +141,37 @@ const AuthenticatedConsoleDiagnosticsRoute =
     path: '/console/diagnostics',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedConsoleAnalyticsRoute =
-  AuthenticatedConsoleAnalyticsRouteImport.update({
-    id: '/console/analytics',
-    path: '/console/analytics',
+const AuthenticatedConsoleEventsRoute =
+  AuthenticatedConsoleEventsRouteImport.update({
+    id: '/console/events',
+    path: '/console/events',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const LovableEmailQueueProcessRoute =
-  LovableEmailQueueProcessRouteImport.update({
-    id: '/lovable/email/queue/process',
-    path: '/lovable/email/queue/process',
-    getParentRoute: () => rootRouteImport,
+const AuthenticatedConsolePromoCodesRoute =
+  AuthenticatedConsolePromoCodesRouteImport.update({
+    id: '/console/promo-codes',
+    path: '/console/promo-codes',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
-const LovableEmailAuthWebhookRoute = LovableEmailAuthWebhookRouteImport.update({
-  id: '/lovable/email/auth/webhook',
-  path: '/lovable/email/auth/webhook',
+const AuthenticatedConsoleWebhookTestRoute =
+  AuthenticatedConsoleWebhookTestRouteImport.update({
+    id: '/console/webhook-test',
+    path: '/console/webhook-test',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedTripsIndexRoute = AuthenticatedTripsIndexRouteImport.update({
+  id: '/trips/',
+  path: '/trips/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedTripsIdRoute = AuthenticatedTripsIdRouteImport.update({
+  id: '/trips/$id',
+  path: '/trips/$id',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const ApiPublicPaddleWebhookRoute = ApiPublicPaddleWebhookRouteImport.update({
+  id: '/api/public/paddle-webhook',
+  path: '/api/public/paddle-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
@@ -190,6 +179,17 @@ const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
   path: '/lovable/email/auth/preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LovableEmailAuthWebhookRoute = LovableEmailAuthWebhookRouteImport.update({
+  id: '/lovable/email/auth/webhook',
+  path: '/lovable/email/auth/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LovableEmailQueueProcessRoute =
+  LovableEmailQueueProcessRouteImport.update({
+    id: '/lovable/email/queue/process',
+    path: '/lovable/email/queue/process',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -395,46 +395,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/recover': {
-      id: '/recover'
-      path: '/recover'
-      fullPath: '/recover'
-      preLoaderRoute: typeof RecoverRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pricing': {
-      id: '/pricing'
-      path: '/pricing'
-      fullPath: '/pricing'
-      preLoaderRoute: typeof PricingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -444,67 +409,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/join/$token': {
-      id: '/join/$token'
-      path: '/join/$token'
-      fullPath: '/join/$token'
-      preLoaderRoute: typeof JoinTokenRouteImport
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth/set-password': {
-      id: '/auth/set-password'
-      path: '/set-password'
-      fullPath: '/auth/set-password'
-      preLoaderRoute: typeof AuthSetPasswordRouteImport
-      parentRoute: typeof AuthRoute
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/auth/consent': {
-      id: '/auth/consent'
-      path: '/consent'
-      fullPath: '/auth/consent'
-      preLoaderRoute: typeof AuthConsentRouteImport
-      parentRoute: typeof AuthRoute
+    '/recover': {
+      id: '/recover'
+      path: '/recover'
+      fullPath: '/recover'
+      preLoaderRoute: typeof RecoverRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/auth/callback': {
-      id: '/auth/callback'
-      path: '/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
-      parentRoute: typeof AuthRoute
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/settings': {
-      id: '/_authenticated/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
-      parentRoute: typeof AuthenticatedRoute
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/me': {
-      id: '/_authenticated/me'
-      path: '/me'
-      fullPath: '/me'
-      preLoaderRoute: typeof AuthenticatedMeRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/map': {
-      id: '/_authenticated/map'
-      path: '/map'
-      fullPath: '/map'
-      preLoaderRoute: typeof AuthenticatedMapRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/events': {
-      id: '/_authenticated/events'
-      path: '/events'
-      fullPath: '/events'
-      preLoaderRoute: typeof AuthenticatedEventsRouteImport
+    '/_authenticated/app': {
+      id: '/_authenticated/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AuthenticatedAppRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/beta-consent': {
@@ -514,53 +465,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBetaConsentRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/app': {
-      id: '/_authenticated/app'
-      path: '/app'
-      fullPath: '/app'
-      preLoaderRoute: typeof AuthenticatedAppRouteImport
+    '/_authenticated/events': {
+      id: '/_authenticated/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof AuthenticatedEventsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/trips/': {
-      id: '/_authenticated/trips/'
-      path: '/trips'
-      fullPath: '/trips/'
-      preLoaderRoute: typeof AuthenticatedTripsIndexRouteImport
+    '/_authenticated/map': {
+      id: '/_authenticated/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof AuthenticatedMapRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/api/public/paddle-webhook': {
-      id: '/api/public/paddle-webhook'
-      path: '/api/public/paddle-webhook'
-      fullPath: '/api/public/paddle-webhook'
-      preLoaderRoute: typeof ApiPublicPaddleWebhookRouteImport
+    '/_authenticated/me': {
+      id: '/_authenticated/me'
+      path: '/me'
+      fullPath: '/me'
+      preLoaderRoute: typeof AuthenticatedMeRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/consent': {
+      id: '/auth/consent'
+      path: '/consent'
+      fullPath: '/auth/consent'
+      preLoaderRoute: typeof AuthConsentRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/set-password': {
+      id: '/auth/set-password'
+      path: '/set-password'
+      fullPath: '/auth/set-password'
+      preLoaderRoute: typeof AuthSetPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/join/$token': {
+      id: '/join/$token'
+      path: '/join/$token'
+      fullPath: '/join/$token'
+      preLoaderRoute: typeof JoinTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/trips/$id': {
-      id: '/_authenticated/trips/$id'
-      path: '/trips/$id'
-      fullPath: '/trips/$id'
-      preLoaderRoute: typeof AuthenticatedTripsIdRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/console/webhook-test': {
-      id: '/_authenticated/console/webhook-test'
-      path: '/console/webhook-test'
-      fullPath: '/console/webhook-test'
-      preLoaderRoute: typeof AuthenticatedConsoleWebhookTestRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/console/promo-codes': {
-      id: '/_authenticated/console/promo-codes'
-      path: '/console/promo-codes'
-      fullPath: '/console/promo-codes'
-      preLoaderRoute: typeof AuthenticatedConsolePromoCodesRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/console/events': {
-      id: '/_authenticated/console/events'
-      path: '/console/events'
-      fullPath: '/console/events'
-      preLoaderRoute: typeof AuthenticatedConsoleEventsRouteImport
+    '/_authenticated/console/analytics': {
+      id: '/_authenticated/console/analytics'
+      path: '/console/analytics'
+      fullPath: '/console/analytics'
+      preLoaderRoute: typeof AuthenticatedConsoleAnalyticsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/console/diagnostics': {
@@ -570,18 +535,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConsoleDiagnosticsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/console/analytics': {
-      id: '/_authenticated/console/analytics'
-      path: '/console/analytics'
-      fullPath: '/console/analytics'
-      preLoaderRoute: typeof AuthenticatedConsoleAnalyticsRouteImport
+    '/_authenticated/console/events': {
+      id: '/_authenticated/console/events'
+      path: '/console/events'
+      fullPath: '/console/events'
+      preLoaderRoute: typeof AuthenticatedConsoleEventsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/lovable/email/queue/process': {
-      id: '/lovable/email/queue/process'
-      path: '/lovable/email/queue/process'
-      fullPath: '/lovable/email/queue/process'
-      preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
+    '/_authenticated/console/promo-codes': {
+      id: '/_authenticated/console/promo-codes'
+      path: '/console/promo-codes'
+      fullPath: '/console/promo-codes'
+      preLoaderRoute: typeof AuthenticatedConsolePromoCodesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/console/webhook-test': {
+      id: '/_authenticated/console/webhook-test'
+      path: '/console/webhook-test'
+      fullPath: '/console/webhook-test'
+      preLoaderRoute: typeof AuthenticatedConsoleWebhookTestRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/trips/': {
+      id: '/_authenticated/trips/'
+      path: '/trips'
+      fullPath: '/trips/'
+      preLoaderRoute: typeof AuthenticatedTripsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/trips/$id': {
+      id: '/_authenticated/trips/$id'
+      path: '/trips/$id'
+      fullPath: '/trips/$id'
+      preLoaderRoute: typeof AuthenticatedTripsIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/api/public/paddle-webhook': {
+      id: '/api/public/paddle-webhook'
+      path: '/api/public/paddle-webhook'
+      fullPath: '/api/public/paddle-webhook'
+      preLoaderRoute: typeof ApiPublicPaddleWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lovable/email/auth/preview': {
+      id: '/lovable/email/auth/preview'
+      path: '/lovable/email/auth/preview'
+      fullPath: '/lovable/email/auth/preview'
+      preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lovable/email/auth/webhook': {
@@ -591,11 +591,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailAuthWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/lovable/email/auth/preview': {
-      id: '/lovable/email/auth/preview'
-      path: '/lovable/email/auth/preview'
-      fullPath: '/lovable/email/auth/preview'
-      preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
+    '/lovable/email/queue/process': {
+      id: '/lovable/email/queue/process'
+      path: '/lovable/email/queue/process'
+      fullPath: '/lovable/email/queue/process'
+      preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
