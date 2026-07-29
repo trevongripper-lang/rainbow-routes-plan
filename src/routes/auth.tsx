@@ -745,6 +745,40 @@ function AuthPage() {
     }
   }
 
+  async function handleMagicLink(rawEmail: string) {
+    const trimmed = rawEmail.trim();
+    if (!trimmed || !trimmed.includes("@")) {
+      toast.error("Enter a valid email address.");
+      return;
+    }
+    if (magicLinkState === "sending") return;
+    setMagicLinkState("sending");
+    try {
+      if (!(await guard("login", trimmed))) {
+        setMagicLinkState("idle");
+        return;
+      }
+      const { error } = await supabase.auth.signInWithOtp({
+        email: trimmed,
+        options: {
+          emailRedirectTo: canonicalEmailOrigin() + "/auth/callback",
+          shouldCreateUser: true,
+        },
+      });
+      if (error) throw error;
+      setMagicLinkState("sent");
+      track("signin_succeeded", { method: "magiclink_requested" });
+      toast.success("Sign-in link sent. Check your email.");
+    } catch (err) {
+      setMagicLinkState("idle");
+      track("signin_failed", {
+        method: "magiclink",
+        message: err instanceof Error ? err.message.slice(0, 140) : "unknown",
+      });
+      toast.error(err instanceof Error ? err.message : "Could not send sign-in link.");
+    }
+  }
+
   async function handleResendConfirmation() {
     if (!confirmSent || resendState === "sending") return;
     setResendState("sending");
