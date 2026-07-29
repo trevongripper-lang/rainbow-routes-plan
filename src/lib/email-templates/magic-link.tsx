@@ -34,6 +34,12 @@ export const MagicLinkEmail = ({
         <Button style={button} href={confirmationUrl}>
           Log In
         </Button>
+        <Text style={fallbackText}>
+          Or paste this link into your browser:{' '}
+          <Link href={confirmationUrl} style={fallbackLink}>
+            {confirmationUrl}
+          </Link>
+        </Text>
         <Text style={footer}>
           If you didn't request this link, you can safely ignore this email.
         </Text>
