@@ -494,30 +494,15 @@ function AuthPage() {
       // signed-out login shell.
       markOAuthPending("google", cid);
 
-      // Canonical full-page PKCE authorization-code flow. Supabase generates
-      // the verifier, stores it in localStorage on THIS origin, and redirects
-      // to Google. Google returns to /auth/callback?code=… which exchanges
-      // once via supabase.auth.exchangeCodeForSession(code).
-      //
-      // We do NOT use the lovable.auth web-message broker for Google: its
-      // inline token handoff has proven unreliable on Safari / installed PWAs
-      // (see oauth_return_poll_timeout reports).
-      const redirectTo = window.location.origin + "/auth/callback";
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-          queryParams: { prompt: "select_account" },
-          // We drive the redirect ourselves so we can log the stage transition
-          // and short-circuit cleanly if Supabase returned an error instead.
-          skipBrowserRedirect: true,
-        },
+      // Lovable-managed OAuth wrapper. It owns navigation to Google and
+      // session installation on return; we only observe the outcome.
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin + "/auth/callback",
+        extraParams: { prompt: "select_account" },
       });
 
-      if (error || !data?.url) {
-        const publicCode = toPublicOAuthErrorCode(
-          error ? "oauth_provider_failed" : "oauth_token_delivery_missing",
-        );
+      if (result.error) {
+        const publicCode = toPublicOAuthErrorCode("oauth_provider_failed");
         logAuthStage("oauth_start", {
           ok: false,
           code: publicCode,
@@ -541,9 +526,17 @@ function AuthPage() {
         code: "google",
         durationMs: Date.now() - startedAt,
       });
-      // Full-page navigation — pending marker + PKCE verifier survive.
-      window.location.assign(data.url);
+
+      if (result.redirected) {
+        // Browser is already navigating to Google — pending marker survives.
+        return;
+      }
+
+      // Tokens were returned inline and the session is already set.
+      clearOAuthPending();
+      window.location.assign(redirectTarget);
       return;
+
 
     } catch {
       clearOAuthPending();
