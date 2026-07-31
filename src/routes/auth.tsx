@@ -496,10 +496,14 @@ function AuthPage() {
 
       // Lovable-managed OAuth wrapper. It owns navigation to Google and
       // session installation on return; we only observe the outcome.
+      // Return to /auth (NOT /auth/callback): the broker hands back tokens,
+      // not a PKCE `?code=`, and /auth owns the pending-marker reconciliation
+      // + session polling. /auth/callback is reserved for `?code=`/`token_hash`.
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + "/auth/callback",
+        redirect_uri: window.location.origin + "/auth",
         extraParams: { prompt: "select_account" },
       });
+
 
       if (result.error) {
         const publicCode = toPublicOAuthErrorCode("oauth_provider_failed");
