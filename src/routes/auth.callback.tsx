@@ -228,19 +228,28 @@ function AuthCallback() {
           logAuthStage("code_exchange_ok", { ok: true });
         }
       } else {
-        // Bare visit — no token, no code, no error. If the SDK auto-detected
-        // a session earlier, route normally; otherwise error.
-        const { data: existing } = await supabase.auth.getSession();
-        if (!existing.session) {
+        // Bare visit — no code, no token, no error. Supabase may still be
+        // hydrating persisted storage, so poll briefly before declaring
+        // failure instead of erroring on first render.
+        let session = null as Awaited<
+          ReturnType<typeof supabase.auth.getSession>
+        >["data"]["session"];
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const { data: existing } = await supabase.auth.getSession();
+          session = existing.session;
+          if (session || cancelled) break;
+          await new Promise((r) => setTimeout(r, 250));
+        }
+        if (cancelled) return;
+        if (!session) {
           clearOAuthPending();
           logAuthStage("code_exchange_failed", { ok: false, code: "oauth_token_delivery_missing" });
-          if (!cancelled) {
-            setErrorMessage(OAUTH_MISSING);
-            setPhase("error");
-          }
+          setErrorMessage(OAUTH_MISSING);
+          setPhase("error");
           return;
         }
       }
+
 
       // Strip any query params so a refresh doesn't retry.
       window.history.replaceState(null, "", "/auth/callback");
