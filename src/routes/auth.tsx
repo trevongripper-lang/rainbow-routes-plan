@@ -1054,12 +1054,25 @@ function AuthPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
                   >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    {showPassword ? (
+                      <EyeOff className="size-4" aria-hidden="true" />
+                    ) : (
+                      <Eye className="size-4" aria-hidden="true" />
+                    )}
                   </button>
                 </div>
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {password.length >= 6 ? (
+                    <Check className="size-3 text-emerald-500" aria-hidden="true" />
+                  ) : (
+                    <span className="size-1.5 rounded-full bg-muted-foreground/50" aria-hidden="true" />
+                  )}
+                  At least 6 characters
+                </p>
               </div>
 
               {mode === "signup" && (
