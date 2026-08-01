@@ -1183,8 +1183,6 @@ function AuthPage() {
               </p>
             )}
           </>
-
-          </>
         )}
       </div>
       <AlertDialog
