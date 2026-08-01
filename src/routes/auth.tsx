@@ -494,19 +494,23 @@ function AuthPage() {
       // signed-out login shell.
       markOAuthPending("google", cid);
 
-      // Lovable-managed OAuth wrapper. It owns navigation to Google and
-      // session installation on return; we only observe the outcome.
-      // Return to /auth (NOT /auth/callback): the broker hands back tokens,
-      // not a PKCE `?code=`, and /auth owns the pending-marker reconciliation
-      // + session polling. /auth/callback is reserved for `?code=`/`token_hash`.
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + "/auth",
-        extraParams: { prompt: "select_account" },
+      // Native Supabase PKCE full-page redirect. No Lovable OAuth broker:
+      // the page that starts OAuth cannot install tokens after a full-page
+      // redirect. /auth/callback owns the single-use `?code=` exchange.
+      const redirectTo = window.location.origin + "/auth/callback";
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+          queryParams: { prompt: "select_account" },
+        },
       });
 
-
-      if (result.error) {
-        const publicCode = toPublicOAuthErrorCode("oauth_provider_failed");
+      if (error || !data?.url) {
+        const publicCode = toPublicOAuthErrorCode(
+          error ? "oauth_provider_failed" : "oauth_token_delivery_missing",
+        );
         logAuthStage("oauth_start", {
           ok: false,
           code: publicCode,
@@ -530,16 +534,9 @@ function AuthPage() {
         code: "google",
         durationMs: Date.now() - startedAt,
       });
-
-      if (result.redirected) {
-        // Browser is already navigating to Google — pending marker survives.
-        return;
-      }
-
-      // Tokens were returned inline and the session is already set.
-      clearOAuthPending();
-      window.location.assign(redirectTarget);
+      window.location.assign(data.url);
       return;
+
 
 
     } catch {
