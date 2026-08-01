@@ -1033,6 +1033,29 @@ function AuthPage() {
               </button>
             )}
 
+            {mode === "signin" && (
+              <div className="mt-5 border-t border-border/60 pt-5">
+                <p className="text-center text-xs text-muted-foreground">
+                  No password handy? We'll email you a one-tap sign-in link.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-3 w-full"
+                  onClick={() => void handleMagicLink(email || magicLinkEmail)}
+                  disabled={
+                    magicLinkState === "sending" || magicLinkState === "sent" || loading || blocked
+                  }
+                >
+                  {magicLinkState === "sending"
+                    ? "Sending…"
+                    : magicLinkState === "sent"
+                      ? "Link sent ✓ Check your email"
+                      : "Email me a sign-in link"}
+                </Button>
+              </div>
+            )}
+
             <button
               onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
               className="mt-5 w-full text-sm text-muted-foreground hover:text-foreground"
