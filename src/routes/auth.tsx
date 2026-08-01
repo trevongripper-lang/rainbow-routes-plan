@@ -850,10 +850,31 @@ function AuthPage() {
 
   return (
     <div
-      className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
+      className="safe-top safe-bottom relative min-h-screen grid place-items-center overflow-hidden px-6 py-12"
       style={{ background: "var(--gradient-hero)" }}
     >
-      <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-8 backdrop-blur">
+      {/* Subtle travel cue: a faint dotted route arcing behind the card. */}
+      <svg
+        aria-hidden
+        className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.07]"
+        viewBox="0 0 800 600"
+        preserveAspectRatio="xMidYMid slice"
+        fill="none"
+      >
+        <path
+          d="M-20 460 C 160 380, 220 180, 400 190 C 580 200, 640 120, 830 60"
+          stroke="currentColor"
+          className="text-primary"
+          strokeWidth="2"
+          strokeDasharray="6 12"
+          strokeLinecap="round"
+        />
+        <circle cx="400" cy="190" r="7" className="fill-primary" />
+        <circle cx="120" cy="418" r="5" className="fill-primary" />
+        <circle cx="700" cy="106" r="5" className="fill-primary" />
+      </svg>
+      <div className="relative w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-8 backdrop-blur">
+
         {alreadyRegisteredEmail ? (
           <div>
             <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">
