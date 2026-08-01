@@ -1538,6 +1538,10 @@ export type Database = {
       _maybe_grant_loyalty: { Args: { _user: string }; Returns: undefined }
       auto_close_trips: { Args: never; Returns: number }
       cleanup_rate_limits: { Args: never; Returns: number }
+      consume_email_verification_token: {
+        Args: { _token: string }
+        Returns: Json
+      }
       current_consent_version: { Args: never; Returns: string }
       debug_whoami: {
         Args: never
@@ -1582,6 +1586,7 @@ export type Database = {
         Returns: boolean
       }
       has_confirmed_consent: { Args: { _user: string }; Returns: boolean }
+      has_consent_pending_confirmation: { Args: never; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1605,6 +1610,15 @@ export type Database = {
       is_trip_owner: {
         Args: { _dest: string; _user: string }
         Returns: boolean
+      }
+      issue_email_verification_token: {
+        Args: {
+          _email: string
+          _token_hash: string
+          _ttl_minutes?: number
+          _user: string
+        }
+        Returns: string
       }
       match_trip_events: {
         Args: {
