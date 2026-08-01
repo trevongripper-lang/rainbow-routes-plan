@@ -120,6 +120,17 @@ function AuthPage() {
     });
   }, [search.redirect]);
 
+  // Only offer a back action when the user arrived from a real in-app
+  // destination (invite link, protected page redirect). Never for a direct
+  // /auth visit, and never for an unsanitized/external value.
+  const backTarget = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    const raw = search.redirect ?? getPendingRedirect();
+    if (!raw) return null;
+    const safe = sanitizeRedirectPath(raw, { fallback: "" });
+    return safe && safe !== "/app" ? safe : null;
+  }, [search.redirect]);
+
   const secsLeft = cooldown ? Math.max(0, Math.ceil((cooldown.until - Date.now()) / 1000)) : 0;
   const blocked = secsLeft > 0;
 
