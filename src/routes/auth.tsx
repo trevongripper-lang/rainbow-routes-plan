@@ -498,7 +498,6 @@ function AuthPage() {
       }
 
       setOauthReconcile(null);
-      await handleGoogle();
     } finally {
       setReconcileRetrying(false);
     }
