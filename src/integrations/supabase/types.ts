@@ -71,6 +71,8 @@ export type Database = {
         Row: {
           accepted_at: string
           id: string
+          privacy_version: string | null
+          source: string | null
           user_agent: string | null
           user_id: string
           version: string
@@ -78,6 +80,8 @@ export type Database = {
         Insert: {
           accepted_at?: string
           id?: string
+          privacy_version?: string | null
+          source?: string | null
           user_agent?: string | null
           user_id: string
           version: string
@@ -85,6 +89,8 @@ export type Database = {
         Update: {
           accepted_at?: string
           id?: string
+          privacy_version?: string | null
+          source?: string | null
           user_agent?: string | null
           user_id?: string
           version?: string
@@ -372,6 +378,39 @@ export type Database = {
         }
         Relationships: []
       }
+      email_verification_tokens: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invalidated_at: string | null
+          token_hash: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          invalidated_at?: string | null
+          token_hash: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invalidated_at?: string | null
+          token_hash?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       event_reports: {
         Row: {
           created_at: string
@@ -629,8 +668,10 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          confirmed_email: string | null
           created_at: string
           display_name: string | null
+          email_confirmed_at: string | null
           id: string
           is_pro: boolean
           paddle_customer_id: string | null
@@ -643,8 +684,10 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          confirmed_email?: string | null
           created_at?: string
           display_name?: string | null
+          email_confirmed_at?: string | null
           id: string
           is_pro?: boolean
           paddle_customer_id?: string | null
@@ -657,8 +700,10 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          confirmed_email?: string | null
           created_at?: string
           display_name?: string | null
+          email_confirmed_at?: string | null
           id?: string
           is_pro?: boolean
           paddle_customer_id?: string | null
