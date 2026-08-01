@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, useRouter, useRouterState } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Check, Eye, EyeOff } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -104,6 +104,8 @@ function AuthPage() {
   >(null);
   const [reconcileRetrying, setReconcileRetrying] = useState(false);
   const [magicLinkEmail, setMagicLinkEmail] = useState("");
+  const [magicLinkOpen, setMagicLinkOpen] = useState(false);
+  const [betaConsentChecked, setBetaConsentChecked] = useState(false);
   const [magicLinkState, setMagicLinkState] = useState<"idle" | "sending" | "sent">("idle");
   const redirectingRef = useRef(false);
   const redirectTimeoutRef = useRef<number | null>(null);
@@ -116,6 +118,17 @@ function AuthPage() {
     return sanitizeRedirectPath(search.redirect ?? getPendingRedirect() ?? "/app", {
       fallback: "/app",
     });
+  }, [search.redirect]);
+
+  // Only offer a back action when the user arrived from a real in-app
+  // destination (invite link, protected page redirect). Never for a direct
+  // /auth visit, and never for an unsanitized/external value.
+  const backTarget = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    const raw = search.redirect ?? getPendingRedirect();
+    if (!raw) return null;
+    const safe = sanitizeRedirectPath(raw, { fallback: "" });
+    return safe && safe !== "/app" ? safe : null;
   }, [search.redirect]);
 
   const secsLeft = cooldown ? Math.max(0, Math.ceil((cooldown.until - Date.now()) / 1000)) : 0;
@@ -837,10 +850,31 @@ function AuthPage() {
 
   return (
     <div
-      className="safe-top safe-bottom min-h-screen grid place-items-center px-6 py-12"
+      className="safe-top safe-bottom relative min-h-screen grid place-items-center overflow-hidden px-6 py-12"
       style={{ background: "var(--gradient-hero)" }}
     >
-      <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-8 backdrop-blur">
+      {/* Subtle travel cue: a faint dotted route arcing behind the card. */}
+      <svg
+        aria-hidden
+        className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.07]"
+        viewBox="0 0 800 600"
+        preserveAspectRatio="xMidYMid slice"
+        fill="none"
+      >
+        <path
+          d="M-20 460 C 160 380, 220 180, 400 190 C 580 200, 640 120, 830 60"
+          stroke="currentColor"
+          className="text-primary"
+          strokeWidth="2"
+          strokeDasharray="6 12"
+          strokeLinecap="round"
+        />
+        <circle cx="400" cy="190" r="7" className="fill-primary" />
+        <circle cx="120" cy="418" r="5" className="fill-primary" />
+        <circle cx="700" cy="106" r="5" className="fill-primary" />
+      </svg>
+      <div className="relative w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-8 backdrop-blur">
+
         {alreadyRegisteredEmail ? (
           <div>
             <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">
@@ -957,16 +991,31 @@ function AuthPage() {
           </div>
         ) : (
           <>
-            <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">
-              ← back
-            </Link>
-            <h1 className="mt-3 font-display text-3xl">
-              {mode === "signin" ? "Welcome back" : "Join the crew"}
+            {backTarget && (
+              <a
+                href={backTarget}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                ← Back
+              </a>
+            )}
+            <div className={backTarget ? "mt-4" : ""}>
+              <img
+                src="/icon-192.png"
+                alt="Tribe"
+                width={56}
+                height={56}
+                className="h-14 w-14 rounded-2xl shadow-sm"
+              />
+            </div>
+            <h1 className="mt-5 font-display text-3xl leading-tight">
+              {mode === "signin" ? "Welcome back" : "Plan unforgettable trips with your people."}
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Get your tribe out of the text thread and off to the next adventure.
+            <p className="mt-2 min-h-[2.5rem] text-sm text-muted-foreground">
+              {mode === "signin"
+                ? "Pick up where your trip left off."
+                : "Organize group travel, vote on decisions, manage itineraries, and keep everyone on the same page."}
             </p>
-
 
             <form onSubmit={handleEmail} className="mt-6 space-y-3">
               {mode === "signup" && (
@@ -1012,7 +1061,48 @@ function AuthPage() {
                   </button>
                 </div>
               </div>
-              <Button type="submit" disabled={loading || blocked} className="w-full">
+
+              {mode === "signup" && (
+                <label
+                  htmlFor="beta-consent"
+                  className="flex items-start gap-3 rounded-xl border border-border/60 bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground"
+                >
+                  <input
+                    id="beta-consent"
+                    type="checkbox"
+                    checked={betaConsentChecked}
+                    onChange={(e) => setBetaConsentChecked(e.target.checked)}
+                    className="mt-0.5 size-4 shrink-0 accent-primary"
+                  />
+                  <span>
+                    I agree to the Tribe{" "}
+                    <Link
+                      to="/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-foreground"
+                    >
+                      Beta Terms
+                    </Link>{" "}
+                    and{" "}
+                    <Link
+                      to="/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-foreground"
+                    >
+                      Privacy Policy
+                    </Link>{" "}
+                    and understand that Tribe is currently a beta product.
+                  </span>
+                </label>
+              )}
+
+              <Button
+                type="submit"
+                disabled={loading || blocked || (mode === "signup" && !betaConsentChecked)}
+                className="w-full"
+              >
                 {blocked ? `Wait ${secsLeft}s` : mode === "signin" ? "Sign in" : "Create account"}
               </Button>
               {blocked && (
@@ -1034,46 +1124,98 @@ function AuthPage() {
             )}
 
             {mode === "signin" && (
-              <div className="mt-5 border-t border-border/60 pt-5">
-                <p className="text-center text-xs text-muted-foreground">
-                  No password handy? We'll email you a one-tap sign-in link.
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="mt-3 w-full"
-                  onClick={() => void handleMagicLink(email || magicLinkEmail)}
-                  disabled={
-                    magicLinkState === "sending" || magicLinkState === "sent" || loading || blocked
-                  }
-                >
-                  {magicLinkState === "sending"
-                    ? "Sending…"
-                    : magicLinkState === "sent"
-                      ? "Link sent ✓ Check your email"
-                      : "Email me a sign-in link"}
-                </Button>
+              <div className="mt-5">
+                <div className="flex items-center gap-3">
+                  <span className="h-px flex-1 bg-border/60" />
+                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Or
+                  </span>
+                  <span className="h-px flex-1 bg-border/60" />
+                </div>
+
+                {!magicLinkOpen ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMagicLinkOpen(true);
+                      if (!magicLinkEmail && email) setMagicLinkEmail(email);
+                    }}
+                    className="mt-3 w-full text-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                  >
+                    Email me a sign-in link
+                  </button>
+                ) : magicLinkState === "sent" ? (
+                  <p className="mt-3 rounded-xl border border-border/60 bg-muted/30 p-3 text-center text-xs text-muted-foreground">
+                    Check your email for a secure sign-in link. It may take a few minutes to
+                    arrive.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-2 rounded-xl border border-border/60 bg-muted/20 p-3">
+                    <Label htmlFor="magic-link-email" className="text-xs">
+                      Email
+                    </Label>
+                    <Input
+                      id="magic-link-email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="you@example.com"
+                      value={magicLinkEmail}
+                      onChange={(e) => setMagicLinkEmail(e.target.value)}
+                      disabled={magicLinkState === "sending"}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => void handleMagicLink(magicLinkEmail || email)}
+                      disabled={magicLinkState === "sending" || loading || blocked}
+                    >
+                      {magicLinkState === "sending" ? "Sending…" : "Send sign-in link"}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
-            <button
-              onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-              className="mt-5 w-full text-sm text-muted-foreground hover:text-foreground"
-            >
-              {mode === "signin" ? "No account yet? Sign up" : "Have an account? Sign in"}
-            </button>
-
-            <p className="mt-4 text-center text-xs text-muted-foreground">
-              By continuing you agree to our{" "}
-              <Link to="/terms" className="underline hover:text-foreground">
-                Terms
-              </Link>{" "}
-              and{" "}
-              <Link to="/privacy" className="underline hover:text-foreground">
-                Privacy Policy
-              </Link>
-              .
+            <p className="mt-5 text-center text-sm text-muted-foreground">
+              {mode === "signin" ? "Don't have an account? " : "Already have an account? "}
+              <button
+                type="button"
+                onClick={() => {
+                  setMode(mode === "signin" ? "signup" : "signin");
+                  setMagicLinkOpen(false);
+                }}
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {mode === "signin" ? "Create one →" : "Sign in →"}
+              </button>
             </p>
+
+            <ul className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+              {["Free during Beta", "Private trips by default", "No credit card required"].map(
+                (item) => (
+                  <li key={item} className="flex items-center gap-1">
+                    <Check className="size-3 text-primary" aria-hidden />
+                    <span>{item}</span>
+                  </li>
+                ),
+              )}
+            </ul>
+
+            {mode === "signin" && (
+              <p className="mt-4 text-center text-xs text-muted-foreground">
+                By continuing, you agree to our{" "}
+                <Link to="/terms" className="underline hover:text-foreground">
+                  Terms
+                </Link>{" "}
+                and{" "}
+                <Link to="/privacy" className="underline hover:text-foreground">
+                  Privacy Policy
+                </Link>
+                .
+              </p>
+            )}
           </>
         )}
       </div>
