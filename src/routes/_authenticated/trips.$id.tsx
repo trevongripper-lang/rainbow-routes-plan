@@ -43,6 +43,17 @@ import { Label } from "@/components/ui/label";
 import { AttendeesCard } from "@/components/attendees-card";
 import { PlanningProgress } from "@/components/planning-progress";
 import { TripSectionBar } from "@/components/trip-section-bar";
+import { MissionControl } from "@/components/mission-control";
+
+/** Human date range for the workspace header; "Dates not set" when unavailable. */
+function formatDateRange(start: string | null, end: string | null): string {
+  const fmt = (d: string) =>
+    new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (start && end) return `${fmt(start)} – ${fmt(end)}`;
+  if (start) return `From ${fmt(start)}`;
+  if (end) return `Until ${fmt(end)}`;
+  return "Dates not set";
+}
 
 async function fetchTrip(id: string) {
   // 2 round-trips instead of 5: one combined destinations+votes+comments query,
@@ -156,6 +167,8 @@ function TripDetail() {
   const { data } = useSuspenseQuery(tripQueryOptions(id));
   const [endDateDraft, setEndDateDraft] = useState<string>("");
   const [startDateDraft, setStartDateDraft] = useState<string>("");
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     if (data?.dest.end_date) setEndDateDraft(data.dest.end_date);
