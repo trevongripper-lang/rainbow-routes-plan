@@ -32,6 +32,8 @@ type Props = {
   headcountFallback: number;
   defaultCurrency: string;
   isOwner: boolean;
+  /** "tooltip" (default) keeps the compact bar + tooltip. "inline" renders an expanded header block. */
+  variant?: "tooltip" | "inline";
 };
 
 type MemberRow = { user_id: string; role: string; status: string; travel_status: string };
@@ -44,7 +46,9 @@ export function PlanningProgress({
   endDate,
   headcountFallback,
   isOwner,
+  variant = "tooltip",
 }: Props) {
+
   const qc = useQueryClient();
 
   const results = useQueries({
@@ -247,19 +251,24 @@ export function PlanningProgress({
     people: "Confirm I'm coming",
   };
 
-  return (
-    <PlanningProgressView
-      isLoading={isLoading}
-      items={items}
-      earned={earned}
-      total={total}
-      pct={pct}
-      remaining={remaining}
-      next={next}
-      actions={actions}
-      actionLabels={actionLabels}
-    />
+  const shared = {
+    isLoading,
+    items,
+    earned,
+    total,
+    pct,
+    remaining,
+    next,
+    actions,
+    actionLabels,
+  };
+
+  return variant === "inline" ? (
+    <PlanningProgressInline {...shared} />
+  ) : (
+    <PlanningProgressView {...shared} />
   );
+
 }
 
 const ICON: Record<string, typeof Lock> = {
@@ -281,6 +290,91 @@ export type PlanningProgressViewProps = {
   actions?: Partial<Record<string, (() => void) | undefined>>;
   actionLabels?: Partial<Record<string, string>>;
 };
+
+const SHORT_LABEL: Record<string, string> = {
+  destination: "Destination",
+  dates: "Dates",
+  people: "Travelers",
+  stay: "Stay",
+  travel: "Travel",
+  money: "Money",
+};
+
+/**
+ * Expanded, inline rendering of the same planning model used by
+ * PlanningProgressView. Additive — the tooltip variant is unchanged.
+ */
+export function PlanningProgressInline({
+  isLoading,
+  items,
+  pct,
+  remaining,
+  actions,
+  actionLabels,
+}: PlanningProgressViewProps) {
+  if (isLoading) {
+    return (
+      <div className="space-y-2" aria-busy="true">
+        <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+        <div className="h-1.5 w-full animate-pulse rounded bg-muted" />
+      </div>
+    );
+  }
+
+  return (
+    <section aria-label="Planning progress" className="space-y-2">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-xs font-medium text-foreground">
+          Planning <span className="text-muted-foreground">· {pct}%</span>
+        </h2>
+        <span className="text-[11px] text-muted-foreground">
+          {remaining.length === 0 ? "Ready to go" : `${remaining.length} left`}
+        </span>
+      </div>
+      <Progress
+        value={pct}
+        aria-label="Planning progress"
+        aria-valuetext={`${pct} percent complete`}
+        className="h-1.5"
+      />
+      <ul className="flex flex-wrap gap-1.5">
+        {items.map((i) => {
+          const done = i.earned >= i.weight;
+          const StatusIcon = done ? CheckCircle2 : i.status === "partial" ? AlertCircle : Circle;
+          const onAction = !done ? actions?.[i.key] : undefined;
+          const actionLabel = actionLabels?.[i.key];
+          return (
+            <li
+              key={i.key}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] ${
+                done
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border/60 bg-card/60 text-muted-foreground"
+              }`}
+            >
+              <StatusIcon className="size-3.5 shrink-0" aria-hidden="true" />
+              <span className="font-medium">{SHORT_LABEL[i.key] ?? i.label}</span>
+              <span className="sr-only">
+                {done ? "complete" : i.status === "partial" ? "in progress" : "not started"} —{" "}
+                {i.hint}
+              </span>
+              {onAction && actionLabel && (
+                <button
+                  type="button"
+                  onClick={onAction}
+                  className="ml-0.5 rounded-full px-1.5 text-[11px] text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  {actionLabel}
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 
 export function PlanningProgressView({
   isLoading,

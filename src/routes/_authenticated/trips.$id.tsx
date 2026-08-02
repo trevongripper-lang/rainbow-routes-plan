@@ -11,7 +11,21 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { ArrowUp, MapPin, Trash2, Star, Archive, RotateCcw, Wand2 } from "lucide-react";
+import {
+  ArrowUp,
+  MapPin,
+  Trash2,
+  Star,
+  Archive,
+  RotateCcw,
+  Wand2,
+  CalendarDays,
+  Users,
+  UserRound,
+  Settings2,
+  ChevronDown,
+} from "lucide-react";
+
 import { Breadcrumbs } from "@/components/page-hero";
 import { toast } from "sonner";
 
@@ -29,6 +43,17 @@ import { Label } from "@/components/ui/label";
 import { AttendeesCard } from "@/components/attendees-card";
 import { PlanningProgress } from "@/components/planning-progress";
 import { TripSectionBar } from "@/components/trip-section-bar";
+import { MissionControl } from "@/components/mission-control";
+
+/** Human date range for the workspace header; "Dates not set" when unavailable. */
+function formatDateRange(start: string | null, end: string | null): string {
+  const fmt = (d: string) =>
+    new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (start && end) return `${fmt(start)} – ${fmt(end)}`;
+  if (start) return `From ${fmt(start)}`;
+  if (end) return `Until ${fmt(end)}`;
+  return "Dates not set";
+}
 
 async function fetchTrip(id: string) {
   // 2 round-trips instead of 5: one combined destinations+votes+comments query,
@@ -142,6 +167,8 @@ function TripDetail() {
   const { data } = useSuspenseQuery(tripQueryOptions(id));
   const [endDateDraft, setEndDateDraft] = useState<string>("");
   const [startDateDraft, setStartDateDraft] = useState<string>("");
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     if (data?.dest.end_date) setEndDateDraft(data.dest.end_date);
@@ -233,11 +260,15 @@ function TripDetail() {
 
   const isOverview = activeTab === "overview";
 
+  const startDate = (dest as { start_date?: string | null }).start_date ?? null;
+  const dateRange = formatDateRange(startDate, dest.end_date);
+
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <Breadcrumbs items={[{ label: "Trips", to: "/trips" }, { label: dest.title }]} />
 
-      {me && (
+      {!isOverview && me && (
         <PlanningProgress
           destinationId={id}
           me={me}
@@ -250,136 +281,227 @@ function TripDetail() {
       )}
 
       {isOverview ? (
-        <header className="overflow-hidden rounded-3xl border border-border/60 bg-card">
-          {dest.image_url ? (
-            <img
-              src={dest.image_url}
-              alt={dest.title}
-              className="aspect-[16/8] w-full object-cover"
-              fetchPriority="high"
-            />
-          ) : (
-            <div className="aspect-[16/8] w-full" style={{ background: "var(--gradient-hero)" }} />
-          )}
-          <div className="p-6 md:p-8">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <MapPin className="size-3.5 text-primary" /> {dest.region}
-                  {dest.country ? ` · ${dest.country}` : ""}
-                  {dest.is_past && (
-                    <span className="ml-1 rounded-full bg-accent/30 px-2 py-0.5 text-accent-foreground">
-                      Past trip
-                    </span>
-                  )}
-                </div>
-                <h1 className="mt-2 font-display text-4xl md:text-5xl">{dest.title}</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Pitched by {author?.display_name ?? "someone"}
-                </p>
-                <div className="mt-3">
-                  <AttendeesCard destinationId={id} />
-                </div>
-              </div>
-              {!dest.is_past && (
-                <button
-                  onClick={() => vote.mutate()}
-                  aria-pressed={voted}
-                  className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${voted ? "border-primary bg-primary/15 text-primary" : "border-border hover:border-primary/50"}`}
-                >
-                  <ArrowUp className={`size-4 ${voted ? "fill-primary" : ""}`} />
-                  <span>{voted ? "Upvoted" : "Upvote"}</span>
-                  <span className="tabular-nums text-muted-foreground">· {votes}</span>
-                </button>
-              )}
-              <Link
-                to="/trips/$id"
-                params={{ id }}
-                search={{ tab: "flights" }}
-                className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-base font-medium text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary/90"
-              >
-                <Wand2 className="size-5" />
-                AI Flight Lookup
-              </Link>
-            </div>
-            {dest.description && (
-              <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
-                {dest.description}
-              </p>
-            )}
-            {canOrganize && (
-              <div className="mt-5 flex flex-wrap items-end gap-3">
-                <InviteModal
-                  destinationId={id}
-                  isOwner={isOwner}
-                  isCoOrganizer={isCoOrganizer}
+        <>
+          <header className="overflow-hidden rounded-3xl border border-border/60 bg-card md:grid md:grid-cols-[38%_1fr]">
+            <div className="relative">
+              {dest.image_url ? (
+                <img
+                  src={dest.image_url}
+                  alt={dest.title}
+                  className="h-[165px] w-full object-cover sm:h-[195px] md:h-full md:min-h-[225px]"
+                  fetchPriority="high"
                 />
+              ) : (
+                <div
+                  className="h-[165px] w-full sm:h-[195px] md:h-full md:min-h-[225px]"
+                  style={{ background: "var(--gradient-hero)" }}
+                />
+              )}
+              <div
+                className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/60 to-transparent"
+                aria-hidden="true"
+              />
+            </div>
+
+            <div className="space-y-3 px-5 py-4 md:px-6 md:py-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="font-display text-2xl md:text-3xl">{dest.title}</h1>
+                {dest.is_past && (
+                  <span className="rounded-full bg-accent/30 px-2 py-0.5 text-xs text-accent-foreground">
+                    Past trip
+                  </span>
+                )}
+              </div>
+
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground sm:flex sm:flex-wrap sm:items-center sm:gap-x-4">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <MapPin className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
+                  <dt className="sr-only">Destination</dt>
+                  <dd className="truncate">
+                    {dest.region}
+                    {dest.country ? ` · ${dest.country}` : ""}
+                  </dd>
+                </div>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <CalendarDays className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
+                  <dt className="sr-only">Dates</dt>
+                  <dd className="truncate">{dateRange}</dd>
+                </div>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <Users className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
+                  <dt className="sr-only">Travelers</dt>
+                  <dd className="truncate">{dest.headcount ?? 2} travelers</dd>
+                </div>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <UserRound className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
+                  <dt className="sr-only">Organizer</dt>
+                  <dd className="truncate">{author?.display_name ?? "someone"}</dd>
+                </div>
+              </dl>
+
+              {dest.description && (
+                <div className="text-sm leading-relaxed text-muted-foreground">
+                  <p className={descExpanded ? "" : "line-clamp-2"}>{dest.description}</p>
+                  <button
+                    type="button"
+                    onClick={() => setDescExpanded((v) => !v)}
+                    aria-expanded={descExpanded}
+                    className="mt-0.5 text-xs text-primary hover:underline"
+                  >
+                    {descExpanded ? "Less" : "More"}
+                  </button>
+                </div>
+              )}
+
+              {me && (
+                <PlanningProgress
+                  variant="inline"
+                  destinationId={id}
+                  me={me}
+                  startDate={(dest as { start_date?: string | null }).start_date ?? null}
+                  endDate={dest.end_date}
+                  headcountFallback={dest.headcount ?? 2}
+                  defaultCurrency={
+                    (dest as { default_currency?: string | null }).default_currency ?? "USD"
+                  }
+                  isOwner={isOwner}
+                />
+              )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                {canOrganize && (
+                  <InviteModal
+                    destinationId={id}
+                    isOwner={isOwner}
+                    isCoOrganizer={isCoOrganizer}
+                  />
+                )}
                 {isOwner && <UnlockTripButton destinationId={id} isOwner={isOwner} />}
-                <div className="flex w-full flex-wrap items-end gap-2 sm:w-auto">
-                  <div className="min-w-0 flex-1 sm:flex-none">
-                    <Label className="text-xs">Start date</Label>
-                    <Input
-                      type="date"
-                      value={startDateDraft}
-                      onChange={(e) => setStartDateDraft(e.target.value)}
-                      className="w-full sm:w-40"
+                {!dest.is_past && (
+                  <button
+                    onClick={() => vote.mutate()}
+                    aria-pressed={voted}
+                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${voted ? "border-primary bg-primary/15 text-primary" : "border-border hover:border-primary/50"}`}
+                  >
+                    <ArrowUp className={`size-3.5 ${voted ? "fill-primary" : ""}`} />
+                    <span>{voted ? "Upvoted" : "Upvote"}</span>
+                    <span className="tabular-nums text-muted-foreground">· {votes}</span>
+                  </button>
+                )}
+                <Link
+                  to="/trips/$id"
+                  params={{ id }}
+                  search={{ tab: "flights" }}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-medium text-primary-foreground transition hover:bg-primary/90"
+                >
+                  <Wand2 className="size-3.5" aria-hidden="true" />
+                  AI Flight Lookup
+                </Link>
+              </div>
+
+              {canOrganize && (
+                <div className="border-t border-border/60 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setSettingsOpen((v) => !v)}
+                    aria-expanded={settingsOpen}
+                    aria-controls="trip-settings-panel"
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <Settings2 className="size-3.5" aria-hidden="true" />
+                    Trip settings
+                    <ChevronDown
+                      className={`size-3.5 transition ${settingsOpen ? "rotate-180" : ""}`}
+                      aria-hidden="true"
                     />
-                  </div>
-                  <div className="min-w-0 flex-1 sm:flex-none">
-                    <Label className="text-xs">End date</Label>
-                    <Input
-                      type="date"
-                      value={endDateDraft}
-                      min={startDateDraft || undefined}
-                      onChange={(e) => setEndDateDraft(e.target.value)}
-                      className="w-full sm:w-40"
-                    />
-                  </div>
-                  {(startDateDraft !==
-                    ((dest as { start_date?: string | null }).start_date ?? "") ||
-                    endDateDraft !== (dest.end_date ?? "")) && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={saveDates.isPending}
-                      onClick={() => saveDates.mutate({ start: startDateDraft, end: endDateDraft })}
-                      className="shrink-0"
-                    >
-                      Save dates
-                    </Button>
+                  </button>
+                  {settingsOpen && (
+                    <div id="trip-settings-panel" className="mt-3 space-y-3">
+                      <div className="flex w-full flex-wrap items-end gap-2">
+                        <div className="min-w-0 flex-1 sm:flex-none">
+                          <Label className="text-xs">Start date</Label>
+                          <Input
+                            type="date"
+                            value={startDateDraft}
+                            onChange={(e) => setStartDateDraft(e.target.value)}
+                            className="w-full sm:w-40"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1 sm:flex-none">
+                          <Label className="text-xs">End date</Label>
+                          <Input
+                            type="date"
+                            value={endDateDraft}
+                            min={startDateDraft || undefined}
+                            onChange={(e) => setEndDateDraft(e.target.value)}
+                            className="w-full sm:w-40"
+                          />
+                        </div>
+                        {(startDateDraft !==
+                          ((dest as { start_date?: string | null }).start_date ?? "") ||
+                          endDateDraft !== (dest.end_date ?? "")) && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={saveDates.isPending}
+                            onClick={() =>
+                              saveDates.mutate({ start: startDateDraft, end: endDateDraft })
+                            }
+                            className="shrink-0"
+                          >
+                            Save dates
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Trips auto-close 1 day after the end date · ratings open then.
+                      </p>
+                      {isOwner && (
+                        <div className="flex flex-wrap gap-4 text-xs">
+                          <button
+                            onClick={() => togglePast.mutate()}
+                            className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+                          >
+                            {dest.is_past ? (
+                              <>
+                                <RotateCcw className="size-3.5" /> Override: reopen trip
+                              </>
+                            ) : (
+                              <>
+                                <Archive className="size-3.5" /> Override: mark as past now
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => deleteTrip.mutate()}
+                            className="inline-flex items-center gap-1.5 text-destructive hover:underline"
+                          >
+                            <Trash2 className="size-3.5" /> Delete this pitch
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-                <p className="basis-full text-[11px] text-muted-foreground sm:basis-auto sm:self-end">
-                  Trips auto-close 1 day after the end date · ratings open then.
-                </p>
-              </div>
-            )}
-            {isOwner && (
-              <div className="mt-4 flex flex-wrap gap-4 text-xs">
-                <button
-                  onClick={() => togglePast.mutate()}
-                  className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
-                >
-                  {dest.is_past ? (
-                    <>
-                      <RotateCcw className="size-3.5" /> Override: reopen trip
-                    </>
-                  ) : (
-                    <>
-                      <Archive className="size-3.5" /> Override: mark as past now
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={() => deleteTrip.mutate()}
-                  className="inline-flex items-center gap-1.5 text-destructive hover:underline"
-                >
-                  <Trash2 className="size-3.5" /> Delete this pitch
-                </button>
-              </div>
-            )}
-          </div>
-        </header>
+              )}
+            </div>
+          </header>
+
+          {me && (
+            <MissionControl
+              destinationId={id}
+              me={me}
+              startDate={(dest as { start_date?: string | null }).start_date ?? null}
+              endDate={dest.end_date}
+              headcountFallback={dest.headcount ?? 2}
+              defaultCurrency={
+                (dest as { default_currency?: string | null }).default_currency ?? "USD"
+              }
+              canOrganize={canOrganize}
+              onOpenTripSettings={() => setSettingsOpen(true)}
+            />
+          )}
+        </>
       ) : (
         <header className="relative overflow-hidden rounded-2xl border border-border/60 bg-card">
           {dest.image_url && (
@@ -426,9 +548,10 @@ function TripDetail() {
         onValueChange={(v) => navigate({ to: "/trips/$id", params: { id }, search: { tab: v } })}
         className="w-full"
       >
-        <TabsContent value="overview" className="mt-6">
+        <TabsContent value="overview" className="mt-5">
           {me ? (
-            <div className="space-y-6">
+            <div className="space-y-5">
+
 
 
               <PollsPanel destinationId={id} me={me} />
