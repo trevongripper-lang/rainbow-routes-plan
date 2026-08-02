@@ -251,19 +251,24 @@ export function PlanningProgress({
     people: "Confirm I'm coming",
   };
 
-  return (
-    <PlanningProgressView
-      isLoading={isLoading}
-      items={items}
-      earned={earned}
-      total={total}
-      pct={pct}
-      remaining={remaining}
-      next={next}
-      actions={actions}
-      actionLabels={actionLabels}
-    />
+  const shared = {
+    isLoading,
+    items,
+    earned,
+    total,
+    pct,
+    remaining,
+    next,
+    actions,
+    actionLabels,
+  };
+
+  return variant === "inline" ? (
+    <PlanningProgressInline {...shared} />
+  ) : (
+    <PlanningProgressView {...shared} />
   );
+
 }
 
 const ICON: Record<string, typeof Lock> = {
