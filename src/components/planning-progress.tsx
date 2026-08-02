@@ -32,6 +32,8 @@ type Props = {
   headcountFallback: number;
   defaultCurrency: string;
   isOwner: boolean;
+  /** "tooltip" (default) keeps the compact bar + tooltip. "inline" renders an expanded header block. */
+  variant?: "tooltip" | "inline";
 };
 
 type MemberRow = { user_id: string; role: string; status: string; travel_status: string };
@@ -44,7 +46,9 @@ export function PlanningProgress({
   endDate,
   headcountFallback,
   isOwner,
+  variant = "tooltip",
 }: Props) {
+
   const qc = useQueryClient();
 
   const results = useQueries({
