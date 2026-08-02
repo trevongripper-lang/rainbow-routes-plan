@@ -14,7 +14,6 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RecoverRouteImport } from './routes/recover'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PricingRouteImport } from './routes/pricing'
-import { Route as McPreviewTempRouteImport } from './routes/mc-preview-temp'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
@@ -64,11 +63,6 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const McPreviewTempRoute = McPreviewTempRouteImport.update({
-  id: '/mc-preview-temp',
-  path: '/mc-preview-temp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -207,7 +201,6 @@ const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
-  '/mc-preview-temp': typeof McPreviewTempRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/recover': typeof RecoverRoute
@@ -239,7 +232,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
-  '/mc-preview-temp': typeof McPreviewTempRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/recover': typeof RecoverRoute
@@ -273,7 +265,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
-  '/mc-preview-temp': typeof McPreviewTempRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/recover': typeof RecoverRoute
@@ -307,7 +298,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
-    | '/mc-preview-temp'
     | '/pricing'
     | '/privacy'
     | '/recover'
@@ -339,7 +329,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
-    | '/mc-preview-temp'
     | '/pricing'
     | '/privacy'
     | '/recover'
@@ -372,7 +361,6 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
-    | '/mc-preview-temp'
     | '/pricing'
     | '/privacy'
     | '/recover'
@@ -406,7 +394,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
-  McPreviewTempRoute: typeof McPreviewTempRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   RecoverRoute: typeof RecoverRoute
@@ -455,13 +442,6 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof PricingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mc-preview-temp': {
-      id: '/mc-preview-temp'
-      path: '/mc-preview-temp'
-      fullPath: '/mc-preview-temp'
-      preLoaderRoute: typeof McPreviewTempRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -696,7 +676,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
-  McPreviewTempRoute: McPreviewTempRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   RecoverRoute: RecoverRoute,
