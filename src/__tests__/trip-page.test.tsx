@@ -142,6 +142,6 @@ describe("Trips page mission-control layout", () => {
     expect(screen.queryByLabelText(/start date/i)).not.toBeInTheDocument();
     await user.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText(/Delete this pitch/i)).toBeInTheDocument();
+    expect(screen.getByText(/Trips auto-close/i)).toBeInTheDocument();
   });
 });
