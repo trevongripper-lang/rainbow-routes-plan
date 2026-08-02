@@ -4,6 +4,7 @@ import { useQueries } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { netForUser, type CostRow, type SettlementRow } from "@/lib/trip-balances";
 import { computePlanningItems, pendingPlanningItems } from "@/lib/planning-progress";
+import { AttendeesCard } from "@/components/attendees-card";
 import {
   AlertCircle,
   Circle,
@@ -29,8 +30,6 @@ export type MissionControlProps = {
   canOrganize: boolean;
   /** Opens the Trip settings disclosure in the header. */
   onOpenTripSettings?: () => void;
-  /** Opens the existing crew dialog. */
-  onOpenCrew?: () => void;
 };
 
 function money(cents: number, currency: string) {
@@ -101,7 +100,6 @@ export function MissionControl({
   defaultCurrency,
   canOrganize,
   onOpenTripSettings,
-  onOpenCrew,
 }: MissionControlProps) {
   const results = useQueries({
     queries: [
@@ -325,16 +323,9 @@ export function MissionControl({
               label="Awaiting response"
               value={invitesQ.isError ? "—" : invitesQ.isLoading ? "…" : String(awaitingResponse)}
             />
-            {onOpenCrew && (
-              <button
-                type="button"
-                onClick={onOpenCrew}
-                className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
-              >
-                See everyone on this trip
-                <ArrowRight className="size-3" aria-hidden="true" />
-              </button>
-            )}
+            <div className="pt-1">
+              <AttendeesCard destinationId={destinationId} />
+            </div>
           </div>
         )}
       </Card>
