@@ -45,7 +45,7 @@ vi.mock("@tanstack/react-query", () => ({
       comments: [],
     },
   }),
-  useQuery: () => ({ data: {} }),
+  useQuery: () => ({ data: { role: "co_organizer" } }),
   useMutation: () => ({ mutate: () => {}, isPending: false }),
   useQueryClient: () => ({ invalidateQueries: () => {} }),
   queryOptions: (opts: unknown) => opts,
