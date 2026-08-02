@@ -51,7 +51,7 @@ function Landing() {
     <div className="min-h-screen" style={{ background: "var(--gradient-hero)" }}>
       <header className="safe-top mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <div className="flex items-center gap-2 font-display text-xl">
-          <span className="inline-block size-2.5 rounded-full bg-primary" />
+          <img src="/icon-192.png" alt="Tribe Trips logo" width={28} height={28} className="size-7 rounded-md" />
           Tribe Trips
         </div>
         <nav className="flex items-center gap-2 text-sm">
@@ -259,7 +259,7 @@ function Landing() {
       <footer className="border-t border-border/40">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 md:flex-row">
           <div className="flex items-center gap-2 font-display text-sm">
-            <span className="inline-block size-2 rounded-full bg-primary" />
+            <img src="/icon-192.png" alt="" aria-hidden="true" width={20} height={20} className="size-5 rounded" />
             Tribe Trips
           </div>
           <nav className="flex items-center gap-4 text-xs text-muted-foreground">

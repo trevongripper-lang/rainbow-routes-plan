@@ -391,7 +391,7 @@ function AppShell() {
             <div className="flex items-center gap-3">
               <SidebarTrigger className="text-muted-foreground hover:bg-card hover:text-foreground" />
               <Link to="/trips" className="flex items-center gap-2 font-display text-lg">
-                <span className="inline-block size-2.5 rounded-full bg-primary" />
+                <img src="/icon-192.png" alt="" aria-hidden="true" width={24} height={24} className="size-6 rounded-md" />
                 Tribe Trips
               </Link>
             </div>
@@ -468,7 +468,7 @@ function AppSidebar({
             onClick={closeMobile}
             className="flex items-center gap-2 font-display text-lg text-sidebar-foreground"
           >
-            <span className="inline-block size-2.5 rounded-full bg-primary" />
+            <img src="/icon-192.png" alt="" aria-hidden="true" width={24} height={24} className="size-6 rounded-md" />
             <span>Tribe Trips</span>
           </Link>
 

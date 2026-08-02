@@ -118,6 +118,7 @@ export const Route = createRootRouteWithContext<{
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png" },
       { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
