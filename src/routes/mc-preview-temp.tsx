@@ -9,7 +9,7 @@ import {
   nextBestAction,
 } from "@/lib/planning-progress";
 
-export const Route = createFileRoute("/__mc-preview")({ component: Preview });
+export const Route = createFileRoute("/mc-preview-temp")({ component: Preview });
 
 const ID = "preview-trip";
 const ME = "me-1";
