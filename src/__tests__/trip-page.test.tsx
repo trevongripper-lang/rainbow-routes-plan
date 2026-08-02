@@ -1,5 +1,6 @@
 import { vi, describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import React from "react";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -83,6 +84,10 @@ vi.mock("@/components/trip-events-strip", () => ({ TripEventsStrip: () => null }
 vi.mock("@/components/smart-add", () => ({ SmartAdd: () => null }));
 vi.mock("@/components/polls", () => ({ PollsPanel: () => null }));
 vi.mock("@/components/attendees-card", () => ({ AttendeesCard: () => null }));
+vi.mock("@/components/mission-control", () => ({
+  MissionControl: () =>
+    React.createElement("div", { "data-testid": "mission-control" }, "Mission Control"),
+}));
 vi.mock("@/components/planning-progress", () => ({
   PlanningProgress: () =>
     React.createElement(
@@ -94,18 +99,49 @@ vi.mock("@/components/planning-progress", () => ({
 
 import { Route } from "@/routes/_authenticated/trips.$id";
 
-describe("Trips page layout", () => {
-  it("renders the planning progress bar above the hero heading", () => {
-    const Component = (Route as unknown as { component: React.FC }).component;
-    render(<Component />);
+function renderPage() {
+  const Component = (Route as unknown as { component: React.FC }).component;
+  return render(<Component />);
+}
 
-    const progress = screen.getByTestId("planning-progress");
+describe("Trips page mission-control layout", () => {
+  it("orders trip title, planning progress, then Mission Control", () => {
+    renderPage();
+
     const hero = screen.getByRole("heading", { name: /Test Trip/i, level: 1 });
+    const progress = screen.getByTestId("planning-progress");
+    const mission = screen.getByTestId("mission-control");
 
-    expect(progress).toBeInTheDocument();
-    expect(hero).toBeInTheDocument();
+    expect(hero.compareDocumentPosition(progress) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      progress.compareDocumentPosition(mission) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 
-    const following = progress.compareDocumentPosition(hero) & Node.DOCUMENT_POSITION_FOLLOWING;
-    expect(following).toBeTruthy();
+  it("keeps the compact metadata row in the header", () => {
+    renderPage();
+    expect(screen.getByText(/3 travelers/i)).toBeInTheDocument();
+    expect(screen.getByText(/Dates not set/i)).toBeInTheDocument();
+    expect(screen.getByText(/Trip Owner/i)).toBeInTheDocument();
+  });
+
+  it("expands the clamped description via the More control", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const more = screen.getByRole("button", { name: "More" });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    await user.click(more);
+    expect(screen.getByRole("button", { name: "Less" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("keeps Trip settings collapsed behind an aria-expanded disclosure", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const toggle = screen.getByRole("button", { name: /trip settings/i });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText(/start date/i)).not.toBeInTheDocument();
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText(/Delete this pitch/i)).toBeInTheDocument();
   });
 });
