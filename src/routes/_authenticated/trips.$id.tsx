@@ -247,6 +247,10 @@ function TripDetail() {
 
   const isOverview = activeTab === "overview";
 
+  const startDate = (dest as { start_date?: string | null }).start_date ?? null;
+  const dateRange = formatDateRange(startDate, dest.end_date);
+
+
   return (
     <div className="space-y-5">
       <Breadcrumbs items={[{ label: "Trips", to: "/trips" }, { label: dest.title }]} />
