@@ -1,142 +1,77 @@
-# Phase 1 — additive schema for Tribe-owned verification (final)
+# Hardening: rate limits, password policy, role authorization tests
 
-All guardrails folded in. Additive only, one transaction, no `src/` changes.
+Three security items from the beta blocker list (BB-9, BB-16, BB-17).
 
-## Verified pre-state (`public.profiles` ACL)
+## 1. Rate limiting on sensitive endpoints
 
-```text
-table-level:  anon          = a r d D x t m      (no UPDATE)
-              authenticated = a r d D x t m      (no UPDATE)
-              service_role  = a r w d D x t m
-column-level: authenticated = UPDATE (display_name)
-              authenticated = UPDATE (avatar_url)
-```
+The project already has a working limiter: the `rl_hit` database function called
+through `src/lib/rate-limit.functions.ts` (service-role only, fail-open). Today it
+only covers login / signup / password-reset and chatter posts.
 
-No grant is touched. New columns are browser-unwritable by construction.
+Verified as currently **unprotected**: flight lookup (AI), smart-add URL enrichment
+and AI parsing, geocoding, trip pitch, and account deletion.
 
-## Migration SQL
+Add a shared per-user limiter helper and apply it:
 
-```sql
--- Phase 1: additive schema for Tribe-owned email verification.
--- No grant changes. No runtime code changes. Reversible.
+| Endpoint | Limit |
+|---|---|
+| Flight lookup (AI) | 10/min, 100/day |
+| Smart-add AI parse | 10/min, 100/day |
+| Smart-add URL fetch | 20/min, 200/day |
+| Geocode search | 30/min, 300/day |
+| Pitch a trip | 5/hour |
+| Delete my account | 3/hour |
+| Magic link / email resend paths | reuse existing `reset` scope |
 
--- 1. Profile confirmation state (no defaults)
-ALTER TABLE public.profiles
-  ADD COLUMN email_confirmed_at timestamptz,
-  ADD COLUMN confirmed_email    text;
+Behaviour on limit: the server function throws a friendly "Slow down — try again in
+Ns" error, which the existing toast surfaces. Limits are keyed by user id (all of
+these are authenticated), so one user cannot exhaust another's budget.
 
-ALTER TABLE public.profiles
-  ADD CONSTRAINT profiles_email_confirmation_paired_chk
-    CHECK ((email_confirmed_at IS NULL) = (confirmed_email IS NULL)),
-  ADD CONSTRAINT profiles_confirmed_email_normalized_chk
-    CHECK (confirmed_email IS NULL OR confirmed_email = lower(btrim(confirmed_email)));
+## 2. Leaked-password protection and stronger password rules
 
-COMMENT ON COLUMN public.profiles.email_confirmed_at IS
-  'Phase 1, unread until Phase 2. Written only by SECURITY DEFINER verification RPCs.';
-COMMENT ON COLUMN public.profiles.confirmed_email IS
-  'lower(btrim(email)) the confirmation applies to. Confirmation is void once auth email diverges.';
+- Turn on the breached-password (HIBP) check so passwords found in known breaches
+  are rejected at signup and password change.
+- Raise the minimum password length from 8 to 10 and require a mix of letters and
+  digits.
+- Align the UI, which is currently inconsistent: the sign-up form hints "At least 6
+  characters" and the password-setup form enforces 8. Both become 10 with a short
+  requirements hint and a clear error when the backend rejects a breached password
+  ("This password appeared in a known data breach — pick another").
 
--- 2. Verification tokens: hash-only, service_role only
-CREATE TABLE public.email_verification_tokens (
-  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id        uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  token_hash     text NOT NULL,
-  email          text NOT NULL,
-  created_at     timestamptz NOT NULL DEFAULT now(),
-  expires_at     timestamptz NOT NULL,
-  used_at        timestamptz,
-  invalidated_at timestamptz,
-  CONSTRAINT email_verification_tokens_hash_hex_chk
-    CHECK (token_hash ~ '^[0-9a-f]{64}$'),
-  CONSTRAINT email_verification_tokens_email_normalized_chk
-    CHECK (email = lower(btrim(email))),
-  CONSTRAINT email_verification_tokens_expiry_chk
-    CHECK (expires_at > created_at)
-);
+## 3. Negative authorization tests for every trip role
 
-CREATE UNIQUE INDEX email_verification_tokens_hash_uidx
-  ON public.email_verification_tokens (token_hash);
+Extend the SQL test suite (currently one co-organizer file) with a full negative
+matrix, run inside a rolled-back transaction like the existing tests.
 
-CREATE INDEX email_verification_tokens_open_idx
-  ON public.email_verification_tokens (user_id)
-  WHERE used_at IS NULL AND invalidated_at IS NULL;
+Roles covered: owner, co-organizer, member, former member (row deleted), outsider
+(signed in, not on the trip), anonymous.
 
-COMMENT ON TABLE public.email_verification_tokens IS
-  'Tribe-owned verification links. Stores lowercase hex sha256 only; raw token exists solely in the delivered email.';
+Assertions per role across `destinations`, `trip_members`, `trip_invites`,
+`trip_costs`, `trip_stays`, `trip_flights`, `trip_tickets`, `trip_polls`,
+`trip_poll_votes`, `comments`, `notifications`:
 
-REVOKE ALL ON public.email_verification_tokens FROM PUBLIC, anon, authenticated;
-GRANT ALL ON public.email_verification_tokens TO service_role;
+- Outsider and anonymous: no read, no write on any trip-scoped table.
+- Former member: loses read access immediately after removal.
+- Member: can read; cannot edit trip details, invite, delete the trip, change roles,
+  or modify another member's rows; can modify their own rows.
+- Co-organizer: can invite and edit trip content; cannot delete the trip, change
+  roles, or unlock/pay.
+- Owner: full control; still cannot touch another trip they're not on.
+- Invite-token abuse: an expired / already-redeemed / wrong-trip token cannot be
+  redeemed.
+- Admin escalation: a non-admin cannot insert into `user_roles` or call
+  admin-gated RPCs.
 
-ALTER TABLE public.email_verification_tokens ENABLE ROW LEVEL SECURITY;
--- Intentionally zero policies.
+Each assertion raises on failure so a single `psql` run either passes fully or
+aborts with the failing case named.
 
--- 3. Consent provenance
-ALTER TABLE public.beta_consents
-  ADD COLUMN privacy_version text,
-  ADD COLUMN source          text;
+## Technical notes
 
-ALTER TABLE public.beta_consents
-  ADD CONSTRAINT beta_consents_source_allowed_chk
-    CHECK (source IS NULL OR source IN ('signup','interstitial','backfill'));
-
--- 4. Backfill: real auth timestamp, id-to-id mapping, idempotent
-UPDATE public.profiles p
-SET email_confirmed_at = u.email_confirmed_at,
-    confirmed_email    = lower(btrim(u.email))
-FROM auth.users u
-WHERE u.id = p.id
-  AND u.email_confirmed_at IS NOT NULL
-  AND u.email IS NOT NULL
-  AND btrim(u.email) <> ''
-  AND COALESCE(u.is_anonymous, false) = false
-  AND p.email_confirmed_at IS NULL;
-```
-
-`token_hash` is a 64-char lowercase hex string, constraint-enforced. Partial index predicate is exactly `used_at IS NULL AND invalidated_at IS NULL`. Neither confirmation column has a default. No functions, triggers, auth settings, or `src/` edits.
-
-## Post-execution report I will return
-
-Baseline already measured: **6 expected** confirmed non-anonymous users of 8 profiles.
-
-```sql
--- expected vs actual
-SELECT (SELECT count(*) FROM auth.users u JOIN public.profiles p ON p.id = u.id
-        WHERE u.email_confirmed_at IS NOT NULL AND u.email IS NOT NULL
-          AND COALESCE(u.is_anonymous,false) = false) AS expected,
-       (SELECT count(*) FROM public.profiles WHERE email_confirmed_at IS NOT NULL) AS actual;
-
--- mismatched rows (expect 0)
-SELECT p.id FROM public.profiles p JOIN auth.users u ON u.id = p.id
-WHERE p.email_confirmed_at IS NOT NULL
-  AND (p.email_confirmed_at IS DISTINCT FROM u.email_confirmed_at
-       OR p.confirmed_email IS DISTINCT FROM lower(btrim(u.email)));
-
--- partial state (expect 0)
-SELECT count(*) FROM public.profiles
-WHERE (email_confirmed_at IS NULL) <> (confirmed_email IS NULL);
-```
-
-Plus: before/after `profiles` ACL dump (expect identical), `has_table_privilege('anon'|'authenticated', 'public.email_verification_tokens', ...)` all false, and confirmation that sign-in, sign-up, consent, and trip access paths are untouched (no `src/` file modified, no policy or function altered).
-
-## Tracked separately (not changed here)
-
-`public.beta_consents` carries table-wide `arwdDxtm` to both `anon` and `authenticated`. Logged as a standalone security review item for after Phase 1.
-
-## Rollback SQL
-
-```sql
-BEGIN;
-DROP TABLE public.email_verification_tokens;
-ALTER TABLE public.profiles
-  DROP CONSTRAINT profiles_email_confirmation_paired_chk,
-  DROP CONSTRAINT profiles_confirmed_email_normalized_chk,
-  DROP COLUMN email_confirmed_at,
-  DROP COLUMN confirmed_email;
-ALTER TABLE public.beta_consents
-  DROP CONSTRAINT beta_consents_source_allowed_chk,
-  DROP COLUMN privacy_version,
-  DROP COLUMN source;
-COMMIT;
-```
-
-No grant restoration required. I stop after Phase 1.
+- New file `src/lib/rate-limits.ts` (shared scope table) plus a `rlHitUser` helper
+  in `src/lib/rate-limit.functions.ts`; per-endpoint calls added at the top of each
+  handler, before any external API call.
+- Auth policy changes applied through the auth configuration tool
+  (`password_hibp_enabled`, `password_min_length`, required character classes).
+- New test file `supabase/tests/negative_authorization.test.sql`, following the JWT
+  claim-shim pattern already used by `co_organizer_rls.test.sql`.
+- No schema migration is required for items 1 and 2; item 3 is test-only.
