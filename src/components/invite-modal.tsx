@@ -297,11 +297,11 @@ export function InviteModal({
 
           <div className="rounded-md border border-border/60 bg-background/40 p-3 text-xs text-muted-foreground">
             <LinkIcon className="mr-1 inline size-3" />
-            Free plan trips are capped at 5 people total.{" "}
+            Free plan trips are capped at 5 people. Unlock this trip or{" "}
             <a href="/pricing" className="text-primary hover:underline">
-              Upgrade to Pro
+              upgrade to Organizer Plus
             </a>{" "}
-            for unlimited crews.
+            for larger crews.
           </div>
         </div>
       </DialogContent>

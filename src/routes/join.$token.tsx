@@ -2,9 +2,21 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { MapPin } from "lucide-react";
+import { MapPin, Users, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
+
+const FREE_PLAN_CAP = 5;
+
+function isTripFullError(e: unknown): boolean {
+  const msg =
+    e instanceof Error
+      ? e.message
+      : e && typeof e === "object" && "message" in e
+        ? String((e as { message: unknown }).message)
+        : "";
+  return msg.toLowerCase().includes("trip is full") || msg.toLowerCase().includes("unlock");
+}
 
 export const Route = createFileRoute("/join/$token")({
   head: () => ({
@@ -54,6 +66,8 @@ function JoinPage() {
     },
   });
 
+  const [fullTripError, setFullTripError] = useState(false);
+
   const accept = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.rpc("redeem_trip_invite", { _token: token });
@@ -64,7 +78,13 @@ function JoinPage() {
       toast.success("Welcome to the crew!");
       navigate({ to: "/trips/$id", params: { id: destinationId } });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't join"),
+    onError: (e) => {
+      if (isTripFullError(e)) {
+        setFullTripError(true);
+      } else {
+        toast.error(e instanceof Error ? e.message : "Couldn't join");
+      }
+    },
   });
 
   if (isLoading)
@@ -107,7 +127,27 @@ function JoinPage() {
             {data.country ? ` · ${data.country}` : ""}
           </p>
 
-          {data.expired ? (
+          {fullTripError ? (
+            <div className="mt-6 space-y-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-full bg-amber-500/20 p-2">
+                  <Lock className="size-4 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg">This trip is full</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Free plan trips are capped at {FREE_PLAN_CAP} people. The organizer needs to
+                    unlock this trip before more people can join.
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                <Users className="mr-1 inline size-3" />
+                Ask the organizer to unlock the trip, or check back once they have upgraded to
+                Organizer Plus.
+              </p>
+            </div>
+          ) : data.expired ? (
             <p className="mt-6 rounded-md bg-destructive/15 px-3 py-2 text-sm text-destructive">
               This invite has expired.
             </p>

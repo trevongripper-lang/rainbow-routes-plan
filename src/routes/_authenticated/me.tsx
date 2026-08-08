@@ -391,15 +391,15 @@ function MyAccount({
                 Bring the whole <em className="text-primary not-italic">crew</em>.
               </h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Upgrade to Pro for unlimited members per trip, priority support, and everything we
-                ship next.
+                Organizer Plus unlocks unlimited trip sizes, priority support, and early access to
+                everything we ship next.
               </p>
             </div>
             <Link
               to="/pricing"
               className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 font-medium text-primary-foreground shadow-[var(--shadow-soft)] hover:opacity-90"
             >
-              <Sparkles className="size-4" /> Upgrade to Pro
+              <Sparkles className="size-4" /> Get Organizer Plus
             </Link>
           </div>
         </div>
