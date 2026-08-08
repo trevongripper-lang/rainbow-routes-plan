@@ -781,7 +781,7 @@ export function CostsTab({
       if (n < 1 || n > headcountMax) {
         if (!isPro && n > FREE_HEADCOUNT_MAX) {
           throw new Error(
-            `Free plan supports up to ${FREE_HEADCOUNT_MAX} people. Upgrade to Pro for larger crews.`,
+            `Free plan trips are capped at ${FREE_HEADCOUNT_MAX} people. Unlock this trip or upgrade to Organizer Plus for larger crews.`,
           );
         }
         throw new Error(`Group size must be between 1 and ${headcountMax}.`);
@@ -798,7 +798,7 @@ export function CostsTab({
           msg.includes("check constraint")
         ) {
           throw new Error(
-            `Free plan supports up to ${FREE_HEADCOUNT_MAX} people per trip. Upgrade for larger crews.`,
+            `Free plan trips are capped at ${FREE_HEADCOUNT_MAX} people. Unlock this trip or upgrade to Organizer Plus for larger crews.`,
           );
         }
         throw error;
