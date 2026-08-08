@@ -2,9 +2,21 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { MapPin } from "lucide-react";
+import { MapPin, Users, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
+
+const FREE_PLAN_CAP = 5;
+
+function isTripFullError(e: unknown): boolean {
+  const msg =
+    e instanceof Error
+      ? e.message
+      : e && typeof e === "object" && "message" in e
+        ? String((e as { message: unknown }).message)
+        : "";
+  return msg.toLowerCase().includes("trip is full") || msg.toLowerCase().includes("unlock");
+}
 
 export const Route = createFileRoute("/join/$token")({
   head: () => ({
