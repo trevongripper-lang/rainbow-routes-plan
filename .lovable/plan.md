@@ -1,77 +1,50 @@
-# Hardening: rate limits, password policy, role authorization tests
+# Audit and harden free-plan 5-person headcount enforcement
 
-Three security items from the beta blocker list (BB-9, BB-16, BB-17).
+## Goal
+Confirm that the current "free trips are capped at 5 people" behavior is consistently enforced across every user path, with clear upgrade prompts, while keeping headcount automatic at trip creation.
 
-## 1. Rate limiting on sensitive endpoints
+## Current state (verified)
+- Trip creation ("Pitch a trip") does **not** ask for group size. `destinations.headcount` defaults to 2.
+- The 5-person cap is enforced in three places:
+  1. Database trigger `check_headcount_cap` on `public.destinations` rejects `headcount > 5` for free/unlocked trips owned by non-Pro users.
+  2. `redeem_trip_invite` blocks joining when `cur_count >= cap` and the trip is not unlocked and the owner is not legacy Pro.
+  3. Costs tab UI caps the headcount input at 5 for free trips and surfaces an upgrade message.
 
-The project already has a working limiter: the `rl_hit` database function called
-through `src/lib/rate-limit.functions.ts` (service-role only, fail-open). Today it
-only covers login / signup / password-reset and chatter posts.
+## Work to do
 
-Verified as currently **unprotected**: flight lookup (AI), smart-add URL enrichment
-and AI parsing, geocoding, trip pitch, and account deletion.
+### 1. Map every path that can grow a trip beyond 5 people
+Check the following entry points and confirm each one either cannot exceed 5 or is gated by the same unlock prompt:
+- Accepting an invite (`/join/$token` → `redeem_trip_invite`).
+- Editing headcount in Costs tab (`src/components/trip-tabs.tsx`).
+- Any bulk/management flows that insert `trip_members` directly.
+- Any future API or server function that updates `destinations.headcount`.
 
-Add a shared per-user limiter helper and apply it:
+### 2. Standardize user-facing copy
+Ensure the free-plan cap message is the same everywhere:
+- "Free plan trips are capped at 5 people. Unlock this trip or upgrade to Pro for larger crews."
+- Replace older/legacy strings such as "Upgrade for larger crews" and "Organizer Plus" where they still appear.
 
-| Endpoint | Limit |
-|---|---|
-| Flight lookup (AI) | 10/min, 100/day |
-| Smart-add AI parse | 10/min, 100/day |
-| Smart-add URL fetch | 20/min, 200/day |
-| Geocode search | 30/min, 300/day |
-| Pitch a trip | 5/hour |
-| Delete my account | 3/hour |
-| Magic link / email resend paths | reuse existing `reset` scope |
+### 3. Improve the join-page error experience
+When `redeem_trip_invite` fails because the trip is full, the `/join/$token` page currently only shows a generic toast. Add an inline state that:
+- Explains the trip has reached the free-plan limit.
+- Points the user to contact the organizer or suggests upgrading.
+- Does not allow retry until the organizer unlocks.
 
-Behaviour on limit: the server function throws a friendly "Slow down — try again in
-Ns" error, which the existing toast surfaces. Limits are keyed by user id (all of
-these are authenticated), so one user cannot exhaust another's budget.
+### 4. Add/update tests
+- Database test: inserting a 6th member into a free, non-unlocked trip fails with the expected error.
+- Database test: updating `destinations.headcount` to 6 on a free trip fails.
+- UI test: Costs tab disables/saves headcount > 5 and shows the upgrade prompt.
 
-## 2. Leaked-password protection and stronger password rules
+### 5. Verify owner/co-organizer messaging
+Confirm the "Free plan trips are capped at 5 people total" helper text in the invite modal and the "Unlock trip" CTA are visible to the right roles.
 
-- Turn on the breached-password (HIBP) check so passwords found in known breaches
-  are rejected at signup and password change.
-- Raise the minimum password length from 8 to 10 and require a mix of letters and
-  digits.
-- Align the UI, which is currently inconsistent: the sign-up form hints "At least 6
-  characters" and the password-setup form enforces 8. Both become 10 with a short
-  requirements hint and a clear error when the backend rejects a breached password
-  ("This password appeared in a known data breach — pick another").
+## Out of scope
+- Changing the pricing model or tier amounts.
+- Adding a headcount field to the pitch/creation flow.
+- Removing the free-plan cap.
 
-## 3. Negative authorization tests for every trip role
-
-Extend the SQL test suite (currently one co-organizer file) with a full negative
-matrix, run inside a rolled-back transaction like the existing tests.
-
-Roles covered: owner, co-organizer, member, former member (row deleted), outsider
-(signed in, not on the trip), anonymous.
-
-Assertions per role across `destinations`, `trip_members`, `trip_invites`,
-`trip_costs`, `trip_stays`, `trip_flights`, `trip_tickets`, `trip_polls`,
-`trip_poll_votes`, `comments`, `notifications`:
-
-- Outsider and anonymous: no read, no write on any trip-scoped table.
-- Former member: loses read access immediately after removal.
-- Member: can read; cannot edit trip details, invite, delete the trip, change roles,
-  or modify another member's rows; can modify their own rows.
-- Co-organizer: can invite and edit trip content; cannot delete the trip, change
-  roles, or unlock/pay.
-- Owner: full control; still cannot touch another trip they're not on.
-- Invite-token abuse: an expired / already-redeemed / wrong-trip token cannot be
-  redeemed.
-- Admin escalation: a non-admin cannot insert into `user_roles` or call
-  admin-gated RPCs.
-
-Each assertion raises on failure so a single `psql` run either passes fully or
-aborts with the failing case named.
-
-## Technical notes
-
-- New file `src/lib/rate-limits.ts` (shared scope table) plus a `rlHitUser` helper
-  in `src/lib/rate-limit.functions.ts`; per-endpoint calls added at the top of each
-  handler, before any external API call.
-- Auth policy changes applied through the auth configuration tool
-  (`password_hibp_enabled`, `password_min_length`, required character classes).
-- New test file `supabase/tests/negative_authorization.test.sql`, following the JWT
-  claim-shim pattern already used by `co_organizer_rls.test.sql`.
-- No schema migration is required for items 1 and 2; item 3 is test-only.
+## Acceptance criteria
+- A free trip cannot exceed 5 members through any user-facing path.
+- Every block path shows the same, clear unlock/upgrade message.
+- The join page surfaces the "trip full" state inline, not only as a toast.
+- Existing tests pass and new tests cover the >5 scenarios.
