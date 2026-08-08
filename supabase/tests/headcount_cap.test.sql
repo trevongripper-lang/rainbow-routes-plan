@@ -87,7 +87,7 @@ SET LOCAL "request.jwt.claims" = '{"sub":"11111111-1111-1111-1111-111111111111"}
 DO $$
 DECLARE
   tok text;
-  i int;
+  member_id uuid;
   member_uuids uuid[] := ARRAY[
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
@@ -96,13 +96,13 @@ DECLARE
   ];
 BEGIN
   -- Owner is already a member via add_owner_as_member trigger. Add 4 more to reach 5.
-  FOREACH i IN ARRAY member_uuids LOOP
+  FOREACH member_id IN ARRAY member_uuids LOOP
     INSERT INTO auth.users (id, email, aud, role, instance_id, created_at, updated_at)
-    VALUES (i, 'member-' || i || '@test.local', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now(), now())
+    VALUES (member_id, 'member-' || member_id || '@test.local', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now(), now())
     ON CONFLICT (id) DO NOTHING;
 
     INSERT INTO public.trip_members (destination_id, user_id, role)
-    VALUES ('99999999-9999-9999-9999-999999999999', i, 'member')
+    VALUES ('99999999-9999-9999-9999-999999999999', member_id, 'member')
     ON CONFLICT (destination_id, user_id) DO NOTHING;
   END LOOP;
 
