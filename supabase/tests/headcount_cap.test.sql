@@ -39,9 +39,8 @@ BEGIN
   INSERT INTO public.destinations (id, user_id, title, region, country, headcount, unlock_status)
   VALUES (plus_dest_id, plus_owner_id, 'Plus Test Trip', 'Test Region', 'Testland', 2, 'free');
 
-  INSERT INTO public.profiles (id, plus_status)
-  VALUES (plus_owner_id, 'active')
-  ON CONFLICT (id) DO NOTHING;
+  -- handle_new_user already created a profile row; update it to active Plus.
+  UPDATE public.profiles SET plus_status = 'active' WHERE id = plus_owner_id;
 END $$;
 
 -- =========================================================================
